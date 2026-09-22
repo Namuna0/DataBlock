@@ -192,9 +192,6 @@ public static partial class EnemyTextConverter
         foreach (EnemyStatDefinition stat in enemy.Stats) Need(stat.Formula, Token(stat.Name, "能力値名", "【】") + "の値");
         if (enemy.Actions.Count == 0 || enemy.Actions.Any(x => x == null)) throw new InvalidOperationException("行動が空またはnullです。");
         if (enemy.Skills.Count == 0 || enemy.Skills.Any(x => x == null || x.Skill == null)) throw new InvalidOperationException("行動スキルが空またはnullです。");
-        if (enemy.Skills.Any(x => x.Skill.Categories == null || x.Skill.Categories.Count == 0))
-            throw new InvalidOperationException("行動スキルにはカテゴリーが1件以上必要です。");
-
         var references = new HashSet<string>(enemy.Actions.Select(x => { ActionText(x); return Need(x.SkillName, "行動スキル名"); }), StringComparer.Ordinal);
         string[] skillNames = enemy.Skills.Select(x => Token(x.Skill.Name, "行動スキル名", "《》")).ToArray();
         var skillNameSet = new HashSet<string>(skillNames, StringComparer.Ordinal);
@@ -309,7 +306,11 @@ public static partial class EnemyTextConverter
             return false;
         int next = index + 1;
         SkipEmpty(lines, ref next);
-        return next < lines.Length && Match(SyntaxLine(lines[next]), @"^(?:〈[^〉]+〉)+$").Success;
+        if (next >= lines.Length) return false;
+        string firstBodyLine = SyntaxLine(lines[next]);
+        if (Match(firstBodyLine, @"^(?:〈[^〉]+〉)+$").Success) return true;
+        return Match(firstBodyLine,
+            @"^【(?:習得条件|宣言条件|消費リソース|クールタイム|発動ロール|アクティブ効果|カウンター効果|パッシブ効果|ロールプレイ効果|クリティカル|クリティカル効果|ファンブル効果|宣言効果|セカンドスパイク|サードスパイク)】").Success;
     }
 
     private static List<string> ParseCategories(string text)

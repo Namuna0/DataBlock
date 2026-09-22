@@ -160,6 +160,10 @@ internal sealed class EnemyTextConverterTests
         quoted = quoted.Replace("白くて可愛らしい小鳥", "白くて\"\"可愛らしい\"\"小鳥");
         Assert.That(EnemyTextConverter.Parse(quoted).Enemy.Flavor,
             Is.EqualTo("白くて\"可愛らしい\"小鳥の魔物、人を見つけると沢山集まってくる。"));
+
+        string categoryless = source.Replace("《飛来》\n〈移動〉\n", "《飛来》\n");
+        string normalized = EnemyTextConverter.Normalize(categoryless);
+        Assert.That(EnemyTextConverter.Build(EnemyTextConverter.Parse(normalized)), Is.EqualTo(normalized));
     }
 
     private static string ReadFixture(string fileName)
