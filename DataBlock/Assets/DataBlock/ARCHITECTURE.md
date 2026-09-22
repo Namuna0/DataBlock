@@ -2,20 +2,37 @@
 
 ## 方針
 
-- `Runtime/Model` をスキルデータの単一モデルとし、カタログに版番号は持たせません。
+- `Runtime/Model` をスキル・エネミーデータの単一モデルとし、カタログに版番号は持たせません。
 - テキスト解析はインポート時に行い、ゲーム中は `SkillCatalog` の索引から取得します。
 - スキルは表示名ではなく、変更しない `SkillCatalogRecord.Id` で識別します。
 - 1万件を1つの巨大データへ保存しない場合は、`SkillCatalogSharding` で固定数のShardへ決定的に分割します。同じIDは常に同じShardへ入ります。
 
 ## フォルダー
 
-- `DataBlock.cs`: MonoBehaviourのエントリーポイント。
+- `DataBlock.cs`: スキル用MonoBehaviourのエントリーポイント。
+- `EnemyDataBlock.cs`: エネミー用MonoBehaviourのエントリーポイント。スキル用データとは分けて保持します。
 - `Runtime/Model`: 現行のシリアライズモデルとenum。
 - `Runtime/Text`: 構文の読取、条件、スキル効果、状態効果、書出し。
 - `Runtime/Import`: 大量テキストを1件ずつ解析し、失敗を個別に返す処理。
 - `Runtime/Catalog`: 安定ID、Shard分割、ID・名前・カテゴリー索引。
 - `Editor`: Inspector専用コード。Playerビルドには入りません。
 - `Editor/Tests`: 往復変換、バッチのエラー隔離、Shard、各文型のEditMode回帰テスト。
+
+## エネミーテキスト
+
+`EnemyTextConverter` は、エネミー本体、行動規則、行動スキル、ドロップ表を1件の `EnemyTextData` へ変換します。行動スキルの中身には既存の `SkillTextConverter` を再利用し、同じ文型を二重実装しません。エネミー名やスキル名による個別処理は持ちません。
+
+行動規則は次の意味データへ分けて保存します。
+
+- 発動タイミング（毎ターン／自身への行動に対する反応）
+- 毎ターンの回数
+- AND条件またはOR条件
+- ランダム対象の選択範囲
+- 発動する行動スキル名
+
+参照された行動スキルは同じエネミー内にちょうど1件必要で、各定義はカテゴリーを1件以上持ちます。未定義、未参照、重複したスキルはエラーになります。ドロップ表は `1dN` の範囲内で、各範囲が重ならないことを検証します。範囲に空きがある場合は「ドロップなし」として許可します。
+
+`EnemyDataBlockEditor` では、スキル用Inspectorと独立して、構文統一、テキストからのシリアライズ設定、テキスト再構築、JSON出力を実行できます。
 
 ## 大量インポート
 
@@ -50,12 +67,14 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 
 `Editor/Tests/Fixtures/ElementalSageSkills.txt` は、複合属性攻撃、対象範囲、追加ロール、ターン契機、状態連鎖、召喚などの代表文型9件を固定した回帰fixtureです。
 
+`Editor/Tests/Fixtures/ChirupippiEnemy.txt` は、OR行動条件、接近グループ内の対象選択、攻撃への反応、3つの行動スキル、欠落範囲を含むドロップ表を固定したエネミー回帰fixtureです。
+
 ## パラメーター契約
 
 ### 基本の条件・効果
 
 - `SelectEquippedWeaponFromCategories`: `[個数, カテゴリー1, カテゴリー2, ...]`。候補は2件以上で重複不可です。
-- `ActionTarget`: `[Source|Receiver, 行動カテゴリー, SameMeleeGroup|Any]`。
+- `ActionTarget`: `[Source|Receiver, 行動カテゴリー, SameMeleeGroup|Any|Self]`。
 - `ActionOrigin`: 現在は `[Skill]`、`EffectKind`: 現在は `[Counter]` です。
 - `SkillAttack`: `[対象actor, 威力式]`。
 - `ModifyResource`: `[対象actor, リソース名, signedDelta]`。実行時は現在値へ `signedDelta` を加算し、正規文は「-1変化させる」です。

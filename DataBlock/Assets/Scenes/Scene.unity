@@ -231,6 +231,199 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1649472812
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1649472813}
+  - component: {fileID: 1649472814}
+  m_Layer: 0
+  m_Name: EnemyDataBlocka
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1649472813
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1649472812}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1649472814
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1649472812}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bf6d8b151e349c9a343c1a125814af0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDataBlock
+  Data:
+    Enemy:
+      Name: "\u30C1\u30EB\u30D4\u30C3\u30D4"
+      Categories:
+      - "\u4E00\u822C\u30A8\u30CD\u30DF\u30FC"
+      - "\u9B54\u6CD5\u751F\u7269"
+      - "\u5C0F\u578B"
+      DangerLevel: "\u2606"
+      Stats:
+      - Name: "\u654F\u6377B"
+        Formula: 0.5
+      - Name: "HP\u6700\u5927\u5024"
+        Formula: 100
+      - Name: "SAN\u6700\u5927\u5024"
+        Formula: 100
+      - Name: "\u9632\u5FA1\u70B9"
+        Formula: 0
+      Actions:
+      - Timing: 0
+        UsesPerTurn: 1
+        AllConditions: []
+        AnyConditions:
+        - Type: 0
+          Value: "\u63A5\u8FD1"
+          Negated: 1
+        - Type: 1
+          Value: 
+          Negated: 0
+        TargetSelector: 1
+        SkillName: "\u98DB\u6765"
+      - Timing: 0
+        UsesPerTurn: 1
+        AllConditions:
+        - Type: 0
+          Value: "\u63A5\u8FD1"
+          Negated: 0
+        AnyConditions: []
+        TargetSelector: 2
+        SkillName: "\u3064\u3064\u304F"
+      - Timing: 1
+        UsesPerTurn: 0
+        AllConditions:
+        - Type: 2
+          Value: "\u653B\u6483"
+          Negated: 0
+        AnyConditions: []
+        TargetSelector: 0
+        SkillName: "\u9CE5\u56DE\u907F"
+      Skills:
+      - Skill:
+          Name: "\u98DB\u6765"
+          Categories:
+          - "\u79FB\u52D5"
+          AcquisitionConditions:
+            And: []
+            Or: []
+          DeclarationConditions:
+            And: []
+            Or: []
+          Costs: []
+          CooldownTurns: 0
+          Roll:
+            Count: 1
+            Formula: "1d100*[\u654F\u6377B]"
+            Target: 15
+          Effects:
+          - Type: 1
+            Triggers: []
+            Contents:
+            - Type: 4
+              Parameters:
+              - Self
+              - Target
+              - "\u63A5\u8FD1"
+          Overrides: []
+          Choices: []
+          Flavor: "\u3071\u305F\u3071\u305F\u3068\u3053\u3061\u3089\u306B\u5411\u304B\u3063\u3066\u304F\u308B\u3002"
+        Summons: []
+        States: []
+      - Skill:
+          Name: "\u3064\u3064\u304F"
+          Categories:
+          - "\u653B\u6483"
+          - "\u7269\u7406"
+          AcquisitionConditions:
+            And: []
+            Or: []
+          DeclarationConditions:
+            And: []
+            Or: []
+          Costs: []
+          CooldownTurns: 0
+          Roll:
+            Count: 1
+            Formula: "1d100*[\u654F\u6377B]"
+            Target: 20
+          Effects:
+          - Type: 1
+            Triggers: []
+            Contents:
+            - Type: 14
+              Parameters:
+              - Target
+              - 50+1d100
+          Overrides: []
+          Choices: []
+          Flavor: "\u3064\u3093\u3064\u3093\u3068\u304F\u3061\u3070\u3057\u3067\u653B\u6483\u3059\u308B\u3002"
+        Summons: []
+        States: []
+      - Skill:
+          Name: "\u9CE5\u56DE\u907F"
+          Categories:
+          - "\u56DE\u907F"
+          AcquisitionConditions:
+            And: []
+            Or: []
+          DeclarationConditions:
+            And: []
+            Or: []
+          Costs: []
+          CooldownTurns: 0
+          Roll:
+            Count: 1
+            Formula: "1d100*[\u654F\u6377B]"
+            Target: "[\u5BFE\u8C61\u306E\u9054\u6210\u5024]"
+          Effects:
+          - Type: 2
+            Triggers: []
+            Contents:
+            - Type: 12
+              Parameters:
+              - Self
+              - "\u653B\u6483"
+          Overrides: []
+          Choices: []
+          Flavor: "\u5C0F\u3055\u304F\u98DB\u3093\u3067\u653B\u6483\u3092\u56DE\u907F\u3059\u308B\u3002"
+        Summons: []
+        States: []
+      DropRoll: 1d100
+      Drops:
+      - Minimum: 31
+        Maximum: 70
+        ItemName: "\u9CE5\u8089"
+        Amount: 1
+      - Minimum: 71
+        Maximum: 100
+        ItemName: "\u5C0F\u3055\u306A\u7FBD\u6839"
+        Amount: 1
+      Flavor: "\u767D\u304F\u3066\u53EF\u611B\u3089\u3057\u3044\u5C0F\u9CE5\u306E\u9B54\u7269\u3001\u4EBA\u3092\u898B\u3064\u3051\u308B\u3068\u6CA2\u5C71\u96C6\u307E\u3063\u3066\u304F\u308B\u3002"
 --- !u!1 &1782748330
 GameObject:
   m_ObjectHideFlags: 0
@@ -242,7 +435,7 @@ GameObject:
   - component: {fileID: 1782748332}
   - component: {fileID: 1782748331}
   m_Layer: 0
-  m_Name: DataBlock
+  m_Name: SkilDataBlocka
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -262,22 +455,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: "\u30D6\u30ED\u30C3\u30B5\u30E0\u30B9\u30C8\u30FC\u30E0"
+      Name: "\u30DE\u30CA\u30A2\u30ED\u30FC"
       Categories:
-      - "\u30A8\u30EC\u30E1\u30F3\u30BF\u30EB\u30BB\u30FC\u30B8\u30B9\u30AD\u30EB"
+      - "\u9B54\u8853\u5E2B\u5171\u901A\u30B9\u30AD\u30EB"
       - "\u653B\u6483"
       - "\u9B54\u6CD5"
       - "\u30A8\u30EB\u30D5\u9B54\u6CD5"
-      - "\u7CBE\u970A\u9B54\u6CD5"
-      - "\u6C34\u7CBE"
-      - "\u571F\u7CBE"
-      - "\u4E0A\u7D1A"
+      - "\u30DE\u30CA\u64CD\u4F5C\u7CFB"
+      - "\u9B54\u6CD5\u77E2"
       AcquisitionConditions:
         And:
         - Type: 6
           Parameters:
           - "\u6C7A\u610F"
-          - 270
+          - 90
         Or: []
       DeclarationConditions:
         And:
@@ -287,9 +478,9 @@ MonoBehaviour:
           - 1
         - Type: 2
           Parameters:
-          - 4
-          - UpTo
-          - Distinct
+          - 1
+          - Exact
+          - Default
         Or: []
       Costs:
       - Kind: 0
@@ -297,32 +488,20 @@ MonoBehaviour:
         Amount: 6
       - Kind: 0
         Resource: MP
-        Amount: 10
+        Amount: 6
       CooldownTurns: 0
       Roll:
         Count: 1
         Formula: "1d100*[\u77E5\u529BB]"
-        Target: 39
+        Target: 30
       Effects:
       - Type: 1
         Triggers: []
         Contents:
-        - Type: 14
+        - Type: 7
           Parameters:
           - Target
-          - ElementalWeapon
-          - 22
-          - "13*([\u6C34\u5C5E\u6027B]+[\u571F\u5C5E\u6027B])"
-          - "\u6C34"
-          - "\u571F"
-      - Type: 1
-        Triggers: []
-        Contents:
-        - Type: 1
-          Parameters:
-          - AllAllies
-          - HP
-          - "\u5A01\u529B\u306E\xD70.15\u500D"
+          - 100
       - Type: 6
         Triggers: []
         Contents:
@@ -343,29 +522,15 @@ MonoBehaviour:
         Contents:
         - Type: 1
           Parameters:
-          - 32
-      - Type: 8
-        Triggers: []
-        Contents:
-        - Type: 14
-          Parameters:
-          - AttributePower
-          - "23*([\u6C34\u5C5E\u6027B]+[\u571F\u5C5E\u6027B])"
+          - 110
       - Type: 9
         Triggers: []
         Contents:
         - Type: 1
           Parameters:
-          - 42
-      - Type: 9
-        Triggers: []
-        Contents:
-        - Type: 14
-          Parameters:
-          - AttributePower
-          - "33*([\u6C34\u5C5E\u6027B]+[\u571F\u5C5E\u6027B])"
+          - 120
       Choices: []
-      Flavor: "\u821E\u3044\u6563\u308B\u82B1\u5F01\u304C\u5D50\u3068\u306A\u308A\u3001\u4E71\u308C\u308B\u5F71\u3068\u306A\u3063\u3066\u8996\u754C\u3092\u8986\u3046\u3002\n\u82B1\u306F\u54B2\u304D\u8A87\u308C\u3069\u3001\u3044\u3064\u304B\u6563\u308B\u3002\u305D\u306E\u5FAA\u74B0\u306E\u4F53\u73FE\u3002\n\u5473\u65B9\u306B\u306F\u7652\u3057\u3092\u5C4A\u3051\u3001\u6575\u306F\u8D6B\u304F\u67D3\u3081\u3042\u3052\u3066\u3002"
+      Flavor: "\u30A8\u30EB\u30D5\u9B54\u6CD5\u306E\u57FA\u790E\u306E\u653B\u6483\u9B54\u6CD5\u3002\n\u5927\u6C17\u4E2D\u306E\u30DE\u30CA\u3092\u62BC\u3057\u56FA\u3081\u3001\u6575\u3092\u8CAB\u304F\u77E2\u3078\u3068\u5909\u3048\u308B\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332
@@ -388,4 +553,5 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 1782748332}
+  - {fileID: 1649472813}
   - {fileID: 1555061158}

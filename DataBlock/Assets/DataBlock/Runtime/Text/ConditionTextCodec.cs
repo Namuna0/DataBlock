@@ -58,6 +58,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Condition(ConditionType.ActionTarget, "Source", m.Groups[1].Value, "SameMeleeGroup");
         m = M(text, @"^〈([^〉]+)〉を受けた対象に対して$");
         if (m.Success) return Condition(ConditionType.ActionTarget, "Receiver", m.Groups[1].Value, "Any");
+        m = M(text, @"^自身が〈([^〉]+)〉を受けた時$");
+        if (m.Success) return Condition(ConditionType.ActionTarget, "Receiver", m.Groups[1].Value, "Self");
         m = M(text, @"^自身と(同じ接近グループの|接近していない)キャラクターから((?:〈[^〉]+〉)(?:または〈[^〉]+〉)*)を受けた時$");
         if (m.Success) return Condition(ConditionType.ReceiveFromCharacter, new[] { m.Groups[1].Value == "同じ接近グループの" ? "SameMeleeGroup" : "NotEngaged" }.Concat(AllMatches(m.Groups[2].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
         throw new InvalidOperationException("未対応の条件です：" + text);
@@ -111,7 +113,8 @@ public static partial class SkillTextConverter
                 p = Args(item.Parameters, 3, "ActionTarget");
                 if (p[0] == "Source" && p[2] == "SameMeleeGroup") return "〈" + p[1] + "〉を発動した自身と同じ接近グループのキャラクターに対して";
                 if (p[0] == "Receiver" && p[2] == "Any") return "〈" + p[1] + "〉を受けた対象に対して";
-                throw new InvalidOperationException("ActionTargetはSource/SameMeleeGroupまたはReceiver/Anyに対応します。");
+                if (p[0] == "Receiver" && p[2] == "Self") return "自身が〈" + p[1] + "〉を受けた時";
+                throw new InvalidOperationException("ActionTargetはSource/SameMeleeGroup、Receiver/Any、Receiver/Selfに対応します。");
             default: throw new InvalidOperationException("習得・宣言条件には対応していない条件種別です：" + item.Type);
         }
     }
