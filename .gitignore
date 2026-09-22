@@ -1,0 +1,63 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Memory captures
+[Mm]emoryCaptures/
+
+# Recordings
+[Rr]ecordings/
+
+# Asset Store tools
+[Aa]ssets/AssetStoreTools*
+
+# Visual Studio / Rider / IDE generated files
+.vs/
+.vscode/
+.idea/
+
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity generated meta files for ignored files
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Crash reports
+sysinfo.txt
+crashlytics-build.properties
+
+# Builds
+*.apk
+*.aab
+*.unitypackage
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Addressables temporary/generated files
+[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+
+# Auto-generated streaming assets
+[Aa]ssets/[Ss]treamingAssets/aa.meta
+[Aa]ssets/[Ss]treamingAssets/aa/
