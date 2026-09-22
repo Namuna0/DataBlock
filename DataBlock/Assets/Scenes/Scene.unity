@@ -262,24 +262,110 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: 
-      Categories: []
+      Name: "\u30D6\u30ED\u30C3\u30B5\u30E0\u30B9\u30C8\u30FC\u30E0"
+      Categories:
+      - "\u30A8\u30EC\u30E1\u30F3\u30BF\u30EB\u30BB\u30FC\u30B8\u30B9\u30AD\u30EB"
+      - "\u653B\u6483"
+      - "\u9B54\u6CD5"
+      - "\u30A8\u30EB\u30D5\u9B54\u6CD5"
+      - "\u7CBE\u970A\u9B54\u6CD5"
+      - "\u6C34\u7CBE"
+      - "\u571F\u7CBE"
+      - "\u4E0A\u7D1A"
       AcquisitionConditions:
-        And: []
+        And:
+        - Type: 6
+          Parameters:
+          - "\u6C7A\u610F"
+          - 270
         Or: []
       DeclarationConditions:
-        And: []
+        And:
+        - Type: 7
+          Parameters:
+          - "\u9B54\u6CD5\u6B66\u5668"
+          - 1
+        - Type: 2
+          Parameters:
+          - 4
+          - UpTo
+          - Distinct
         Or: []
-      Costs: []
+      Costs:
+      - Kind: 0
+        Resource: ACT
+        Amount: 6
+      - Kind: 0
+        Resource: MP
+        Amount: 10
       CooldownTurns: 0
       Roll:
-        Count: 0
-        Formula: 
-        Target: 
-      Effects: []
-      Overrides: []
+        Count: 1
+        Formula: "1d100*[\u77E5\u529BB]"
+        Target: 39
+      Effects:
+      - Type: 1
+        Triggers: []
+        Contents:
+        - Type: 14
+          Parameters:
+          - Target
+          - ElementalWeapon
+          - 22
+          - "13*([\u6C34\u5C5E\u6027B]+[\u571F\u5C5E\u6027B])"
+          - "\u6C34"
+          - "\u571F"
+      - Type: 1
+        Triggers: []
+        Contents:
+        - Type: 1
+          Parameters:
+          - AllAllies
+          - HP
+          - "\u5A01\u529B\u306E\xD70.15\u500D"
+      - Type: 6
+        Triggers: []
+        Contents:
+        - Type: 3
+          Parameters:
+          - Self
+          - ACT
+          - 1
+      Overrides:
+      - Type: 5
+        Triggers: []
+        Contents:
+        - Type: 2
+          Parameters:
+          - 1.5
+      - Type: 8
+        Triggers: []
+        Contents:
+        - Type: 1
+          Parameters:
+          - 32
+      - Type: 8
+        Triggers: []
+        Contents:
+        - Type: 14
+          Parameters:
+          - AttributePower
+          - "23*([\u6C34\u5C5E\u6027B]+[\u571F\u5C5E\u6027B])"
+      - Type: 9
+        Triggers: []
+        Contents:
+        - Type: 1
+          Parameters:
+          - 42
+      - Type: 9
+        Triggers: []
+        Contents:
+        - Type: 14
+          Parameters:
+          - AttributePower
+          - "33*([\u6C34\u5C5E\u6027B]+[\u571F\u5C5E\u6027B])"
       Choices: []
-      Flavor: 
+      Flavor: "\u821E\u3044\u6563\u308B\u82B1\u5F01\u304C\u5D50\u3068\u306A\u308A\u3001\u4E71\u308C\u308B\u5F71\u3068\u306A\u3063\u3066\u8996\u754C\u3092\u8986\u3046\u3002\n\u82B1\u306F\u54B2\u304D\u8A87\u308C\u3069\u3001\u3044\u3064\u304B\u6563\u308B\u3002\u305D\u306E\u5FAA\u74B0\u306E\u4F53\u73FE\u3002\n\u5473\u65B9\u306B\u306F\u7652\u3057\u3092\u5C4A\u3051\u3001\u6575\u306F\u8D6B\u304F\u67D3\u3081\u3042\u3052\u3066\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332
