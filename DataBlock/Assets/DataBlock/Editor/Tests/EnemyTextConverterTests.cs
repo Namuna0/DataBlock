@@ -22,10 +22,12 @@ internal sealed class EnemyTextConverterTests
         string normalized = EnemyTextConverter.Normalize(source);
         EnemyTextData parsed = EnemyTextConverter.Parse(source);
 
+        StringAssert.StartsWith("```\n", normalized);
         Assert.That(EnemyTextConverter.Build(parsed), Is.EqualTo(normalized));
         Assert.That(EnemyTextConverter.Normalize(normalized), Is.EqualTo(normalized));
 
         string json = JsonUtility.ToJson(parsed, true);
+        StringAssert.DoesNotContain("DropRoll", json);
         EnemyTextData restored = JsonUtility.FromJson<EnemyTextData>(json);
         Assert.That(EnemyTextConverter.Build(restored), Is.EqualTo(normalized));
     }
@@ -70,7 +72,6 @@ internal sealed class EnemyTextConverterTests
             .Single(x => x.Type == EffectContentType.InvalidateIncomingAction).Parameters,
             Is.EqualTo(new[] { "Self", "攻撃" }));
 
-        Assert.That(enemy.DropRoll, Is.EqualTo("1d100"));
         Assert.That(enemy.Drops.Select(x => x.Minimum + "-" + x.Maximum + ":" + x.ItemName + "x" + x.Amount),
             Is.EqualTo(new[] { "31-70:鳥肉x1", "71-100:小さな羽根x1" }));
         StringAssert.StartsWith("白くて可愛らしい小鳥", enemy.Flavor);
@@ -145,6 +146,16 @@ internal sealed class EnemyTextConverterTests
     }
 
     [Test]
+    public void DropRoll_IsAlwaysOneHundredSided()
+    {
+        string invalid = ReadFixture("ChirupippiEnemy.txt")
+            .Replace("【ドロップロール】1d100", "【ドロップロール】1d20");
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => EnemyTextConverter.Parse(invalid));
+        StringAssert.Contains("固定の1d100", error.Message);
+    }
+
+    [Test]
     public void TransportAndFlavorHeaders_DoNotCorruptSkillBoundaries()
     {
         string source = ReadFixture("ChirupippiEnemy.txt");
@@ -164,6 +175,15 @@ internal sealed class EnemyTextConverterTests
         string categoryless = source.Replace("《飛来》\n〈移動〉\n", "《飛来》\n");
         string normalized = EnemyTextConverter.Normalize(categoryless);
         Assert.That(EnemyTextConverter.Build(EnemyTextConverter.Parse(normalized)), Is.EqualTo(normalized));
+
+        string paddedHeader = source.Replace("《飛来》\n〈移動〉", "《 飛来 》\n〈移動〉");
+        Assert.That(EnemyTextConverter.Normalize(paddedHeader), Is.EqualTo(EnemyTextConverter.Normalize(source)));
+
+        string choiceSkill = source.Replace(
+            "《飛来》\n〈移動〉",
+            "《飛来》\n【説明】下記の効果を一つ選んで実行する。\n\n●飛ぶ\n〈移動〉");
+        EnemyTextData choiceParsed = EnemyTextConverter.Parse(EnemyTextConverter.Normalize(choiceSkill));
+        Assert.That(choiceParsed.Enemy.Skills[0].Skill.Choices.Single().Name, Is.EqualTo("飛ぶ"));
     }
 
     private static string ReadFixture(string fileName)

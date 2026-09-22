@@ -20,9 +20,7 @@ public static partial class EnemyTextConverter
 
     private static List<EnemyDropDefinition> OrderedDrops(EnemyDefinition enemy)
     {
-        Match roll = Match(Need(enemy.DropRoll, "ドロップロール"), @"^1d([0-9]+)$");
-        if (!roll.Success) throw new InvalidOperationException("ドロップロールは1dNの形式で指定してください。");
-        int sides = Number(roll.Groups[1].Value, 1, "ドロップロールの面数");
+        const int sides = 100;
         if (enemy.Drops == null || enemy.Drops.Count == 0)
             throw new InvalidOperationException("ドロップ定義がありません。");
         if (enemy.Drops.Any(x => x == null)) throw new InvalidOperationException("ドロップ定義にnullがあります。");

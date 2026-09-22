@@ -66,7 +66,6 @@ public sealed class EnemyDefinition
     public List<EnemyStatDefinition> Stats = new List<EnemyStatDefinition>();
     public List<EnemyActionRule> Actions = new List<EnemyActionRule>();
     public List<SkillTextData> Skills = new List<SkillTextData>();
-    public string DropRoll = "";
     public List<EnemyDropDefinition> Drops = new List<EnemyDropDefinition>();
     [TextArea(3, 10)] public string Flavor = "";
 }

@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 public static partial class EnemyTextConverter
 {
     private const string Separator = "――――――――――――――――";
+    private const string DropRollHeader = "【ドロップロール】1d100";
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
     private static readonly ConcurrentDictionary<EnemyRegexKey, Regex> RegexCache = new ConcurrentDictionary<EnemyRegexKey, Regex>();
 
@@ -30,7 +31,7 @@ public static partial class EnemyTextConverter
     {
         EnemyDefinition enemy = Validate(data);
         var sb = new StringBuilder();
-        sb.AppendLine("```none");
+        sb.AppendLine("```");
         sb.AppendLine("《" + Token(enemy.Name, "エネミー名", "《》") + "》");
         sb.AppendLine(CategoryText(enemy.Categories));
         sb.AppendLine("【危険度】" + Need(enemy.DangerLevel, "危険度"));
@@ -48,7 +49,7 @@ public static partial class EnemyTextConverter
         }
 
         sb.AppendLine();
-        sb.AppendLine("【ドロップロール】" + Need(enemy.DropRoll, "ドロップロール"));
+        sb.AppendLine(DropRollHeader);
         foreach (EnemyDropDefinition drop in OrderedDrops(enemy)) sb.AppendLine(DropText(drop));
         if (!string.IsNullOrWhiteSpace(enemy.Flavor))
         {
@@ -125,7 +126,7 @@ public static partial class EnemyTextConverter
             SkipEmpty(lines, ref index);
             if (index >= lines.Length) break;
             string line = SyntaxLine(lines[index]);
-            dropHeader = Match(line, @"^【ドロップロール】(.+)$");
+            dropHeader = Match(line, @"^【ドロップロール】(.*)$");
             if (dropHeader.Success) break;
             string skillName;
             if (!TrySkillBoundary(lines, index, referencedNames, out skillName))
@@ -135,7 +136,7 @@ public static partial class EnemyTextConverter
             while (next < lines.Length)
             {
                 string candidate = SyntaxLine(lines[next]);
-                if (Match(candidate, @"^【ドロップロール】(.+)$").Success) break;
+                if (Match(candidate, @"^【ドロップロール】(.*)$").Success) break;
                 string nextName;
                 if (TrySkillBoundary(lines, next, referencedNames, out nextName)) break;
                 next++;
@@ -152,10 +153,11 @@ public static partial class EnemyTextConverter
 
         if (!dropHeader.Success)
         {
-            if (index < lines.Length) dropHeader = Match(SyntaxLine(lines[index]), @"^【ドロップロール】(.+)$");
+            if (index < lines.Length) dropHeader = Match(SyntaxLine(lines[index]), @"^【ドロップロール】(.*)$");
             if (!dropHeader.Success) throw new InvalidOperationException("【ドロップロール】がありません。");
         }
-        enemy.DropRoll = Need(dropHeader.Groups[1].Value, "ドロップロール");
+        if (dropHeader.Groups[1].Value != "1d100")
+            throw LineError(index, lines[index], "ドロップロールは固定の1d100です。");
         index++;
 
         while (index < lines.Length)
@@ -212,7 +214,6 @@ public static partial class EnemyTextConverter
                     throw new InvalidOperationException("行動スキル名と召喚名は重複できません：" + summonName);
             }
         }
-        Need(enemy.DropRoll, "ドロップロール");
         OrderedDrops(enemy);
         return enemy;
     }
@@ -281,7 +282,7 @@ public static partial class EnemyTextConverter
 
     private static Match OpeningFence(string line)
     {
-        return Match(line, @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:none|text|txt|markdown|md)?""?\s*\|?$");
+        return Match(line, @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:text|txt|markdown|md)?""?\s*\|?$");
     }
 
     private static string NormalizeFenceLine(string raw)
@@ -295,7 +296,7 @@ public static partial class EnemyTextConverter
     private static bool TryNameHeader(string line, out string name)
     {
         Match match = Match(line, @"^《([^《》]+)》$");
-        name = match.Success ? match.Groups[1].Value : "";
+        name = match.Success ? match.Groups[1].Value.Trim() : "";
         return match.Success;
     }
 
@@ -310,7 +311,7 @@ public static partial class EnemyTextConverter
         string firstBodyLine = SyntaxLine(lines[next]);
         if (Match(firstBodyLine, @"^(?:〈[^〉]+〉)+$").Success) return true;
         return Match(firstBodyLine,
-            @"^【(?:習得条件|宣言条件|消費リソース|クールタイム|発動ロール|アクティブ効果|カウンター効果|パッシブ効果|ロールプレイ効果|クリティカル|クリティカル効果|ファンブル効果|宣言効果|セカンドスパイク|サードスパイク)】").Success;
+            @"^【(?:説明|習得条件|宣言条件|消費リソース|クールタイム|発動ロール|アクティブ効果|カウンター効果|パッシブ効果|ロールプレイ効果|クリティカル|クリティカル効果|ファンブル効果|宣言効果|セカンドスパイク|サードスパイク)】").Success;
     }
 
     private static List<string> ParseCategories(string text)
