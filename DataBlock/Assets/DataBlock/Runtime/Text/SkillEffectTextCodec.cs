@@ -12,6 +12,7 @@ public static partial class SkillTextConverter
             string body = RegexReplace(part.Trim(), @"^さらに\s*", "");
             if (type == EffectType.SecondSpike || type == EffectType.ThirdSpike)
             {
+                if (TryReadPassiveSpike(skill, type, body)) continue;
                 Match combinedSpike = M(body, @"^このアクティブ効果によるスキル値(?:は)?([^、]+)、属性威力(?:は)?(.+?)に変化する。?$");
                 if (!combinedSpike.Success) combinedSpike = M(body, @"^このアクティブ効果によるスキル値(?:は)?(.+?)の武器威力\+(.+?)に変化する。?$");
                 if (combinedSpike.Success)
@@ -45,9 +46,16 @@ public static partial class SkillTextConverter
                     AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackComponent, "AttributePower", spike.Groups[1].Value));
                     continue;
                 }
-                throw new InvalidOperationException("スパイクはスキル値・属性威力・被ダメージ軽減値の変更に対応します。");
+                spike = M(body, @"^この発動ロールは(.+?)に変化する。?$");
+                if (spike.Success)
+                {
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollFormula, spike.Groups[1].Value));
+                    continue;
+                }
+                throw new InvalidOperationException("スパイクはスキル値・属性威力・被ダメージ軽減値・発動ロールの変更に対応します。");
             }
             if (!IsOrdinary(type)) throw new InvalidOperationException("効果種別を指定してください。");
+            if (TryReadPassiveSkillLine(skill, type, body)) continue;
             var triggers = NoTriggers();
             Match branch = M(body, @"^[-－]\s*([0-9]+)[：:]\s*(.+)$");
             if (branch.Success)
@@ -226,6 +234,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.SkillAttack, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^ターン中に発動した[、,]\s*全てのバフによる効果を([0-9]+)回まで適用しなおす。?$");
         if (m.Success) return Content(EffectContentType.ReapplyEffects, "Turn", "バフ", "All", m.Groups[1].Value);
+        m = M(s, @"^このエリアの採取を([0-9]+)回追加で行うことができる。?$");
+        if (m.Success) return Content(EffectContentType.AddAreaGathering, Number(m.Groups[1].Value, 1, "追加採取回数").ToString());
         m = M(s, @"^追加で(.+?)のダイスロールを行う。?$");
         if (m.Success) return Content(EffectContentType.RollDice, "", m.Groups[1].Value);
         m = M(s, @"^追加ロール([0-9]+)として(.+?)のダイスロールを行う。?$");
@@ -271,6 +281,8 @@ public static partial class SkillTextConverter
     private static string SkillContentText(EffectContent content)
     {
         if (content == null) throw new InvalidOperationException("効果内容がnullです。");
+        string passiveText;
+        if (TryPassiveContentText(content, out passiveText)) return passiveText;
         string[] p;
         switch (content.Type)
         {
@@ -326,12 +338,17 @@ public static partial class SkillTextConverter
                 return "追加ロール" + p[0] + "として" + p[1] + "のダイスロールを行う。";
             case EffectContentType.Summon:
                 p = Args(content.Parameters, 1, "Summon"); return "ペット《" + p[0] + "》を召喚する。";
+            case EffectContentType.AddAreaGathering:
+                p = Args(content.Parameters, 1, "AddAreaGathering");
+                return "このエリアの採取を" + Number(p[0], 1, "追加採取回数") + "回追加で行うことができる。";
             default: throw new InvalidOperationException("通常のスキル効果には使用できない種別です：" + content.Type);
         }
     }
     private static string SkillTriggerText(EffectType type, List<TriggerDefinition> triggers)
     {
         if (triggers == null) throw new InvalidOperationException("Triggersがnullです。");
+        string passiveText;
+        if (TryPassiveTriggerText(type, triggers, out passiveText)) return passiveText;
         if (triggers.Count == 0) return "";
         if (triggers.Count != 1 || !ValidTrigger(triggers[0])) throw new InvalidOperationException("今回のスキル効果文は、個別トリガー1個に対応します。");
         TriggerDefinition t = triggers[0]; var c = t.Conditions;
@@ -356,6 +373,8 @@ public static partial class SkillTextConverter
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
         if (effect.Triggers == null || effect.Triggers.Any(x => !ValidTrigger(x)) || content == null) throw new InvalidOperationException("上書き効果が不正です。");
+        string passiveText;
+        if (TryPassiveOverrideText(effect, content, out passiveText)) return passiveText;
         var triggers = effect.Triggers; string[] p;
         switch (content.Type)
         {
@@ -427,6 +446,12 @@ public static partial class SkillTextConverter
                 if (p[0] == "AttributePower" && (effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike) && triggers.Count == 0)
                     return "このアクティブ効果による属性威力は" + p[1] + "に変化する。";
                 break;
+            case OverrideContentType.SetActivationRollFormula:
+                p = Args(content.Parameters, 1, "SetActivationRollFormula");
+                if ((effect.Type != EffectType.SecondSpike && effect.Type != EffectType.ThirdSpike) || triggers.Count != 0) break;
+                string formula = Need(p[0], "発動ロール式");
+                if (M(formula, @"\s+目標値").Success) throw new InvalidOperationException("スパイクの発動ロール式に空白＋「目標値」は使用できません。");
+                return "この発動ロールは" + formula + "に変化する。";
             case OverrideContentType.MultiplyAttackComponent:
                 p = Args(content.Parameters, 2, "MultiplyAttackComponent");
                 if (p[0] != "AttributePower") break;

@@ -2,7 +2,7 @@
 
 ## 方針
 
-- `Runtime/Model` をスキル・エネミーデータの単一モデルとし、カタログに版番号は持たせません。
+- `Runtime/Model` をスキル・エネミー・装備データの現行モデルとし、カタログに版番号は持たせません。
 - テキスト解析はインポート時に行い、ゲーム中は `SkillCatalog` の索引から取得します。
 - スキルは表示名ではなく、変更しない `SkillCatalogRecord.Id` で識別します。
 - 1万件を1つの巨大データへ保存しない場合は、`SkillCatalogSharding` で固定数のShardへ決定的に分割します。同じIDは常に同じShardへ入ります。
@@ -11,8 +11,10 @@
 
 - `DataBlock.cs`: スキル用MonoBehaviourのエントリーポイント。
 - `EnemyDataBlock.cs`: エネミー用MonoBehaviourのエントリーポイント。スキル用データとは分けて保持します。
+- `EquipmentDataBlock.cs`: 装備用MonoBehaviourのエントリーポイント。スキル・エネミーとは分けて保持します。
+- `EquipmentGradeResolver.cs`: 基準装備を変更せず、名前末尾の`☆N`に対応するグレード補正をコピーへ適用します。
 - `Runtime/Model`: 現行のシリアライズモデルとenum。
-- `Runtime/Text`: 構文の読取、条件、スキル効果、状態効果、書出し。
+- `Runtime/Text`: 構文の読取、条件、スキル効果、状態効果、装備効果、書出し。
 - `Runtime/Import`: 大量テキストを1件ずつ解析し、失敗を個別に返す処理。
 - `Runtime/Catalog`: 安定ID、Shard分割、ID・名前・カテゴリー索引。
 - `Editor`: Inspector専用コード。Playerビルドには入りません。
@@ -33,6 +35,21 @@
 参照された行動スキルは同じエネミー内にちょうど1件必要です。未定義、未参照、重複したスキルはエラーになります。ドロップロールは全エネミー共通の `1d100` とし、シリアライズ項目には持ちません。ドロップ表は1～100の範囲内で、各範囲が重ならないことを検証します。範囲に空きがある場合は「ドロップなし」として許可します。
 
 `EnemyDataBlockEditor` では、スキル用Inspectorと独立して、構文統一、テキストからのシリアライズ設定、テキスト再構築、JSON出力を実行できます。
+
+## 装備テキスト
+
+`EquipmentTextConverter` は装備本体、価値、複数の装備部位、装備条件、武器威力、装備効果、状態、装備が付与するスキルを1件の `EquipmentTextData` へ変換します。`EquipmentDataBlockEditor` から、ほかのデータ種別と独立して構文統一、シリアライズ設定、再構築、JSON出力を実行できます。
+
+名前付き効果は `EquipmentEffectGroup` として保持し、《魔法書効果》のような表示名と意味データを分離します。能力値補正、行動倍率、被ダメージ倍率、アイテム使用許可、状態スタック付与を装備名に依存しない効果種別へ変換し、未対応行を生テキストのまま保存しません。
+
+装備が付与するスキルは装備データ内の `SkillTextData` として保持します。トップレベルのスキルカタログへは混在させず、条件・ロール・効果の構文と意味モデルだけを通常スキルと共有するため、スキル文型を二重実装しません。装備テキストの区切り線以降は常に装備本体のフレーバーであり、内包スキルには個別フレーバーを持たせません。
+
+入力時は `css`、`swift`、`diff` などのコードフェンス言語名を輸送情報として受け付けますが、再構築時は言語名なしのフェンスへ統一します。
+
+`【グレード補正】`は基準グレード以外の耐久最大値差分と能力値加算を保持します。`【耐久最大値】5, MP最大値+5`のような入力は、耐久最大値`5`と通常の`MP最大値+5`へ意味分離して正規化します。基準装備は補正表を保持し、`EquipmentGradeResolver`が`《装備名》☆5`の参照を解決した時だけ深いコピーへ補正を適用します。解決結果から補正表を除くため、同じ補正が二重適用されません。
+
+基準グレードの参照にはsuffixを付けません。非基準グレードの具体化結果は`VariantGrade`を持ち、テキスト再構築でも`《装備名》☆N`を維持します。
+グレード値は再構築時の過大な文字列確保を防ぐため1～100に制限し、実際に利用できる非基準グレードは補正表に定義されたものだけです。
 
 ## 大量インポート
 
@@ -67,7 +84,11 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 
 `Editor/Tests/Fixtures/ElementalSageSkills.txt` は、複合属性攻撃、対象範囲、追加ロール、ターン契機、状態連鎖、召喚などの代表文型9件を固定した回帰fixtureです。
 
+`Editor/Tests/Fixtures/AdventurerSkills.txt` は、通常の発動ロールと各スパイク段階による発動式の置換を固定した回帰fixtureです。
+
 `Editor/Tests/Fixtures/ChirupippiEnemy.txt` は、OR行動条件、接近グループ内の対象選択、攻撃への反応、3つの行動スキル、欠落範囲を含むドロップ表を固定したエネミー回帰fixtureです。
+
+`Editor/Tests/Fixtures/EquipmentItems.txt` は、通貨と取引不可、複数装備部位、武器威力、名前付き効果、スタック状態、装備が付与するスキル、グレード補正を含む代表装備7件を固定した回帰fixtureです。
 
 ## パラメーター契約
 
@@ -77,11 +98,14 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 - `ActionTarget`: `[Source|Receiver, 行動カテゴリー, SameMeleeGroup|Any|Self]`。
 - `ActionOrigin`: 現在は `[Skill]`、`EffectKind`: 現在は `[Counter]` です。
 - `SkillAttack`: `[対象actor, 威力式]`。
+- `MinimumEquippedDays`: `[装備からの経過日数]`、日単位の`ActivationLimit`: `[Day, 回数]`。
 - `ModifyResource`: `[対象actor, リソース名, signedDelta]`。実行時は現在値へ `signedDelta` を加算し、正規文は「-1変化させる」です。
 - `InvalidateAction`: `[対象actor, Single|And|Or, 行動カテゴリー...]`。`Single`は1件、`And` / `Or`は2件以上です。
 - `ReduceDamage`: `[対象actor, 軽減式]`。
 - `MultiplyDamageTaken`: `[対象actor, 倍率]`、`PreventCounterDamage`: `[対象actor, 行動カテゴリー]`、`AddActionResult`: `[signedDelta]`、`SetDamageReduction`: `[軽減式]`。
 - `AddResourceCost`の`Automatic`形は `[Self, リソース名, signedDelta, Automatic]` です。
+- `AddAreaGathering`: `[追加回数]`。自動成功ロールは `Count=1`、`Formula=自動成功`、空の`Target`で保持します。
+- `SetActivationRollFormula`: `[置換後の式]`。Second/Third Spikeに無条件で各1件だけ指定でき、通常発動ロールの`Count`と`Target`は維持します。
 
 条件付き`SetSkillValue`は、無条件の基準値より後に適用します。優先順位のない複数条件が同時成立する曖昧さを避けるため、Activeおよび各Spike段階につき状態条件は1件までです。`SetDamageReduction`のSpikeは、無条件のCounter `ReduceDamage` 1件へ適用します。
 

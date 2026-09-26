@@ -57,7 +57,7 @@ public static partial class SkillTextConverter
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
                     current.Categories = Categories(line); continue;
                 }
-                Match stateHeader = M(line, @"^(.+?)効果((?:〈[^〉]+〉)+)[：:](.*)$");
+                Match stateHeader = M(line, @"^([^・⚫].*?)効果((?:〈[^〉]+〉)+)[：:](.*)$");
                 if (stateHeader.Success)
                 {
                     state = new StateDefinition { Name = Need(stateHeader.Groups[1].Value, "状態名"), Categories = Categories(stateHeader.Groups[2].Value) };
@@ -87,6 +87,11 @@ public static partial class SkillTextConverter
                             if (!cooldown.Success) throw new InvalidOperationException("クールタイムは1ターンの形式です。");
                             current.CooldownTurns = Number(cooldown.Groups[1].Value, 0, "クールタイム"); break;
                         case "発動ロール":
+                            if (body == "自動成功")
+                            {
+                                current.Roll = new DiceRollDefinition { Count = 1, Formula = "自動成功" };
+                                break;
+                            }
                             Match roll = M(body, @"^(?:([0-9]+)回[：:]\s*)?(.+?)\s+目標値(.+)$");
                             if (!roll.Success) throw new InvalidOperationException("発動ロールは「式 目標値30」の形式です。");
                             current.Roll = new DiceRollDefinition { Count = roll.Groups[1].Success ? Number(roll.Groups[1].Value, 1, "回数") : 1, Formula = roll.Groups[2].Value.Trim(), Target = roll.Groups[3].Value.Trim() }; break;

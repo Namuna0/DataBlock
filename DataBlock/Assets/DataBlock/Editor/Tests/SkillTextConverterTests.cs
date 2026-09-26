@@ -77,6 +77,49 @@ internal sealed class SkillTextConverterTests
     }
 
     [Test]
+    public void AdventurerEvasion_ActivationRollSpikesRoundTrip()
+    {
+        string source = ReadFixture("AdventurerSkills.txt");
+        string normalized = SkillTextConverter.Normalize(source);
+        SkillTextData parsed = SkillTextConverter.Parse(normalized);
+
+        Assert.That(SkillTextConverter.Build(parsed), Is.EqualTo(normalized));
+        StringAssert.DoesNotContain("```css", normalized);
+        Assert.That(parsed.Skill.Name, Is.EqualTo("回避"));
+        Assert.That(parsed.Skill.Categories, Is.EqualTo(new[] { "冒険者スキル", "回避" }));
+        Assert.That(parsed.Skill.Roll.Count, Is.EqualTo(1));
+        Assert.That(parsed.Skill.Roll.Formula, Is.EqualTo("1d100*0.75*[敏捷B]"));
+        Assert.That(parsed.Skill.Roll.Target, Is.EqualTo("[対象の達成値]"));
+
+        OverrideContent second = parsed.Skill.Overrides.Single(x => x.Type == EffectType.SecondSpike).Contents.Single();
+        OverrideContent third = parsed.Skill.Overrides.Single(x => x.Type == EffectType.ThirdSpike).Contents.Single();
+        Assert.That(second.Type, Is.EqualTo(OverrideContentType.SetActivationRollFormula));
+        Assert.That(second.Parameters, Is.EqualTo(new[] { "1d100*[敏捷B]*0.8" }));
+        Assert.That(third.Type, Is.EqualTo(OverrideContentType.SetActivationRollFormula));
+        Assert.That(third.Parameters, Is.EqualTo(new[] { "1d100*[敏捷B]*0.85" }));
+        StringAssert.Contains("【セカンドスパイク】この発動ロールは1d100*[敏捷B]*0.8に変化する。", normalized);
+        StringAssert.Contains("【サードスパイク】この発動ロールは1d100*[敏捷B]*0.85に変化する。", normalized);
+    }
+
+    [Test]
+    public void ActivationRollSpike_RejectsInvalidTargetsAndDuplicates()
+    {
+        string source = ReadFixture("AdventurerSkills.txt");
+        SkillTextData automatic = SkillTextConverter.Parse(source);
+        automatic.Skill.Roll.Formula = "自動成功";
+        automatic.Skill.Roll.Target = "";
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(automatic));
+
+        SkillTextData duplicate = SkillTextConverter.Parse(source);
+        duplicate.Skill.Overrides.Single(x => x.Type == EffectType.SecondSpike).Contents.Add(new OverrideContent
+        {
+            Type = OverrideContentType.SetActivationRollFormula,
+            Parameters = new List<string> { "1d100*[敏捷B]" }
+        });
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(duplicate));
+    }
+
+    [Test]
     public void KnightSkills_AllNineNormalizeAndRoundTrip()
     {
         string source = ReadFixture("KnightSkills.txt");

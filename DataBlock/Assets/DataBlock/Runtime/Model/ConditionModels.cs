@@ -46,7 +46,12 @@ public enum ConditionType
     RollResult = 32,
     ResourceRatio = 33,
     ActionStat = 34,
-    TurnOwner = 35
+    TurnOwner = 35,
+
+    AutomaticAtRaceSelection = 36,
+    ResourceValue = 37,
+    MappedStateStackInterval = 38,
+    MinimumEquippedDays = 39
 }
 [Serializable]
 public class ConditionEntry

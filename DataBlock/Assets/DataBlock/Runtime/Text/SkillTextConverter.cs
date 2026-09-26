@@ -194,7 +194,7 @@ public static partial class SkillTextConverter
     }
     private static Match OpeningFence(string line)
     {
-        return M(line, @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:text|txt|markdown|md)?$");
+        return M(line, @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:[A-Za-z][A-Za-z0-9_.+-]*)?$");
     }
     private static string NormalizeFenceLine(string raw)
     {

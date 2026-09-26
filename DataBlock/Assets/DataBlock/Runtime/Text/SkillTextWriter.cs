@@ -44,10 +44,24 @@ public static partial class SkillTextConverter
     private static void WriteEffectGroup(StringBuilder sb, SkillBody skill, EffectType type)
     {
         var texts = new List<string>();
-        foreach (var effect in skill.Effects.Where(x => x.Type == type)) texts.AddRange(effect.Contents.Select(c => SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c)));
+        var effects = skill.Effects.Where(x => x.Type == type).ToList();
+        var deferred = type == EffectType.Passive ? effects.Where(x => IsMappedStackRestore(x, null)).ToList() : new List<EffectDefinition>();
+        if (deferred.Count > 1)
+        {
+            var ruleOrder = skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
+                .Where(x => x.Type == OverrideContentType.ReduceResourceCostPerMappedStacks)
+                .Select((x, i) => new { Rule = Args(x.Parameters, 6, "ReduceResourceCostPerMappedStacks")[2], Index = i })
+                .ToDictionary(x => x.Rule, x => x.Index, StringComparer.Ordinal);
+            deferred = deferred.OrderBy(x => ruleOrder[Args(
+                x.Triggers[0].Conditions.And[0].Parameters, 4, "MappedStateStackInterval")[1]]).ToList();
+        }
+        foreach (var effect in effects.Except(deferred))
+            texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
         IEnumerable<OverrideDefinition> overrides = skill.Overrides.Where(x => x.Type == type);
         if (type == EffectType.SecondSpike || type == EffectType.ThirdSpike) overrides = overrides.OrderBy(x => x.Triggers.Count == 0 ? 0 : 1);
         foreach (var effect in overrides) texts.AddRange(effect.Contents.Select(c => OverrideText(effect, c)));
+        foreach (var effect in deferred)
+            texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
         if (texts.Count == 0) return;
         string effectName;
         if (!EffectNames.TryGetValue(type, out effectName)) throw new InvalidOperationException("未対応の効果種別です：" + type);
@@ -86,10 +100,18 @@ public static partial class SkillTextConverter
         }
         if (skill.CooldownTurns < 0 || skill.Roll.Count < 0) throw new InvalidOperationException("クールタイムと回数は0以上です。");
         if (skill.CooldownTurns > 0) sb.AppendLine("【クールタイム】" + skill.CooldownTurns + "ターン");
+        bool automaticRoll = skill.Roll.Count == 1 && skill.Roll.Formula == "自動成功" && string.IsNullOrWhiteSpace(skill.Roll.Target);
         if (skill.Roll.Count == 0 && (!string.IsNullOrWhiteSpace(skill.Roll.Formula) || !string.IsNullOrWhiteSpace(skill.Roll.Target))) throw new InvalidOperationException("発動ロールが未使用なのに式・目標値が入力されています。回数を設定してください。");
+        if (skill.Roll.Count > 0 && !automaticRoll)
+        {
+            string formula = Need(skill.Roll.Formula, "式");
+            Need(skill.Roll.Target, "目標値");
+            if (M(formula, @"\s+目標値").Success) throw new InvalidOperationException("発動ロール式に空白＋「目標値」は使用できません。");
+        }
         ValidateSkillEffects(skill);
         WriteEffectGroup(sb, skill, EffectType.Declaration);
-        if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
+        if (automaticRoll) sb.AppendLine("【発動ロール】自動成功");
+        else if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
         foreach (EffectType type in DisplayOrder.Where(x => IsOrdinary(x) && x != EffectType.Declaration)) WriteEffectGroup(sb, skill, type);
         if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
         {

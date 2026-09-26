@@ -12,7 +12,10 @@ public static partial class SkillTextConverter
             set.And.Add(Condition(ConditionType.AutomaticActivation, "EveryTurn", "Start", "Random", "Enemy", "1"));
             return;
         }
-        foreach (string part in Split(text, ","))
+        var parts = Split(text, ",");
+        bool meleeException = M(text, @"^自身が《([^》]+)》状態なら[、,]\s*接近は不要。?$").Success;
+        if (parts.Count == 1 && text.IndexOf(',') < 0 && !meleeException) parts = Split(text, "、");
+        foreach (string part in parts)
         {
             Match exception = M(part, @"^自身が《([^》]+)》状態なら[、,]\s*接近は不要。?$");
             if (exception.Success)
@@ -34,12 +37,17 @@ public static partial class SkillTextConverter
     {
         text = text.Trim();
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
-        Match m = M(text, @"^(決意|[A-Z]+)([0-9]+)消費$");
+        if (text == "種族選択時に自動習得") return Condition(ConditionType.AutomaticAtRaceSelection);
+        Match m = M(text, @"^装備から([0-9]+)日以上経過している事$");
+        if (m.Success) return Condition(ConditionType.MinimumEquippedDays, Number(m.Groups[1].Value, 1, "装備経過日数").ToString());
+        m = M(text, @"^(決意|[A-Z]+)([0-9]+)消費$");
         if (m.Success) return Condition(ConditionType.SpendResource, m.Groups[1].Value, m.Groups[2].Value);
         m = M(text, @"^(.+?)属性([0-9]+)以上$");
         if (m.Success) return Condition(ConditionType.MinimumStat, m.Groups[1].Value + "属性", m.Groups[2].Value);
         m = M(text, @"^1ターンに([0-9]+)回まで$");
         if (m.Success) return Condition(ConditionType.ActivationLimit, "Turn", m.Groups[1].Value);
+        m = M(text, @"^1日([0-9]+)回まで$");
+        if (m.Success) return Condition(ConditionType.ActivationLimit, "Day", Number(m.Groups[1].Value, 1, "1日の発動回数").ToString());
         if (text == "敵または味方のターンの終了時に") return Condition(ConditionType.DeclarationTiming, "EnemyOrAlly", "End");
         m = M(text, @"^装備している((?:〈[^〉]+〉)(?:または〈[^〉]+〉)+)を([0-9]+)つ選択$");
         if (m.Success) return Condition(ConditionType.SelectEquippedWeaponFromCategories, new[] { m.Groups[2].Value }.Concat(AllMatches(m.Groups[1].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
@@ -71,13 +79,18 @@ public static partial class SkillTextConverter
         switch (item.Type)
         {
             case ConditionType.OptionalAtRaceSelection: Args(item.Parameters, 0, "OptionalAtRaceSelection"); return "種族選択時に任意選択";
+            case ConditionType.AutomaticAtRaceSelection: Args(item.Parameters, 0, "AutomaticAtRaceSelection"); return "種族選択時に自動習得";
+            case ConditionType.MinimumEquippedDays:
+                p = Args(item.Parameters, 1, "MinimumEquippedDays");
+                return "装備から" + Number(p[0], 1, "装備経過日数") + "日以上経過している事";
             case ConditionType.SpendResource: p = Args(item.Parameters, 2, "SpendResource"); Number(p[1], 0, "消費量"); return p[0] + p[1] + "消費";
             case ConditionType.MinimumStat:
                 p = Args(item.Parameters, 2, "MinimumStat"); Number(p[1], 0, "必要値"); return p[0] + p[1] + "以上";
             case ConditionType.ActivationLimit:
                 p = Args(item.Parameters, 2, "ActivationLimit"); Number(p[1], 1, "回数");
-                if (p[0] != "Turn") throw new InvalidOperationException("ActivationLimitの単位はTurnです。");
-                return "1ターンに" + p[1] + "回まで";
+                if (p[0] == "Turn") return "1ターンに" + Number(p[1], 1, "回数") + "回まで";
+                if (p[0] == "Day") return "1日" + Number(p[1], 1, "回数") + "回まで";
+                throw new InvalidOperationException("ActivationLimitの単位はTurn / Dayです。");
             case ConditionType.DeclarationTiming:
                 p = Args(item.Parameters, 2, "DeclarationTiming");
                 if (p[0] != "EnemyOrAlly" || p[1] != "End") throw new InvalidOperationException("今回の宣言タイミングはEnemyOrAlly / Endです。");

@@ -54,7 +54,6 @@ public static partial class SkillTextConverter
 
         ValidateConsumedItems(skill);
         ValidateRandomRolls(skill);
-
         foreach (OverrideDefinition effect in skill.Overrides)
         {
             if (effect == null || effect.Type == EffectType.None || !DisplayOrder.Contains(effect.Type) || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("上書き効果の種別と内容を指定してください。");
@@ -62,8 +61,11 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent)
-                    throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値の変更に対応します。");
+                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula)
+                    throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
+                if (content.Type == OverrideContentType.SetActivationRollFormula &&
+                    (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
+                    throw new InvalidOperationException("発動ロールのスパイク変更には通常の発動ロールが必要です。");
                 if (content.Type == OverrideContentType.SetSkillValue && !hasUnconditionalSkillValueAttack)
                     throw new InvalidOperationException("スキル値の上書き先となるアクティブ攻撃を無条件で1件だけ指定してください。");
                 if (content.Type == OverrideContentType.SetAttackComponent || content.Type == OverrideContentType.MultiplyAttackComponent)
@@ -93,6 +95,7 @@ public static partial class SkillTextConverter
             }
         }
 
+        ValidatePassiveExtensions(skill);
         foreach (EffectType stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike }) ValidateSpikeStage(skill, stage);
 
         int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.SetSkillValue));
@@ -144,6 +147,26 @@ public static partial class SkillTextConverter
     {
         var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c })).ToList();
         if (entries.Count == 0) return;
+        var rollEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetActivationRollFormula).ToList();
+        if (rollEntries.Count > 0)
+        {
+            if (entries.Count != 1 || rollEntries[0].Definition.Triggers.Count != 0)
+                throw new InvalidOperationException("発動ロールのスパイク変更は各段階に無条件で1件指定してください。");
+            return;
+        }
+        var modifierEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetModifier).ToList();
+        if (modifierEntries.Count > 0)
+        {
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var entry in modifierEntries)
+            {
+                if (entry.Definition.Triggers.Count != 0) throw new InvalidOperationException("パッシブ補正スパイクには条件を指定できません。");
+                if (!keys.Add(SetModifierKey(entry.Content))) throw new InvalidOperationException("同じ補正に対するスパイク変更が重複しています。");
+                ValidateSetModifierTarget(skill, entry.Content);
+            }
+            entries = entries.Where(x => x.Content.Type != OverrideContentType.SetModifier).ToList();
+            if (entries.Count == 0) return;
+        }
         int reductions = entries.Count(x => x.Content.Type == OverrideContentType.SetDamageReduction);
         if (reductions > 0)
         {

@@ -35,7 +35,11 @@ public enum TriggerTiming
     RandomResult = 14,
     ElementalPower = 15,
     TurnStart = 16,
-    CharacterIncapacitated = 17
+    CharacterIncapacitated = 17,
+
+    ResourceChanged = 18,
+    ActionActivated = 19,
+    StateStackChanged = 20
 }
 [Serializable]
 public class TriggerDefinition
@@ -94,7 +98,11 @@ public enum EffectContentType
     ReduceDamage = 17,
     ReapplyEffects = 18,
     RollDice = 19,
-    Summon = 20
+    Summon = 20,
+    // actor, amount, multi-attribute policy, rule key, then attribute/state pairs.
+    GainMappedStateStacks = 21,
+    // amount
+    AddAreaGathering = 22
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -120,7 +128,18 @@ public enum OverrideContentType
     SetAttackComponent = 14,
     MultiplyAttackComponent = 15,
     SetAttackRule = 16,
-    MultiplyActionResult = 17
+    MultiplyActionResult = 17,
+
+    // actor, stat name, Add|Multiply, value.
+    ModifyStat = 18,
+    // actor, resource, factor. The action selector belongs to Triggers.
+    MultiplyResourceCost = 19,
+    // actor, resource, mapped-stack rule key, interval, reduction, selection policy.
+    ReduceResourceCostPerMappedStacks = 20,
+    // Base modifier kind, selector fields, replacement value.
+    SetModifier = 21,
+    // Replacement formula for a skill activation roll. The base target is retained.
+    SetActivationRollFormula = 22
 }
 [Serializable]
 public class OverrideDefinition
