@@ -118,3 +118,18 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 - `RollDice`: `[ロールID, 式]`、対応する`RollResult`: `[ロールID, 出目]`。同じ出目に複数効果を関連付けられ、`1dN`では1～Nの範囲に制限します。
 - `ReapplyEffects`: `[Turn, バフ, All, 回数]`、`Summon`: `[召喚名]`。
 - `SummonedEntityDefinition`は`SkillBody`と式付きステータスを持ち、`Choices`とは区別します。ペットにはHP最大値が必要です。
+
+## 獣人系の13件と追加文型
+
+`Editor/Tests/Fixtures/BeastfolkSkills.txt` は、犬人・狼・狐・狸・熊の13件を保持します。実運用では1件ずつInspectorの構文統一→シリアライズセット→再構築→JSON出力を行います。JSONのルートは従来どおり `Skill / Summons / States`、enumの既存数値は変更しません。
+
+- 罠は `Summons` の〈罠〉定義として保存し、`PlaceTrap` で参照します。ペットと異なりHP最大値を必須とせず、`RemoveSummon` は罠のDeclaration・AfterSkillResolutionでのみ有効です。
+- `ReactionTarget`: `[行動カテゴリー, Self, Source]`、または `[行動カテゴリー, Ally, Receiver, Automatic]`。自身に対する行動への反応と、味方への行動に反応する自動発動を区別します。
+- `SkillAttack` の追加形は `[Target, PowerAndAttribute, 威力式, 属性威力式]`。`SetAttackComponent` の `Power` と `AttributePower` はそれぞれを変更します。
+- `GainStack` の上限なし形は `[対象, 状態名, 付与数]`。従来の4引数の上限あり形も維持します。
+- `MultiplyDamageTaken` の上限付き形は `[Self, 倍率式, 最大倍率]`。従来の2引数形も維持します。
+- `AllAlliesExceptSelf` は味方への行為判定補正と任意のリソースダメージ補正で使用します。
+- 状態の複数イベントは各効果の `Triggers` に分けます。複数トリガーはORです。単独の被ダメージ・攻撃威力補正は既存の状態共通トリガー形式を維持します。
+- ロールプレイ効果のみ `RoleplayDescription` に説明文を保存します。戦闘効果の未対応文を説明文へ逃がしません。
+
+`BeastfolkSkillTextConverterTests` は13件のInspector操作処理とUnity JsonUtilityの往復、意味データの各値、罠参照、スタック補正の適用先、重複スパイク、不正な状態倍率などを検証します。

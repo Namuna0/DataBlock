@@ -130,6 +130,19 @@ public static partial class SkillTextConverter
         }
         if (!named) throw new InvalidOperationException("スキル名がありません。");
         if (description && data.Skill.Choices.Count == 0) throw new InvalidOperationException("説明に対応する子スキルがありません。");
+        // Preserve the established common-trigger representation for a state
+        // containing only a damage/power modifier. Mixed states use local triggers.
+        foreach (StateDefinition parsedState in data.States)
+        {
+            if (parsedState.Effects.Count != 0 || parsedState.Overrides.Count != 1 ||
+                parsedState.Trigger.Timing != TriggerTiming.Always || !Empty(parsedState.Trigger.Conditions)) continue;
+            OverrideDefinition modifier = parsedState.Overrides[0];
+            if (modifier.Triggers.Count != 1) continue;
+            TriggerDefinition trigger = modifier.Triggers[0];
+            if (trigger.Timing != TriggerTiming.IncomingDamage && trigger.Timing != TriggerTiming.AttackPower) continue;
+            parsedState.Trigger = trigger;
+            modifier.Triggers.Clear();
+        }
         return data;
     }
     private static void ReadCosts(SkillBody skill, string body)

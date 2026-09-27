@@ -11,6 +11,7 @@ public static partial class SkillTextConverter
     private static bool ReadStateLine(StateDefinition state, string text)
     {
         text = Unbullet(text).TrimStart('*', '＊').Trim();
+        if (ReadExtendedState(state, text)) return true;
         Match m = M(text, @"^自身は毎ターン開始時《([^》]+)》状態になる。?$");
         if (m.Success)
         {
@@ -122,6 +123,8 @@ public static partial class SkillTextConverter
     }
     private static string StateOverrideText(List<TriggerDefinition> triggers, OverrideContent content)
     {
+        string extended = ExtendedOverrideText(new OverrideDefinition { Type = EffectType.Passive, Triggers = triggers }, content);
+        if (extended != null) return extended;
         if (triggers.Count != 1 || content == null || !ValidTrigger(triggers[0])) throw new InvalidOperationException("状態の数値上書きにはトリガーを1個指定してください。");
         TriggerDefinition t = triggers[0];
         var c = t.Conditions;
@@ -154,6 +157,8 @@ public static partial class SkillTextConverter
     }
     private static string StateContentText(StateDefinition state, List<TriggerDefinition> triggers, EffectContent content)
     {
+        string extended = ExtendedStateContentText(state, triggers, content);
+        if (extended != null) return extended;
         if (triggers == null || content == null || triggers.Any(x => !ValidTrigger(x))) throw new InvalidOperationException("状態のトリガーまたは内容が不正です。");
         if (content.Type == EffectContentType.StateAlias && Matches(triggers, Trigger(TriggerTiming.Always)))
         {

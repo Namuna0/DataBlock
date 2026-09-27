@@ -36,7 +36,9 @@ public static partial class SkillTextConverter
 
         bool hasUnconditionalActiveAttack = HasSingleUnconditional(skill, activeAttacks, EffectType.Active);
         bool hasUnconditionalSkillValueAttack = HasSingleUnconditional(skill, skillValueAttacks, EffectType.Active);
-        bool hasUnconditionalElementalAttack = HasSingleUnconditional(skill, elementalAttacks, EffectType.Active);
+        bool hasUnconditionalAttributeAttack = HasSingleUnconditional(skill, activeAttacks.Where(x =>
+            IsElementalWeaponAttack(x) || (x.Type == EffectContentType.SkillAttack &&
+            x.Parameters.Count == 4 && x.Parameters[1] == "PowerAndAttribute")).ToList(), EffectType.Active);
         bool hasUnconditionalCounterReduction = HasSingleUnconditional(skill, counterReductions, EffectType.Counter);
 
         bool seenWeaponAttack = false;
@@ -71,8 +73,9 @@ public static partial class SkillTextConverter
                 if (content.Type == OverrideContentType.SetAttackComponent || content.Type == OverrideContentType.MultiplyAttackComponent)
                 {
                     string[] p = Args(content.Parameters, 2, content.Type.ToString());
-                    if (p[0] != "AttributePower") throw new InvalidOperationException("今回の攻撃構成要素はAttributePowerです。");
-                    if (!hasUnconditionalElementalAttack) throw new InvalidOperationException("属性威力の変更先となる複合属性攻撃を無条件で1件だけ指定してください。");
+                    if (p[0] != "AttributePower" && p[0] != "Power") throw new InvalidOperationException("攻撃構成要素はPower / AttributePowerです。");
+                    if (!(p[0] == "Power" ? hasUnconditionalActiveAttack : hasUnconditionalAttributeAttack))
+                        throw new InvalidOperationException("威力の変更先となる対応アクティブ攻撃を無条件で1件だけ指定してください。");
                 }
                 if (content.Type == OverrideContentType.SetAttackRule && !hasUnconditionalActiveAttack)
                     throw new InvalidOperationException("攻撃規則の適用先となるアクティブ攻撃を無条件で1件だけ指定してください。");
@@ -96,6 +99,7 @@ public static partial class SkillTextConverter
         }
 
         ValidatePassiveExtensions(skill);
+        ValidateExtendedSkill(skill);
         foreach (EffectType stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike }) ValidateSpikeStage(skill, stage);
 
         int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.SetSkillValue));
@@ -179,6 +183,6 @@ public static partial class SkillTextConverter
         if (skillValues.Count > 0 && skillValues.Count(x => x.Definition.Triggers.Count == 0) != 1) throw new InvalidOperationException("各スパイク段階には無条件の基準スキル値を1件指定してください。");
         if (skillValues.Count(x => x.Definition.Triggers.Count > 0) > 1) throw new InvalidOperationException("優先順位が曖昧になるため、各スパイク段階の状態別スキル値は1件までです。");
         var components = entries.Where(x => x.Content.Type == OverrideContentType.SetAttackComponent).ToList();
-        if (components.Count > 0 && (components.Count != 1 || components[0].Definition.Triggers.Count != 0)) throw new InvalidOperationException("各スパイク段階の属性威力は無条件で1件指定してください。");
+        if (components.Count > 0 && (components.Any(x => x.Definition.Triggers.Count != 0) || components.GroupBy(x => x.Content.Parameters[0]).Any(x => x.Count() > 1))) throw new InvalidOperationException("各スパイク段階の属性威力は無条件で1件指定してください。");
     }
 }

@@ -158,7 +158,23 @@ public static partial class SkillTextConverter
         {
             string plain = text.Trim();
             if (plain.Length >= 2 && plain.StartsWith("|") && plain.EndsWith("|")) plain = plain.Substring(1, plain.Length - 2).Trim();
-            return new List<string> { plain };
+            // A following top-level entry starts after flavor, not at an embedded
+            // summon/trap header inside a skill body.
+            var plainBlocks = new List<string>();
+            var entry = new List<string>();
+            bool inFlavor = false;
+            foreach (string line in plain.Split('\n'))
+            {
+                if (inFlavor && M(line.Trim(), @"^《[^《》]+》$").Success)
+                {
+                    plainBlocks.Add(string.Join("\n", entry).Trim());
+                    entry.Clear(); inFlavor = false;
+                }
+                entry.Add(line);
+                if (M(line.Trim(), @"^―{8,}$").Success) inFlavor = true;
+            }
+            if (entry.Count > 0) plainBlocks.Add(string.Join("\n", entry).Trim());
+            return plainBlocks;
         }
         var blocks = new List<string>();
         var body = new List<string>();

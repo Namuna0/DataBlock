@@ -7,6 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
+        if (ReadExtendedSkill(skill, type, Unbullet(text))) return;
         foreach (string part in Split(Unbullet(text), "・"))
         {
             string body = RegexReplace(part.Trim(), @"^さらに\s*", "");
@@ -280,6 +281,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
+        string extended = ExtendedContentText(content);
+        if (extended != null) return extended;
         if (content == null) throw new InvalidOperationException("効果内容がnullです。");
         string passiveText;
         if (TryPassiveContentText(content, out passiveText)) return passiveText;
@@ -346,6 +349,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillTriggerText(EffectType type, List<TriggerDefinition> triggers)
     {
+        string extended = ExtendedTriggerText(triggers);
+        if (extended != null) return extended;
         if (triggers == null) throw new InvalidOperationException("Triggersがnullです。");
         string passiveText;
         if (TryPassiveTriggerText(type, triggers, out passiveText)) return passiveText;
@@ -372,6 +377,8 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        string extended = ExtendedOverrideText(effect, content);
+        if (extended != null) return extended;
         if (effect.Triggers == null || effect.Triggers.Any(x => !ValidTrigger(x)) || content == null) throw new InvalidOperationException("上書き効果が不正です。");
         string passiveText;
         if (TryPassiveOverrideText(effect, content, out passiveText)) return passiveText;

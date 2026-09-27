@@ -575,82 +575,50 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: "\u30DE\u30CA\u30A2\u30ED\u30FC"
+      Name: "\u7363\u306E\u55C5\u899A"
       Categories:
-      - "\u9B54\u8853\u5E2B\u5171\u901A\u30B9\u30AD\u30EB"
-      - "\u653B\u6483"
-      - "\u9B54\u6CD5"
-      - "\u30A8\u30EB\u30D5\u9B54\u6CD5"
-      - "\u30DE\u30CA\u64CD\u4F5C\u7CFB"
-      - "\u9B54\u6CD5\u77E2"
+      - "\u7A2E\u65CF\u30B9\u30AD\u30EB"
+      - "\u751F\u6D3B\u30B9\u30AD\u30EB"
       AcquisitionConditions:
         And:
-        - Type: 6
-          Parameters:
-          - "\u6C7A\u610F"
-          - 90
+        - Type: 1
+          Parameters: []
         Or: []
       DeclarationConditions:
-        And:
-        - Type: 7
-          Parameters:
-          - "\u9B54\u6CD5\u6B66\u5668"
-          - 1
-        - Type: 2
-          Parameters:
-          - 1
-          - Exact
-          - Default
+        And: []
         Or: []
-      Costs:
-      - Kind: 0
-        Resource: ACT
-        Amount: 6
-      - Kind: 0
-        Resource: MP
-        Amount: 6
+      Costs: []
       CooldownTurns: 0
       Roll:
         Count: 1
-        Formula: "1d100*[\u77E5\u529BB]"
+        Formula: "1d100*[\u611F\u77E5B]"
         Target: 30
       Effects:
-      - Type: 1
+      - Type: 4
         Triggers: []
         Contents:
-        - Type: 7
+        - Type: 23
           Parameters:
-          - Target
-          - 100
-      - Type: 6
-        Triggers: []
-        Contents:
-        - Type: 3
-          Parameters:
-          - Self
-          - ACT
-          - 1
+          - "\u96A0\u3055\u308C\u305F\u7269\u3092\u898B\u3064\u3051\u308B\u4E8B\u304C\u51FA\u6765\u307E\u3059\u3002"
       Overrides:
-      - Type: 5
-        Triggers: []
+      - Type: 3
+        Triggers:
+        - Timing: 13
+          Conditions:
+            And:
+            - Type: 3
+              Parameters:
+              - Self
+            - Type: 34
+              Parameters:
+              - "\u611F\u77E5B"
+            Or: []
         Contents:
-        - Type: 2
+        - Type: 12
           Parameters:
-          - 1.5
-      - Type: 8
-        Triggers: []
-        Contents:
-        - Type: 1
-          Parameters:
-          - 110
-      - Type: 9
-        Triggers: []
-        Contents:
-        - Type: 1
-          Parameters:
-          - 120
+          - +5
       Choices: []
-      Flavor: "\u30A8\u30EB\u30D5\u9B54\u6CD5\u306E\u57FA\u790E\u306E\u653B\u6483\u9B54\u6CD5\u3002\n\u5927\u6C17\u4E2D\u306E\u30DE\u30CA\u3092\u62BC\u3057\u56FA\u3081\u3001\u6575\u3092\u8CAB\u304F\u77E2\u3078\u3068\u5909\u3048\u308B\u3002"
+      Flavor: "\u3042\u306A\u305F\u306E\u9F3B\u306F\u3068\u3066\u3082\u826F\u304F\u52B9\u304F\u3002\n\u898B\u3048\u306A\u3044\u7372\u7269\u306E\u5C45\u5834\u6240\u3092\u6349\u3048\u3001\u307E\u305F\u5371\u967A\u3082\u7D20\u65E9\u304F\u5BDF\u77E5\u3059\u308B\u4E8B\u304C\u3067\u304D\u308B\u3067\u3057\u3087\u3046\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332

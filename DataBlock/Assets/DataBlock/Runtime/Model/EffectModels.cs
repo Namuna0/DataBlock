@@ -39,7 +39,11 @@ public enum TriggerTiming
 
     ResourceChanged = 18,
     ActionActivated = 19,
-    StateStackChanged = 20
+    StateStackChanged = 20,
+    DamageDealt = 21,
+    DamageReceived = 22,
+    ActionDeclared = 23,
+    BattleEnd = 24
 }
 [Serializable]
 public class TriggerDefinition
@@ -87,12 +91,12 @@ public enum EffectContentType
     RemoveState = 6,
     WeaponAttack = 7,
     ApplyConsumedItemActive = 8,
-    GainStack = 9,
+    GainStack = 9, // actor, state, amount, optional maximum stacks
     Damage = 10,
     ApplyStateInMeleeGroup = 11,
     InvalidateIncomingAction = 12,
     InvalidateTriggeredEffect = 13,
-    SkillAttack = 14,
+    SkillAttack = 14, // actor, power | actor, PowerAndAttribute, power, attribute power | ElementalWeapon form
     ModifyResource = 15,
     InvalidateAction = 16,
     ReduceDamage = 17,
@@ -102,7 +106,17 @@ public enum EffectContentType
     // actor, amount, multi-attribute policy, rule key, then attribute/state pairs.
     GainMappedStateStacks = 21,
     // amount
-    AddAreaGathering = 22
+    AddAreaGathering = 22,
+    RoleplayDescription = 23, // Narrative permission, not executable combat text.
+    ProhibitAcquisition = 24, // actor, timing, skill names...
+    OptionalCategoryExclusion = 25, // actor, category, PerOccurrence
+    RestoreFromDamage = 26, // actor, resource, dealt-damage multiplier
+    ConsumeStacksForDamage = 27, // actor, state, All, multiplier, ThisAttack
+    PlaceTrap = 28, // local Summons definition name
+    RemoveSummon = 29, // Self
+    PreventSelection = 30, // actor, All
+    ProhibitEffect = 31, // actor, effect kind
+    PreventStateApplication = 32 // actor, Except, state names...
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -118,14 +132,14 @@ public enum OverrideContentType
     SetCritical = 8,
     AddStateDuration = 9,
 
-    MultiplyDamageTaken = 10,
+    MultiplyDamageTaken = 10, // actor, multiplier, optional maximum multiplier
     PreventCounterDamage = 11,
     AddActionResult = 12,
     SetDamageReduction = 13,
 
     // Component/rule names live in Parameters to avoid one enum value per
     // element, response type, or future attack component.
-    SetAttackComponent = 14,
+    SetAttackComponent = 14, // Power|AttributePower, replacement formula
     MultiplyAttackComponent = 15,
     SetAttackRule = 16,
     MultiplyActionResult = 17,
@@ -139,7 +153,10 @@ public enum OverrideContentType
     // Base modifier kind, selector fields, replacement value.
     SetModifier = 21,
     // Replacement formula for a skill activation roll. The base target is retained.
-    SetActivationRollFormula = 22
+    SetActivationRollFormula = 22,
+    MultiplyResourceDamage = 23, // actor, resource, multiplier, Optional
+    SetStackAmount = 24, // actor, state, amount
+    MultiplyPowerByStacks = 25 // actor, action category, multipliers for stacks 1..N
 }
 [Serializable]
 public class OverrideDefinition

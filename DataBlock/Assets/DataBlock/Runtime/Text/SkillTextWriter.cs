@@ -28,7 +28,7 @@ public static partial class SkillTextConverter
         if (declaration)
         {
             ConditionType last = set.And.Count == 0 ? ConditionType.None : set.And.Last().Type;
-            if (last == ConditionType.AutomaticActivation)
+            if (last == ConditionType.AutomaticActivation || (last == ConditionType.ReactionTarget && set.And.Last().Parameters.Count == 4))
             {
                 if (set.Or.Count != 0 || set.And.Count != 1) throw new InvalidOperationException("自動発動条件は他の宣言条件と併用できません。");
             }
@@ -155,16 +155,26 @@ public static partial class SkillTextConverter
         {
             if (summon.Stats == null) throw new InvalidOperationException("召喚ステータスがnullです：" + summon.Name);
             if (summon.Categories == null) throw new InvalidOperationException("召喚カテゴリーがnullです：" + summon.Name);
-            if (!summon.Categories.Contains("ペット")) throw new InvalidOperationException("現在の召喚定義には〈ペット〉カテゴリーが必要です：" + summon.Name);
-            if (summon.Stats.Count(x => x != null && x.Name == "HP") != 1) throw new InvalidOperationException("ペットにはHP最大値を1件指定してください：" + summon.Name);
-            if (summon.Effects != null && summon.Effects.Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents).Any(x => x != null && x.Type == EffectContentType.Summon))
+            if (summon.Categories.Contains("ペット") == summon.Categories.Contains("罠")) throw new InvalidOperationException("召喚定義には〈ペット〉または〈罠〉の一方を指定してください：" + summon.Name);
+            if (summon.Categories.Contains("ペット") && summon.Stats.Count(x => x != null && x.Name == "HP") != 1) throw new InvalidOperationException("ペットにはHP最大値を1件指定してください：" + summon.Name);
+            if (summon.Effects != null && summon.Effects.Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents).Any(x => x != null && (x.Type == EffectContentType.Summon || x.Type == EffectContentType.PlaceTrap)))
                 throw new InvalidOperationException("召喚定義から別の召喚は発動できません：" + summon.Name);
         }
         var bodies = new List<SkillBody> { data.Skill };
         bodies.AddRange(data.Skill.Choices);
+        foreach (var reference in bodies.SelectMany(x => x.Effects ?? new List<EffectDefinition>())
+            .Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents)
+            .Where(x => x != null && (x.Type == EffectContentType.Summon || x.Type == EffectContentType.PlaceTrap)))
+        {
+            string name = Args(reference.Parameters, 1, reference.Type.ToString())[0];
+            var definition = data.Summons.SingleOrDefault(x => x.Name == name);
+            string category = reference.Type == EffectContentType.PlaceTrap ? "罠" : "ペット";
+            if (definition == null || !definition.Categories.Contains(category))
+                throw new InvalidOperationException("参照先の" + category + "定義がありません：" + name);
+        }
         var references = bodies.SelectMany(x => x.Effects ?? new List<EffectDefinition>())
             .Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents)
-            .Where(x => x != null && x.Type == EffectContentType.Summon)
+            .Where(x => x != null && (x.Type == EffectContentType.Summon || x.Type == EffectContentType.PlaceTrap))
             .Select(x => Args(x.Parameters, 1, "Summon")[0]).ToList();
         foreach (string reference in references)
             if (!names.Contains(reference)) throw new InvalidOperationException("召喚定義がありません：" + reference);

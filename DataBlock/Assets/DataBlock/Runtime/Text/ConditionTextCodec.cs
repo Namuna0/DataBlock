@@ -6,6 +6,7 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
+        if (ReadReactionCondition(set, text)) return;
         text = text.Trim().Replace("選択して宣言可能。", "選択").Replace("宣言可能。", "");
         if (text.TrimEnd('。') == "毎ターン開始時、ランダムな敵キャラクターを対象に自動発動")
         {
@@ -74,6 +75,7 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        if (item != null && item.Type == ConditionType.ReactionTarget) return ReactionConditionText(item);
         if (item == null) throw new InvalidOperationException("条件がnullです。");
         string[] p;
         switch (item.Type)

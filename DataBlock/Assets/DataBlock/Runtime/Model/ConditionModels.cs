@@ -51,7 +51,11 @@ public enum ConditionType
     AutomaticAtRaceSelection = 36,
     ResourceValue = 37,
     MappedStateStackInterval = 38,
-    MinimumEquippedDays = 39
+    MinimumEquippedDays = 39,
+    InParty = 40, // actor
+    HasMealEffect = 41, // actor, True|False
+    TurnNumber = 42, // 1-based turn number
+    ReactionTarget = 43 // category, Self, Source | category, Ally, Receiver, Automatic
 }
 [Serializable]
 public class ConditionEntry
