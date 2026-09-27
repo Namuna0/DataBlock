@@ -7,6 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
+        if (ReadHumanSkill(skill, type, Unbullet(text))) return;
         if (ReadExtendedSkill(skill, type, Unbullet(text))) return;
         foreach (string part in Split(Unbullet(text), "・"))
         {
@@ -281,6 +282,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
+        string human = HumanContentText(content);
+        if (human != null) return human;
         string extended = ExtendedContentText(content);
         if (extended != null) return extended;
         if (content == null) throw new InvalidOperationException("効果内容がnullです。");
@@ -377,6 +380,8 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        string human = HumanOverrideText(effect, content);
+        if (human != null) return human;
         string extended = ExtendedOverrideText(effect, content);
         if (extended != null) return extended;
         if (effect.Triggers == null || effect.Triggers.Any(x => !ValidTrigger(x)) || content == null) throw new InvalidOperationException("上書き効果が不正です。");

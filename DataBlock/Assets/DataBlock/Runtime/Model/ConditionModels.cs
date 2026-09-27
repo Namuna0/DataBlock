@@ -55,7 +55,10 @@ public enum ConditionType
     InParty = 40, // actor
     HasMealEffect = 41, // actor, True|False
     TurnNumber = 42, // 1-based turn number
-    ReactionTarget = 43 // category, Self, Source | category, Ally, Receiver, Automatic
+    ReactionTarget = 43, // category, Self, Source | category, Ally, Receiver, Automatic
+    CheckContext = 44, // Activation | Environment | Crafting, equipment categories...
+    BattleTurnRange = 45, // first turn, last turn (inclusive)
+    OwnStateCategories = 46 // Any, categories... (not individual state names)
 }
 [Serializable]
 public class ConditionEntry

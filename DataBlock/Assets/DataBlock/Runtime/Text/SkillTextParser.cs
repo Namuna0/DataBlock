@@ -27,6 +27,13 @@ public static partial class SkillTextConverter
             // is copied from the original lines below and is intentionally untouched.
             string line = lines[i].Trim().Replace("\\*", "*");
             if (line.Length == 0) continue;
+            // These are wrapped effect sentences, not additional category headers.
+            if (section == EffectType.Passive &&
+                ((M(line, @"^〈[^〉]+〉$").Success && i < end && lines[i + 1].TrimStart().StartsWith("上記の装備", StringComparison.Ordinal)) ||
+                 line.EndsWith("および", StringComparison.Ordinal)))
+            {
+                if (i < end) line += lines[++i].Trim();
+            }
             try
             {
                 if (M(line, @"^―{8,}$").Success)

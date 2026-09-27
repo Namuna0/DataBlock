@@ -37,6 +37,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry human = ReadHumanCondition(text);
+        if (human != null) return human;
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
         if (text == "種族選択時に自動習得") return Condition(ConditionType.AutomaticAtRaceSelection);
         Match m = M(text, @"^装備から([0-9]+)日以上経過している事$");
@@ -75,6 +77,8 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        string human = HumanConditionText(item);
+        if (human != null) return human;
         if (item != null && item.Type == ConditionType.ReactionTarget) return ReactionConditionText(item);
         if (item == null) throw new InvalidOperationException("条件がnullです。");
         string[] p;

@@ -115,7 +115,12 @@ public static partial class SkillTextConverter
         foreach (EffectType type in DisplayOrder.Where(x => IsOrdinary(x) && x != EffectType.Declaration)) WriteEffectGroup(sb, skill, type);
         if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
         {
-            sb.AppendLine(); WriteEffectGroup(sb, skill, EffectType.SecondSpike); WriteEffectGroup(sb, skill, EffectType.ThirdSpike);
+            sb.AppendLine();
+            if (!skill.Overrides.Any(x => x.Type == EffectType.SecondSpike))
+                sb.AppendLine("【セカンドスパイク】無し");
+            else
+                WriteEffectGroup(sb, skill, EffectType.SecondSpike);
+            WriteEffectGroup(sb, skill, EffectType.ThirdSpike);
         }
     }
     public static string Normalize(string text) { return string.Join("\n\n", InputBlocks(text).Select(x => Build(ParseOne(x)))); }

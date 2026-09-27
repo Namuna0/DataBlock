@@ -51,12 +51,13 @@ public static partial class SkillTextConverter
 
     private static string SetModifierKey(OverrideContent content)
     {
-        string[] p = VariableArgs(content.Parameters, 4, "SetModifier");
+        string[] p = VariableArgs(content.Parameters, 3, "SetModifier");
         return string.Join("\u001f", p.Take(p.Length - 1));
     }
 
     private static void ValidateSetModifierTarget(SkillBody skill, OverrideContent content)
     {
+        if (ValidateHumanModifierTarget(skill, content)) return;
         string[] p = VariableArgs(content.Parameters, 4, "SetModifier");
         int count = 0;
         switch (p[0])

@@ -43,7 +43,8 @@ public enum TriggerTiming
     DamageDealt = 21,
     DamageReceived = 22,
     ActionDeclared = 23,
-    BattleEnd = 24
+    BattleEnd = 24,
+    ResourceRecovery = 25 // when a resource restoration amount is determined
 }
 [Serializable]
 public class TriggerDefinition
@@ -116,7 +117,12 @@ public enum EffectContentType
     RemoveSummon = 29, // Self
     PreventSelection = 30, // actor, All
     ProhibitEffect = 31, // actor, effect kind
-    PreventStateApplication = 32 // actor, Except, state names...
+    PreventStateApplication = 32, // actor, Except, state names...
+    RerollActivation = 33, // Self, replacement ability bonus, TriggeringRoll
+    SetResourceValue = 34, // actor, resource, value
+    SkipRoll = 35, // actor, roll kind, Optional, ThisResolution
+    LimitAcquisition = 36, // Self, RaceSelection, skill category, maximum (0 prohibits)
+    RaceAlias = 37 // Self, additional race category
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -156,7 +162,12 @@ public enum OverrideContentType
     SetActivationRollFormula = 22,
     MultiplyResourceDamage = 23, // actor, resource, multiplier, Optional
     SetStackAmount = 24, // actor, state, amount
-    MultiplyPowerByStacks = 25 // actor, action category, multipliers for stacks 1..N
+    MultiplyPowerByStacks = 25, // actor, action category, multipliers for stacks 1..N
+    AddTimedActionResult = 26, // Self, CurrentTurn, WeaponPower, weapon category, action category, value
+    ModifyAcquisitionCost = 27, // Self, resource, Add|Multiply, AllSkills|Class|SkillCategory, selector, value
+    MultiplySalePrice = 28, // NPC, ExceptCategory, category, factor
+    MultiplyRecovery = 29, // factor; action category belongs to Triggers
+    SetActivationRollTarget = 30 // replacement target for this skill's activation roll
 }
 [Serializable]
 public class OverrideDefinition

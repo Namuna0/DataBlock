@@ -133,3 +133,7 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 - ロールプレイ効果のみ `RoleplayDescription` に説明文を保存します。戦闘効果の未対応文を説明文へ逃がしません。
 
 `BeastfolkSkillTextConverterTests` は13件のInspector操作処理とUnity JsonUtilityの往復、意味データの各値、罠参照、スタック補正の適用先、重複スパイク、不正な状態倍率などを検証します。
+
+## 人間系の16件と追加文型
+
+`HumanSkillTextCodec`、`HumanSkillRules`、`HumanSkillSpikes` は振り直し、制作・環境判定、習得決意、期間付き補正、売値、種族別名・習得制限を扱います。既存モデルの再利用判断、新しいenum、パラメーター契約は [HUMAN_SKILL_SUPPORT.md](HUMAN_SKILL_SUPPORT.md) を参照してください。この追加については依頼に従いテストを実施していません。
