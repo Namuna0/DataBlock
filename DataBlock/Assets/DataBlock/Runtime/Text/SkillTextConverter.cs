@@ -150,6 +150,7 @@ public static partial class SkillTextConverter
     {
         if (string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException("入力テキストが空です。");
         string text = source.Replace("\r\n", "\n").Replace("\r", "\n");
+        text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");
         // 改行＋<br>は1改行。連続した<br>による空行は残します。
         text = RegexReplace(text, @"\n?[ \t]*<br\s*/?>[ \t]*\n?", "\n", RegexOptions.IgnoreCase);
         string[] lines = text.Split('\n');

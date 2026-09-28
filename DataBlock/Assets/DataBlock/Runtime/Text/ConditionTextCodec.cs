@@ -6,6 +6,8 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
+        text = RegexReplace(text, @"自身が《([^》]+)》を受けた時", "自身が〈$1〉を受けた時");
+        text = text.Replace("を受けた時に宣言可能", "を受けた時宣言可能");
         if (ReadReactionCondition(set, text)) return;
         text = text.Trim().Replace("選択して宣言可能。", "選択").Replace("宣言可能。", "");
         if (text.TrimEnd('。') == "毎ターン開始時、ランダムな敵キャラクターを対象に自動発動")
@@ -37,6 +39,7 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        if (text == "自身のアクティブ効果に対してカウンター効果を発動された時に") return Condition(ConditionType.CounterToOwnActive);
         ConditionEntry human = ReadHumanCondition(text);
         if (human != null) return human;
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
@@ -77,6 +80,7 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        if (item != null && item.Type == ConditionType.CounterToOwnActive) { Args(item.Parameters, 0, "CounterToOwnActive"); return "自身のアクティブ効果に対してカウンター効果を発動された時に"; }
         string human = HumanConditionText(item);
         if (human != null) return human;
         if (item != null && item.Type == ConditionType.ReactionTarget) return ReactionConditionText(item);

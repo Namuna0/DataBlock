@@ -58,7 +58,10 @@ public enum ConditionType
     ReactionTarget = 43, // category, Self, Source | category, Ally, Receiver, Automatic
     CheckContext = 44, // Activation | Environment | Crafting, equipment categories...
     BattleTurnRange = 45, // first turn, last turn (inclusive)
-    OwnStateCategories = 46 // Any, categories... (not individual state names)
+    OwnStateCategories = 46, // Any, categories... (not individual state names)
+    ActionName = 47, // named skill, not a category
+    HasAttributeBonusPower = 48, // attribute-bonus-derived power exists on this attack
+    CounterToOwnActive = 49 // the triggering counter responds to this actor's active effect
 }
 [Serializable]
 public class ConditionEntry

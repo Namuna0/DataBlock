@@ -122,7 +122,19 @@ public enum EffectContentType
     SetResourceValue = 34, // actor, resource, value
     SkipRoll = 35, // actor, roll kind, Optional, ThisResolution
     LimitAcquisition = 36, // Self, RaceSelection, skill category, maximum (0 prohibits)
-    RaceAlias = 37 // Self, additional race category
+    RaceAlias = 37, // Self, additional race category
+    RerollGathering = 38, // skill name, Day, maximum uses
+    EquipSlotSubstitution = 39, // Weapon, BothHands, OneHand
+    TransformAtStacks = 40, // Self, stack state, Equals, threshold, HP, MP, resulting state (after this gain)
+    CyclingStateStacks = 41, // Self, action category, state, state category, gain, threshold, resource, restore, reset
+    DrainResource = 42, // AllEnemies, resource, positive reduction formula, Self, ActualTotal, AllowOverflow
+    CreateMeleeGroup = 43, // Self, Target, state name; create a new group
+    PreventMealPenalties = 44, // Self, MealAndMealSet, ResourceAndStatDecrease
+    GrantCreationChoice = 45, // LifePath, count, candidate names...
+    GrantRaceTrait = 46, // race category, count
+    OutsiderRule = 47, // dedicated rule key followed by typed parameters; see MAGIC_SKILL_SUPPORT.md
+    OptionalInvalidateAction = 48, // Self, action category, AtMost, achievement value
+    UseStateDefinitionAtStacks = 49 // GreaterThan, threshold, definition name, ReplaceEffects, KeepIdentityAndStacks
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -167,7 +179,11 @@ public enum OverrideContentType
     ModifyAcquisitionCost = 27, // Self, resource, Add|Multiply, AllSkills|Class|SkillCategory, selector, value
     MultiplySalePrice = 28, // NPC, ExceptCategory, category, factor
     MultiplyRecovery = 29, // factor; action category belongs to Triggers
-    SetActivationRollTarget = 30 // replacement target for this skill's activation roll
+    SetActivationRollTarget = 30, // replacement target for this skill's activation roll
+    SetRollRange = 31, // Action, Fumble|Critical, lower inclusive, upper inclusive
+    MultiplyDamageReduction = 32, // factor applied to the counter's reduction amount
+    MultiplyPowerByTurnActivations = 33, // action category, first ordinal, factors..., maximum (reset each turn)
+    StateTurnRecovery = 34 // state name, resource, amount, AnyTurn (spike replacement, not cumulative)
 }
 [Serializable]
 public class OverrideDefinition

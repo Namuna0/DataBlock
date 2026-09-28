@@ -129,6 +129,7 @@ public static partial class SkillTextConverter
         if (data == null || data.Skill == null || data.Summons == null || data.States == null || data.Skill.Choices == null || data.Skill.Choices.Any(x => x == null) || data.Summons.Any(x => x == null) || data.States.Any(x => x == null)) throw new InvalidOperationException("スキル・子スキル・召喚・状態がnullです。");
         if (data.Skill.Choices.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.Summons.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.States.GroupBy(x => x.Name).Any(x => x.Count() > 1)) throw new InvalidOperationException("子スキル・召喚・状態の名前が重複しています。");
         ValidateSummons(data);
+        ValidateMagicStates(data);
         var sb = new StringBuilder();
         sb.AppendLine("```"); sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》"); WriteSkill(sb, data.Skill);
         if (data.Skill.Choices.Count > 0)

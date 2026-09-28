@@ -63,7 +63,7 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetActivationRollTarget)
+                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetActivationRollTarget && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
                     throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
                 if (content.Type == OverrideContentType.SetActivationRollFormula &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
@@ -77,7 +77,7 @@ public static partial class SkillTextConverter
                     if (!(p[0] == "Power" ? hasUnconditionalActiveAttack : hasUnconditionalAttributeAttack))
                         throw new InvalidOperationException("威力の変更先となる対応アクティブ攻撃を無条件で1件だけ指定してください。");
                 }
-                if (content.Type == OverrideContentType.SetAttackRule && !hasUnconditionalActiveAttack)
+                if (content.Type == OverrideContentType.SetAttackRule && !hasUnconditionalActiveAttack && !content.Parameters.SequenceEqual(new[] { "Response", "回避", "Prohibit", "ThisSkill" }))
                     throw new InvalidOperationException("攻撃規則の適用先となるアクティブ攻撃を無条件で1件だけ指定してください。");
                 if (content.Type == OverrideContentType.SetDamageReduction && !hasUnconditionalCounterReduction)
                     throw new InvalidOperationException("軽減値の上書き先となるカウンターの被ダメージ軽減を無条件で1件だけ指定してください。");
@@ -92,7 +92,9 @@ public static partial class SkillTextConverter
                 {
                     string[] p = Args(content.Parameters, 4, "AddResourceCost");
                     if (p[3] == "Optional" && effect.Type != EffectType.Passive) throw new InvalidOperationException("任意消費補正はPassiveに指定してください。");
-                    if (p[3] == "Automatic" && (effect.Type != EffectType.Critical || !hasUnconditionalActiveAttack)) throw new InvalidOperationException("自動消費補正は攻撃を持つスキルのCriticalに指定してください。");
+                    string costCategory;
+                    bool passiveCategoryCost = effect.Type == EffectType.Passive && TryGetCategoryTrigger(effect.Triggers, TriggerTiming.ResourceCost, out costCategory);
+                    if (p[3] == "Automatic" && !passiveCategoryCost && (effect.Type != EffectType.Critical || !hasUnconditionalActiveAttack)) throw new InvalidOperationException("自動消費補正には攻撃のCriticalまたはカテゴリー指定Passiveが必要です。");
                     if (p[3] != "Optional" && p[3] != "Automatic") throw new InvalidOperationException("消費補正の適用方法はOptional / Automaticです。");
                 }
             }
@@ -101,6 +103,7 @@ public static partial class SkillTextConverter
         ValidatePassiveExtensions(skill);
         ValidateExtendedSkill(skill);
         ValidateHumanSkill(skill);
+        ValidateMagicSkill(skill);
         foreach (EffectType stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike }) ValidateSpikeStage(skill, stage);
 
         int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.SetSkillValue));
@@ -150,7 +153,8 @@ public static partial class SkillTextConverter
 
     private static void ValidateSpikeStage(SkillBody skill, EffectType stage)
     {
-        var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c })).ToList();
+        var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c }))
+            .Where(x => x.Content.Type != OverrideContentType.SetRollRange && x.Content.Type != OverrideContentType.StateTurnRecovery).ToList();
         if (entries.Count == 0) return;
         var rollEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetActivationRollFormula || x.Content.Type == OverrideContentType.SetActivationRollTarget).ToList();
         if (rollEntries.Count > 0)

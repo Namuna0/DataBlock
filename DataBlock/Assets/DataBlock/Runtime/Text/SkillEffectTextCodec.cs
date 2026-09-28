@@ -7,6 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
+        if (ReadMagicSkill(skill, type, Unbullet(text))) return;
         if (ReadHumanSkill(skill, type, Unbullet(text))) return;
         if (ReadExtendedSkill(skill, type, Unbullet(text))) return;
         foreach (string part in Split(Unbullet(text), "・"))
@@ -282,6 +283,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
+        string magic = MagicContentText(content);
+        if (magic != null) return magic;
         string human = HumanContentText(content);
         if (human != null) return human;
         string extended = ExtendedContentText(content);
@@ -352,6 +355,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillTriggerText(EffectType type, List<TriggerDefinition> triggers)
     {
+        string magic = MagicTriggerText(triggers);
+        if (magic != null) return magic;
         string extended = ExtendedTriggerText(triggers);
         if (extended != null) return extended;
         if (triggers == null) throw new InvalidOperationException("Triggersがnullです。");
@@ -380,6 +385,8 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        string magic = MagicOverrideText(effect, content);
+        if (magic != null) return magic;
         string human = HumanOverrideText(effect, content);
         if (human != null) return human;
         string extended = ExtendedOverrideText(effect, content);

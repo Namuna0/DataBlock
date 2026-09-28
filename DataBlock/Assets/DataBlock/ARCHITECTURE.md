@@ -137,3 +137,7 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 ## 人間系の16件と追加文型
 
 `HumanSkillTextCodec`、`HumanSkillRules`、`HumanSkillSpikes` は振り直し、制作・環境判定、習得決意、期間付き補正、売値、種族別名・習得制限を扱います。既存モデルの再利用判断、新しいenum、パラメーター契約は [HUMAN_SKILL_SUPPORT.md](HUMAN_SKILL_SUPPORT.md) を参照してください。この追加については依頼に従いテストを実施していません。
+
+## 魔法生物系の32件と追加文型
+
+`MagicSkillTextCodec`、`MagicModifierTextCodec`、`MagicStateTextCodec` はスタック到達・循環、判定範囲、資源吸収、カテゴリ別の目標値補正などを扱います。`OutsiderTextCodec` は《人外》の固有ルールを保持します。意味の解釈・追加の型・引数は [MAGIC_SKILL_SUPPORT.md](MAGIC_SKILL_SUPPORT.md) を参照してください。今回の動作確認はInspectorの実操作に限定します。
