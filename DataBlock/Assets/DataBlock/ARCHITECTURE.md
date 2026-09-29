@@ -141,3 +141,7 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 ## 魔法生物系の32件と追加文型
 
 `MagicSkillTextCodec`、`MagicModifierTextCodec`、`MagicStateTextCodec` はスタック到達・循環、判定範囲、資源吸収、カテゴリ別の目標値補正などを扱います。`OutsiderTextCodec` は《人外》の固有ルールを保持します。意味の解釈・追加の型・引数は [MAGIC_SKILL_SUPPORT.md](MAGIC_SKILL_SUPPORT.md) を参照してください。今回の動作確認はInspectorの実操作に限定します。
+
+## 精神体系の18件と追加文型
+
+`SpiritInputTextCodec`、`SpiritSkillTextCodec`、`SpiritModifierTextCodec`、`SpiritStateTextCodec` は、追加の対象選択、カテゴリー免疫、スキル封印、リソース別ダメージ、代理行動宣言、付与時に対象と威力を保持する遅延攻撃を扱います。`DiceRollDefinition.FixedResult` は自動成功時の固定達成値です。原文の解釈・既存型の再利用・追加の型と引数は [SPIRIT_SKILL_SUPPORT.md](SPIRIT_SKILL_SUPPORT.md) を参照してください。この追加については依頼に従いテストを実施していません。

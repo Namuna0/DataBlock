@@ -32,7 +32,7 @@ public static partial class SkillTextConverter
             {
                 if (set.Or.Count != 0 || set.And.Count != 1) throw new InvalidOperationException("自動発動条件は他の宣言条件と併用できません。");
             }
-            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
+            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharacterSkill || last == ConditionType.ExcludeTargetRaces || last == ConditionType.TargetStackMinimum || last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
             {
                 const string distinct = "（重複不可）";
                 result = result.EndsWith(distinct) ? result.Substring(0, result.Length - distinct.Length) + "して宣言可能。" + distinct : result + "して宣言可能。";
@@ -101,6 +101,7 @@ public static partial class SkillTextConverter
         if (skill.CooldownTurns < 0 || skill.Roll.Count < 0) throw new InvalidOperationException("クールタイムと回数は0以上です。");
         if (skill.CooldownTurns > 0) sb.AppendLine("【クールタイム】" + skill.CooldownTurns + "ターン");
         bool automaticRoll = skill.Roll.Count == 1 && skill.Roll.Formula == "自動成功" && string.IsNullOrWhiteSpace(skill.Roll.Target);
+        if (skill.Roll.FixedResult < -1 || (!automaticRoll && skill.Roll.FixedResult != -1)) throw new InvalidOperationException("固定達成値は自動成功の発動ロールに指定してください。");
         if (skill.Roll.Count == 0 && (!string.IsNullOrWhiteSpace(skill.Roll.Formula) || !string.IsNullOrWhiteSpace(skill.Roll.Target))) throw new InvalidOperationException("発動ロールが未使用なのに式・目標値が入力されています。回数を設定してください。");
         if (skill.Roll.Count > 0 && !automaticRoll)
         {
@@ -110,7 +111,7 @@ public static partial class SkillTextConverter
         }
         ValidateSkillEffects(skill);
         WriteEffectGroup(sb, skill, EffectType.Declaration);
-        if (automaticRoll) sb.AppendLine("【発動ロール】自動成功");
+        if (automaticRoll) sb.AppendLine("【発動ロール】自動成功" + (skill.Roll.FixedResult >= 0 ? "、達成値は" + skill.Roll.FixedResult + "となる。" : ""));
         else if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
         foreach (EffectType type in DisplayOrder.Where(x => IsOrdinary(x) && x != EffectType.Declaration)) WriteEffectGroup(sb, skill, type);
         if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
@@ -130,6 +131,7 @@ public static partial class SkillTextConverter
         if (data.Skill.Choices.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.Summons.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.States.GroupBy(x => x.Name).Any(x => x.Count() > 1)) throw new InvalidOperationException("子スキル・召喚・状態の名前が重複しています。");
         ValidateSummons(data);
         ValidateMagicStates(data);
+        ValidateSpiritData(data);
         var sb = new StringBuilder();
         sb.AppendLine("```"); sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》"); WriteSkill(sb, data.Skill);
         if (data.Skill.Choices.Count > 0)
@@ -144,7 +146,6 @@ public static partial class SkillTextConverter
         foreach (StateDefinition state in data.States)
         {
             string categories = CategoryText(state.Categories);
-            if (categories.Length == 0) throw new InvalidOperationException("状態のカテゴリーがありません。");
             List<string> texts = StateTexts(state);
             if (texts.Count == 0) throw new InvalidOperationException("状態の効果が空です：" + state.Name);
             sb.AppendLine(); sb.AppendLine(Need(state.Name, "状態名") + "効果" + categories + "：");

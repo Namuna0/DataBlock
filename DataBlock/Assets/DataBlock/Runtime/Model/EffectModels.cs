@@ -59,6 +59,8 @@ public class DiceRollDefinition
     [Min(0)] public int Count;
     public string Formula = "";
     public string Target = "";
+    // -1: no fixed result. Used only by an automatic-success roll.
+    public int FixedResult = -1;
 }
 public enum EffectType
 {
@@ -134,7 +136,20 @@ public enum EffectContentType
     GrantRaceTrait = 46, // race category, count
     OutsiderRule = 47, // dedicated rule key followed by typed parameters; see MAGIC_SKILL_SUPPORT.md
     OptionalInvalidateAction = 48, // Self, action category, AtMost, achievement value
-    UseStateDefinitionAtStacks = 49 // GreaterThan, threshold, definition name, ReplaceEffects, KeepIdentityAndStacks
+    UseStateDefinitionAtStacks = 49, // GreaterThan, threshold, definition name, ReplaceEffects, KeepIdentityAndStacks
+    LeaveBattle = 50, // Self
+    PreventRollAtResource = 51, // Self, resource, AtMost, threshold, roll name
+    CategoryImmunity = 52, // Self, categories... (any)
+    ProhibitCategoryTarget = 53, // Self, category
+    ConvertResourceCost = 54, // Self, from resource, to resource, All
+    AddQuestReward = 55, // Self, resource, amount
+    ApplySelectedSkillState = 56, // SelectedSkill, state, turns
+    ProhibitSelectedSkill = 57, // Self, SelectedSkill
+    ResourceDamage = 58, // Target, resource, formula
+    RestoreFromResourceDamage = 59, // Self, source resource, restored resource, multiplier, ThisResolution
+    GrantActionControl = 60, // Applier, Self, Turn, limit, AllyDuringAction
+    DelayedStateAttack = 61, // Target, delay turns, power, attribute power, SnapshotOnApply, RemoveAfterAttack
+    TurnStartStateStacks = 62 // Self, required state, gained state, amount, AllCharacters
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -183,7 +198,15 @@ public enum OverrideContentType
     SetRollRange = 31, // Action, Fumble|Critical, lower inclusive, upper inclusive
     MultiplyDamageReduction = 32, // factor applied to the counter's reduction amount
     MultiplyPowerByTurnActivations = 33, // action category, first ordinal, factors..., maximum (reset each turn)
-    StateTurnRecovery = 34 // state name, resource, amount, AnyTurn (spike replacement, not cumulative)
+    StateTurnRecovery = 34, // state name, resource, amount, AnyTurn (spike replacement, not cumulative)
+    AttributeWeaknessDamage = 35, // Self, HighestDisadvantageAttributeBonus
+    PreventCounterTarget = 36, // ThisEffect
+    SetStateControlLimit = 37, // state, Turn, limit
+    ConditionalStatePower = 38, // action category, own state, target state, shared melee state, multiplier
+    ConditionalStateCost = 39, // same first four selectors, resource, minimum base cost, delta
+    SetConditionalStatePower = 40, // replacement multiplier for ConditionalStatePower
+    IgnoreDefenseForCategories = 41, // Self, categories... (all)
+    MultiplyStateAttackPower = 42 // local state name, factor (captured when applying the state)
 }
 [Serializable]
 public class OverrideDefinition

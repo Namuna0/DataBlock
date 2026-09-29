@@ -63,7 +63,7 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetActivationRollTarget && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
+                if (spike && !IsSpiritSpikeContent(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetActivationRollTarget && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
                     throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
                 if (content.Type == OverrideContentType.SetActivationRollFormula &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
@@ -104,6 +104,7 @@ public static partial class SkillTextConverter
         ValidateExtendedSkill(skill);
         ValidateHumanSkill(skill);
         ValidateMagicSkill(skill);
+        ValidateSpiritSkill(skill);
         foreach (EffectType stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike }) ValidateSpikeStage(skill, stage);
 
         int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.SetSkillValue));
@@ -154,7 +155,7 @@ public static partial class SkillTextConverter
     private static void ValidateSpikeStage(SkillBody skill, EffectType stage)
     {
         var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c }))
-            .Where(x => x.Content.Type != OverrideContentType.SetRollRange && x.Content.Type != OverrideContentType.StateTurnRecovery).ToList();
+            .Where(x => x.Content.Type != OverrideContentType.SetRollRange && x.Content.Type != OverrideContentType.StateTurnRecovery && !IsSpiritSpikeContent(x.Content.Type)).ToList();
         if (entries.Count == 0) return;
         var rollEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetActivationRollFormula || x.Content.Type == OverrideContentType.SetActivationRollTarget).ToList();
         if (rollEntries.Count > 0)

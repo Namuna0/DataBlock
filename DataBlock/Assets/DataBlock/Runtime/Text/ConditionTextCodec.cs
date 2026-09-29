@@ -39,6 +39,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry spirit = ReadSpiritCondition(text);
+        if (spirit != null) return spirit;
         if (text == "自身のアクティブ効果に対してカウンター効果を発動された時に") return Condition(ConditionType.CounterToOwnActive);
         ConditionEntry human = ReadHumanCondition(text);
         if (human != null) return human;
@@ -80,6 +82,8 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        string spirit = SpiritConditionText(item);
+        if (spirit != null) return spirit;
         if (item != null && item.Type == ConditionType.CounterToOwnActive) { Args(item.Parameters, 0, "CounterToOwnActive"); return "自身のアクティブ効果に対してカウンター効果を発動された時に"; }
         string human = HumanConditionText(item);
         if (human != null) return human;

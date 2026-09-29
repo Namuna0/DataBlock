@@ -61,7 +61,12 @@ public enum ConditionType
     OwnStateCategories = 46, // Any, categories... (not individual state names)
     ActionName = 47, // named skill, not a category
     HasAttributeBonusPower = 48, // attribute-bonus-derived power exists on this attack
-    CounterToOwnActive = 49 // the triggering counter responds to this actor's active effect
+    CounterToOwnActive = 49, // the triggering counter responds to this actor's active effect
+    EncounterPhase = 50,
+    SelectCharacterSkill = 51, // character count, effect kind, skill count
+    ExcludeTargetRaces = 52, // character count, excluded race categories...
+    TargetStackMinimum = 53, // state, minimum, character count
+    SelectAnyTarget = 54 // count (including non-character roleplay targets)
 }
 [Serializable]
 public class ConditionEntry

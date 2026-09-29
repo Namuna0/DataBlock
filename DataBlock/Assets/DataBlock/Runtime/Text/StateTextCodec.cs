@@ -11,6 +11,7 @@ public static partial class SkillTextConverter
     private static bool ReadStateLine(StateDefinition state, string text)
     {
         text = Unbullet(text).TrimStart('*', '＊').Trim();
+        if (ReadSpiritState(state, text)) return true;
         if (ReadMagicState(state, text)) return true;
         if (ReadExtendedState(state, text)) return true;
         Match m = M(text, @"^自身は毎ターン開始時《([^》]+)》状態になる。?$");
@@ -124,6 +125,8 @@ public static partial class SkillTextConverter
     }
     private static string StateOverrideText(List<TriggerDefinition> triggers, OverrideContent content)
     {
+        string spirit = SpiritStateOverrideText(triggers, content);
+        if (spirit != null) return spirit;
         string magic = MagicStateOverrideText(triggers, content);
         if (magic != null) return magic;
         string extended = ExtendedOverrideText(new OverrideDefinition { Type = EffectType.Passive, Triggers = triggers }, content);
@@ -160,6 +163,8 @@ public static partial class SkillTextConverter
     }
     private static string StateContentText(StateDefinition state, List<TriggerDefinition> triggers, EffectContent content)
     {
+        string spirit = SpiritStateContentText(triggers, content);
+        if (spirit != null) return spirit;
         string magic = MagicStateContentText(state, triggers, content);
         if (magic != null) return magic;
         string extended = ExtendedStateContentText(state, triggers, content);

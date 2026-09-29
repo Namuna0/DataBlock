@@ -6,7 +6,7 @@ public static partial class SkillTextConverter
 {
     private static SkillTextData ParseOne(string source)
     {
-        string[] lines = PrepareMagicLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'));
+        string[] lines = PrepareSpiritLines(PrepareMagicLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')));
         int start = 0, end = lines.Length - 1;
         while (start <= end && string.IsNullOrWhiteSpace(lines[start])) start++;
         while (end >= start && string.IsNullOrWhiteSpace(lines[end])) end--;
@@ -64,10 +64,10 @@ public static partial class SkillTextConverter
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
                     current.Categories = Categories(line); continue;
                 }
-                Match stateHeader = M(line, @"^([^・⚫].*?)効果((?:〈[^〉]+〉)+)[：:](.*)$");
+                Match stateHeader = M(line, @"^([^・⚫【].*?)効果((?:〈[^〉]+〉)*)[：:](.*)$");
                 if (stateHeader.Success)
                 {
-                    state = new StateDefinition { Name = Need(stateHeader.Groups[1].Value, "状態名"), Categories = Categories(stateHeader.Groups[2].Value) };
+                    state = new StateDefinition { Name = Need(stateHeader.Groups[1].Value, "状態名"), Categories = stateHeader.Groups[2].Value.Length == 0 ? new System.Collections.Generic.List<string>() : Categories(stateHeader.Groups[2].Value) };
                     if (data.States.Any(x => x.Name == state.Name)) throw new InvalidOperationException("状態定義が重複しています：" + state.Name);
                     data.States.Add(state); conditions = "";
                     string body = stateHeader.Groups[3].Value.Trim();
@@ -94,6 +94,12 @@ public static partial class SkillTextConverter
                             if (!cooldown.Success) throw new InvalidOperationException("クールタイムは1ターンの形式です。");
                             current.CooldownTurns = Number(cooldown.Groups[1].Value, 0, "クールタイム"); break;
                         case "発動ロール":
+                            Match automatic = M(body, @"^自動成功、達成値は([0-9]+)となる。?$");
+                            if (automatic.Success)
+                            {
+                                current.Roll = new DiceRollDefinition { Count = 1, Formula = "自動成功", FixedResult = Number(automatic.Groups[1].Value, 0, "固定達成値") };
+                                break;
+                            }
                             if (body == "自動成功")
                             {
                                 current.Roll = new DiceRollDefinition { Count = 1, Formula = "自動成功" };
@@ -137,6 +143,7 @@ public static partial class SkillTextConverter
         }
         if (!named) throw new InvalidOperationException("スキル名がありません。");
         CompleteMagicStates(data);
+        CompleteSpiritData(data);
         if (description && data.Skill.Choices.Count == 0) throw new InvalidOperationException("説明に対応する子スキルがありません。");
         // Preserve the established common-trigger representation for a state
         // containing only a damage/power modifier. Mixed states use local triggers.
