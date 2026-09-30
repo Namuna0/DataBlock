@@ -29,14 +29,14 @@ public static partial class SkillTextConverter
         if (declaration)
         {
             ConditionType last = set.And.Count == 0 ? ConditionType.None : set.And.Last().Type;
-            if (last == ConditionType.SelectCarriedWeapon || last == ConditionType.AutomaticActivation || (last == ConditionType.ReactionTarget && set.And.Last().Parameters.Count == 4))
+            if (last == ConditionType.SelectCarriedWeapon || last == ConditionType.AutomaticActivation || last == ConditionType.AutomaticEnemyAction || (last == ConditionType.ReactionTarget && set.And.Last().Parameters.Count == 4))
             {
                 if (set.Or.Count != 0 || set.And.Count != 1) throw new InvalidOperationException("自動発動条件は他の宣言条件と併用できません。");
             }
-            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharacterSkill || last == ConditionType.ExcludeTargetRaces || last == ConditionType.TargetStackMinimum || last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
+            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharactersWithState || last == ConditionType.SelectCharacterSkill || last == ConditionType.ExcludeTargetRaces || last == ConditionType.TargetStackMinimum || last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
             {
-                const string distinct = "（重複不可）";
-                result = result.EndsWith(distinct) ? result.Substring(0, result.Length - distinct.Length) + "して宣言可能。" + distinct : result + "して宣言可能。";
+                result = M(result, @"（重複(?:不可|可能)）$").Success
+                    ? RegexReplace(result, @"（(重複(?:不可|可能))）$", "して宣言可能。（$1）") : result + "して宣言可能。";
             }
             else if (set.Or.Count > 0 || last != ConditionType.SelectedItemConditionsMet) result += "宣言可能。";
         }

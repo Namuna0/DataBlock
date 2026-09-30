@@ -73,7 +73,10 @@ public enum ConditionType
     LethalIncomingAction = 58, // resource, AtMost, threshold, action category
     SelectEquipmentSkill = 59, // count, resource, AtMost, maximum cost, NoMeleeRequirement
     ActionTowardsSelf = 60, // action category, Source
-    SelectCarriedWeapon = 61 // count, AllowUnarmed
+    SelectCarriedWeapon = 61, // count, AllowUnarmed
+    AreaWithoutCategory = 62, // excluded area category
+    SelectCharactersWithState = 63, // state, exact count
+    AutomaticEnemyAction = 64 // triggering action category; target its enemy source
 }
 [Serializable]
 public class ConditionEntry

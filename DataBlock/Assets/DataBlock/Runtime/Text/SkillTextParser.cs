@@ -6,7 +6,7 @@ public static partial class SkillTextConverter
 {
     private static SkillTextData ParseOne(string source)
     {
-        string[] lines = PrepareBeastRaceLines(PrepareSpiritLines(PrepareMagicLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'))));
+        string[] lines = PrepareBeastRaceLines(PrepareSpiritLines(PrepareMagicLines(PrepareBeastSecondLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')))));
         int start = 0, end = lines.Length - 1;
         while (start <= end && string.IsNullOrWhiteSpace(lines[start])) start++;
         while (end >= start && string.IsNullOrWhiteSpace(lines[end])) end--;
@@ -145,6 +145,7 @@ public static partial class SkillTextConverter
         CompleteMagicStates(data);
         CompleteSpiritData(data);
         CompleteBeastRaceData(data);
+        CompleteBeastSecondData(data);
         if (description && data.Skill.Choices.Count == 0) throw new InvalidOperationException("説明に対応する子スキルがありません。");
         // Preserve the established common-trigger representation for a state
         // containing only a damage/power modifier. Mixed states use local triggers.

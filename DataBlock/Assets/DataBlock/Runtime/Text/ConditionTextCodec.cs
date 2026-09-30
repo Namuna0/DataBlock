@@ -6,6 +6,7 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
+        if (ReadBeastSecondConditions(set, text)) return;
         if (ReadBeastRaceConditions(set, text)) return;
         text = RegexReplace(text, @"自身が《([^》]+)》を受けた時", "自身が〈$1〉を受けた時");
         text = text.Replace("を受けた時に宣言可能", "を受けた時宣言可能");
@@ -40,6 +41,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry second = ReadBeastSecondCondition(text);
+        if (second != null) return second;
         ConditionEntry beast = ReadBeastRaceCondition(text);
         if (beast != null) return beast;
         ConditionEntry spirit = ReadSpiritCondition(text);
@@ -69,8 +72,8 @@ public static partial class SkillTextConverter
         m = M(text, @"^消費する〈([^〉]+)〉を([0-9]+)個選択$");
         if (m.Success) return Condition(ConditionType.SelectConsumedItem, m.Groups[1].Value, m.Groups[2].Value);
         if (text.TrimEnd('。') == "そのアイテムの宣言条件を満たしていること") return Condition(ConditionType.SelectedItemConditionsMet);
-        m = M(text, @"^(自身と同じ接近グループの)?キャラクターを([0-9]+)体(まで)?選択(?:[（(](重複不可)[）)])?$");
-        if (m.Success) return Condition(m.Groups[1].Success ? ConditionType.SelectMeleeCharacters : ConditionType.SelectCharacters, m.Groups[2].Value, m.Groups[3].Success ? "UpTo" : "Exact", m.Groups[4].Success ? "Distinct" : "Default");
+        m = M(text, @"^(自身と同じ接近グループの)?キャラクターを([0-9]+)体(まで)?選択(?:[（(](重複不可|重複可能)[）)])?$");
+        if (m.Success) return Condition(m.Groups[1].Success ? ConditionType.SelectMeleeCharacters : ConditionType.SelectCharacters, m.Groups[2].Value, m.Groups[3].Success ? "UpTo" : "Exact", m.Groups[4].Success ? (m.Groups[4].Value == "重複不可" ? "Distinct" : "AllowDuplicates") : "Default");
         m = M(text, @"^自身が既に受けている〈([^〉]+)〉状態を([0-9]+)つ選択$");
         if (m.Success) return Condition(ConditionType.SelectOwnState, new[] { m.Groups[2].Value }.Concat(Split(m.Groups[1].Value, ",")).ToArray());
         m = M(text, @"^〈([^〉]+)〉を発動した自身と同じ接近グループのキャラクターに対して$");
@@ -85,6 +88,8 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        string second = BeastSecondConditionText(item);
+        if (second != null) return second;
         string beast = BeastRaceConditionText(item);
         if (beast != null) return beast;
         string spirit = SpiritConditionText(item);
@@ -133,8 +138,8 @@ public static partial class SkillTextConverter
             case ConditionType.SelectMeleeCharacters:
                 p = Args(item.Parameters, 3, item.Type.ToString()); Number(p[0], 1, "人数");
                 if (p[1] != "Exact" && p[1] != "UpTo") throw new InvalidOperationException("選択数はExact / UpToです。");
-                if (p[2] != "Distinct" && p[2] != "Default") throw new InvalidOperationException("重複指定はDistinct / Defaultです。");
-                return (item.Type == ConditionType.SelectMeleeCharacters ? "自身と同じ接近グループの" : "") + "キャラクターを" + p[0] + "体" + (p[1] == "UpTo" ? "まで" : "") + "選択" + (p[2] == "Distinct" ? "（重複不可）" : "");
+                if (p[2] != "Distinct" && p[2] != "Default" && p[2] != "AllowDuplicates") throw new InvalidOperationException("重複指定はDistinct / AllowDuplicates / Defaultです。");
+                return (item.Type == ConditionType.SelectMeleeCharacters ? "自身と同じ接近グループの" : "") + "キャラクターを" + p[0] + "体" + (p[1] == "UpTo" ? "まで" : "") + "選択" + (p[2] == "Distinct" ? "（重複不可）" : p[2] == "AllowDuplicates" ? "（重複可能）" : "");
             case ConditionType.SelectOwnState:
                 p = VariableArgs(item.Parameters, 2, "SelectOwnState"); Number(p[0], 1, "個数"); return "自身が既に受けている〈" + string.Join(", ", p.Skip(1)) + "〉状態を" + p[0] + "つ選択";
             case ConditionType.ReceiveFromCharacter:

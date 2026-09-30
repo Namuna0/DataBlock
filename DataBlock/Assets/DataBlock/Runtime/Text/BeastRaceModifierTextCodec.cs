@@ -75,7 +75,9 @@ public static partial class SkillTextConverter
                 p = Args(content.Parameters, 2, "ItemCapacity"); Require(effect.Type == EffectType.Passive); Number(p[1], 1, "所持上限");
                 return "サイズ" + p[0] + "のアイテムを最大" + p[1] + "個まで所持する事が出来ます。";
             case OverrideContentType.OptionalAreaProgressReduction:
-                p = Args(content.Parameters, 4, "OptionalAreaProgressReduction"); Require(effect.Type == EffectType.Passive && p[1] != "Unspecified" && p[3] == "Optional"); Number(p[0], 1, "通常軽減回数"); Number(p[2], 1, "条件付き軽減回数");
+                p = Args(content.Parameters, 4, "OptionalAreaProgressReduction"); Require(effect.Type == EffectType.Passive && p[1] != "Unspecified" && p[3] == "Optional"); Number(p[0], 0, "通常軽減回数"); Number(p[2], 1, "条件付き軽減回数");
+                if (p[1] == "Any") { Require(p[0] == p[2]); return "エリアの進行ロールの回数を-" + p[0] + "しても良い。"; }
+                if (p[0] == "0") return "エリアに〈" + p[1] + "〉を含む場合、エリアの進行ロールの回数を-" + p[2] + "しても良い。";
                 return "エリアの進行ロールの回数を-" + p[0] + "しても良い。\nエリアに〈" + p[1] + "〉を含む場合、エリアの進行ロールの減少回数が-" + p[2] + "に変化する。";
             case OverrideContentType.MultiplyDeclaredSkillPower:
                 p = Args(content.Parameters, 1, "MultiplyDeclaredSkillPower"); Require(effect.Type == EffectType.Critical); PositiveHumanFactor(p[0]);

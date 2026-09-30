@@ -106,6 +106,7 @@ public static partial class SkillTextConverter
         ValidateMagicSkill(skill);
         ValidateSpiritSkill(skill);
         ValidateBeastRaceSkill(skill);
+        ValidateBeastSecondSkill(skill);
         foreach (EffectType stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike }) ValidateSpikeStage(skill, stage);
 
         int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.SetSkillValue));

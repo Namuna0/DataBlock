@@ -44,7 +44,8 @@ public enum TriggerTiming
     DamageReceived = 22,
     ActionDeclared = 23,
     BattleEnd = 24,
-    ResourceRecovery = 25 // when a resource restoration amount is determined
+    ResourceRecovery = 25, // when a resource restoration amount is determined
+    AttackHit = 26 // this skill's attack hit its target (not merely a successful roll)
 }
 [Serializable]
 public class TriggerDefinition
@@ -156,7 +157,27 @@ public enum EffectContentType
     GrantItem = 66, // Self, item name, count, rank formula
     RemoveStatesByOrigin = 67, // Self, Roll, roll name
     DeclareSelectedSkill = 68, // Self, Target, ACT, 0, Optional, power factor (other costs/conditions retained)
-    SwapWeapon = 69 // Self, SelectedWeapon, Battle, AllowUnarmed
+    SwapWeapon = 69, // Self, SelectedWeapon, Battle, AllowUnarmed
+    RequireBattleAreaCategory = 70, // required destination area category
+    RestrictBattleTurnDeclarations = 71, // turn, allowed category A, allowed category B (OR)
+    SuppressTraitEffects = 72, // trait name
+    DefineOwnAttribute = 73, // no parameters: highest base attribute; ties remain unresolved
+    CounterFumbleState = 74, // incoming category, state name, turns
+    OptionalCategoryImmunity = 75, // incoming category (Self, optional)
+    OwnAttributeHitState = 76, // own attribute, state, turns (Target, on this attack hit)
+    OwnAttributeHitRemoval = 77, // own attribute, removed state (Target, on this attack hit)
+    MissingOwnAttributePower = 78, // base power; omit attribute power and attribute branches if absent
+    RandomAttackDeclaration = 79, // no parameters: random own attack, random legal targets including Self
+    RandomTargetSelection = 80, // count; random legal targets excluding Self
+    PreventResourceRecovery = 81, // resource (Self)
+    ProhibitActionCategory = 82, // category (Self, prevent declaration/activation)
+    ExtraCountersPerSkill = 83, // battle uses, declarations per triggering skill, same-target declarations
+    NextDeclarationExtraTargets = 84, // uses, excluded required state, minimum targets, optional extra targets
+    AdvanceDestinySpike = 85, // stages; optional use of an existing higher stage
+    PreventSelectionOutsideMelee = 86, // incoming category
+    ApplierTurnAttack = 87, // power; Applier attacks state holder on Applier's turn start, current Applier stats
+    ExecuteAfterAttackDamage = 88, // HP maximum percent threshold, resulting HP, applied state (Target)
+    ProhibitDeclarationCategory = 89 // category (Self, declaration only)
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -221,7 +242,21 @@ public enum OverrideContentType
     ItemEffectDuration = 47, // Self, AllTargets, added turns
     ItemCapacity = 48, // size, maximum count
     OptionalAreaProgressReduction = 49, // default reduction, area category, replacement reduction, Optional
-    MultiplyDeclaredSkillPower = 50 // factor for the selected skill declaration
+    MultiplyDeclaredSkillPower = 50, // factor for the selected skill declaration
+    CappedStackPower = 51, // action category, stack multiplier formula, maximum multiplier
+    AreaStatMultiplier = 52, // present area category, stat, multiplier
+    AreaActionResult = 53, // present area category, check stat, added result
+    ApplierAttributePower = 54, // action category A AND B, added attribute power (current Applier stats)
+    RaceCheckResult = 55, // target race categories (comma separated, OR), check stat, added result
+    OwnAttributeBonus = 56, // added race attribute bonus percentage points
+    OwnAttributeWeaknessMultiplier = 57, // incoming weak attribute power multiplier formula
+    NamedSkillRollResult = 58, // skill name, added activation roll result
+    NextActionPower = 59, // matching uses, action category, multiplier
+    PowerByAlliedStateTypes = 60, // action category, multiplier formula; distinct Target states applied by Self/allies
+    ThisSkillCriticalRange = 61, // inclusive lower and upper activation dice bounds
+    CriticalThresholdDelta = 62, // signed delta to this skill's critical threshold
+    ItemUseCostDelta = 63, // item category, resource, signed delta
+    PhaseDamageMultiplier = 64 // phase A OR B, incoming damage multiplier
 }
 [Serializable]
 public class OverrideDefinition
