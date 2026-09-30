@@ -149,7 +149,14 @@ public enum EffectContentType
     RestoreFromResourceDamage = 59, // Self, source resource, restored resource, multiplier, ThisResolution
     GrantActionControl = 60, // Applier, Self, Turn, limit, AllyDuringAction
     DelayedStateAttack = 61, // Target, delay turns, power, attribute power, SnapshotOnApply, RemoveAfterAttack
-    TurnStartStateStacks = 62 // Self, required state, gained state, amount, AllCharacters
+    TurnStartStateStacks = 62, // Self, required state, gained state, amount, AllCharacters
+    EnvironmentImmunity = 63, // Self, environment names...
+    RestoreOnAppliedState = 64, // Self, action category, Target, applied state, resource, MaximumPercent, percent
+    ChooseCheckOutcome = 65, // Target, Critical, Fumble, Optional
+    GrantItem = 66, // Self, item name, count, rank formula
+    RemoveStatesByOrigin = 67, // Self, Roll, roll name
+    DeclareSelectedSkill = 68, // Self, Target, ACT, 0, Optional, power factor (other costs/conditions retained)
+    SwapWeapon = 69 // Self, SelectedWeapon, Battle, AllowUnarmed
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -206,7 +213,15 @@ public enum OverrideContentType
     ConditionalStateCost = 39, // same first four selectors, resource, minimum base cost, delta
     SetConditionalStatePower = 40, // replacement multiplier for ConditionalStatePower
     IgnoreDefenseForCategories = 41, // Self, categories... (all)
-    MultiplyStateAttackPower = 42 // local state name, factor (captured when applying the state)
+    MultiplyStateAttackPower = 42, // local state name, factor (captured when applying the state)
+    SetAppliedStateDuration = 43, // Target, state, replacement turns
+    SetStateDamageMultiplier = 44, // local state, Self, replacement damage multiplier
+    SetOnAppliedStateRecovery = 45, // resource, replacement maximum percent
+    CriticalCategoryMultiplier = 46, // action category, Power|ActionResult, factor, Stack
+    ItemEffectDuration = 47, // Self, AllTargets, added turns
+    ItemCapacity = 48, // size, maximum count
+    OptionalAreaProgressReduction = 49, // default reduction, area category, replacement reduction, Optional
+    MultiplyDeclaredSkillPower = 50 // factor for the selected skill declaration
 }
 [Serializable]
 public class OverrideDefinition

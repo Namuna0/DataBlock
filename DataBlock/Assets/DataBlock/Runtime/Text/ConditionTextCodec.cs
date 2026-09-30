@@ -6,6 +6,7 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
+        if (ReadBeastRaceConditions(set, text)) return;
         text = RegexReplace(text, @"自身が《([^》]+)》を受けた時", "自身が〈$1〉を受けた時");
         text = text.Replace("を受けた時に宣言可能", "を受けた時宣言可能");
         if (ReadReactionCondition(set, text)) return;
@@ -39,6 +40,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry beast = ReadBeastRaceCondition(text);
+        if (beast != null) return beast;
         ConditionEntry spirit = ReadSpiritCondition(text);
         if (spirit != null) return spirit;
         if (text == "自身のアクティブ効果に対してカウンター効果を発動された時に") return Condition(ConditionType.CounterToOwnActive);
@@ -82,6 +85,8 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        string beast = BeastRaceConditionText(item);
+        if (beast != null) return beast;
         string spirit = SpiritConditionText(item);
         if (spirit != null) return spirit;
         if (item != null && item.Type == ConditionType.CounterToOwnActive) { Args(item.Parameters, 0, "CounterToOwnActive"); return "自身のアクティブ効果に対してカウンター効果を発動された時に"; }

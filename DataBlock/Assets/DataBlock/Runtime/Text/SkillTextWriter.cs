@@ -9,6 +9,7 @@ public static partial class SkillTextConverter
     private static void WriteConditions(StringBuilder sb, string label, ConditionSet set, bool declaration)
     {
         if (!ValidConditions(set)) throw new InvalidOperationException("条件集合が不正です。");
+        if (set.And.Any(x => x.Type == ConditionType.IncapacitatedCheckReaction || x.Type == ConditionType.SelectCarriedWeapon)) Require(set.And.Count == 1 && set.Or.Count == 0);
         ConditionEntry meleeSelection;
         string exceptionState;
         if (declaration && TryMeleeStateException(set, out meleeSelection, out exceptionState))
@@ -28,7 +29,7 @@ public static partial class SkillTextConverter
         if (declaration)
         {
             ConditionType last = set.And.Count == 0 ? ConditionType.None : set.And.Last().Type;
-            if (last == ConditionType.AutomaticActivation || (last == ConditionType.ReactionTarget && set.And.Last().Parameters.Count == 4))
+            if (last == ConditionType.SelectCarriedWeapon || last == ConditionType.AutomaticActivation || (last == ConditionType.ReactionTarget && set.And.Last().Parameters.Count == 4))
             {
                 if (set.Or.Count != 0 || set.And.Count != 1) throw new InvalidOperationException("自動発動条件は他の宣言条件と併用できません。");
             }
@@ -132,6 +133,7 @@ public static partial class SkillTextConverter
         ValidateSummons(data);
         ValidateMagicStates(data);
         ValidateSpiritData(data);
+        ValidateBeastRaceData(data);
         var sb = new StringBuilder();
         sb.AppendLine("```"); sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》"); WriteSkill(sb, data.Skill);
         if (data.Skill.Choices.Count > 0)

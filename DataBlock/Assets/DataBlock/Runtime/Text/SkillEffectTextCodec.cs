@@ -7,6 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
+        if (ReadBeastRaceSkill(skill, type, Unbullet(text))) return;
         if (ReadSpiritSkill(skill, type, Unbullet(text))) return;
         if (ReadMagicSkill(skill, type, Unbullet(text))) return;
         if (ReadHumanSkill(skill, type, Unbullet(text))) return;
@@ -284,6 +285,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
+        string beast = BeastRaceContentText(content);
+        if (beast != null) return beast;
         string spirit = SpiritContentText(content);
         if (spirit != null) return spirit;
         string magic = MagicContentText(content);
@@ -388,6 +391,8 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        string beast = BeastRaceOverrideText(effect, content);
+        if (beast != null) return beast;
         string spirit = SpiritOverrideText(effect, content);
         if (spirit != null) return spirit;
         string magic = MagicOverrideText(effect, content);

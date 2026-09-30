@@ -66,7 +66,14 @@ public enum ConditionType
     SelectCharacterSkill = 51, // character count, effect kind, skill count
     ExcludeTargetRaces = 52, // character count, excluded race categories...
     TargetStackMinimum = 53, // state, minimum, character count
-    SelectAnyTarget = 54 // count (including non-character roleplay targets)
+    SelectAnyTarget = 54, // count (including non-character roleplay targets)
+    WithoutOwnState = 55, // state
+    IncapacitatedCheckReaction = 56, // state, Battle, limit, AnyCharacterAction, reset action category
+    AtRaceSelection = 57, // unspecified optional/automatic acquisition
+    LethalIncomingAction = 58, // resource, AtMost, threshold, action category
+    SelectEquipmentSkill = 59, // count, resource, AtMost, maximum cost, NoMeleeRequirement
+    ActionTowardsSelf = 60, // action category, Source
+    SelectCarriedWeapon = 61 // count, AllowUnarmed
 }
 [Serializable]
 public class ConditionEntry

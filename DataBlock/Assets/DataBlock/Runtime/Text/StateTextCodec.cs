@@ -11,6 +11,7 @@ public static partial class SkillTextConverter
     private static bool ReadStateLine(StateDefinition state, string text)
     {
         text = Unbullet(text).TrimStart('*', '＊').Trim();
+        if (ReadBeastRaceState(state, text)) return true;
         if (ReadSpiritState(state, text)) return true;
         if (ReadMagicState(state, text)) return true;
         if (ReadExtendedState(state, text)) return true;
@@ -125,6 +126,8 @@ public static partial class SkillTextConverter
     }
     private static string StateOverrideText(List<TriggerDefinition> triggers, OverrideContent content)
     {
+        string beast = BeastRaceStateOverrideText(triggers, content);
+        if (beast != null) return beast;
         string spirit = SpiritStateOverrideText(triggers, content);
         if (spirit != null) return spirit;
         string magic = MagicStateOverrideText(triggers, content);
