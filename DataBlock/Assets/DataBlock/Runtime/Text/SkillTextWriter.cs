@@ -33,7 +33,7 @@ public static partial class SkillTextConverter
             {
                 if (set.Or.Count != 0 || set.And.Count != 1) throw new InvalidOperationException("自動発動条件は他の宣言条件と併用できません。");
             }
-            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharactersWithState || last == ConditionType.SelectCharacterSkill || last == ConditionType.ExcludeTargetRaces || last == ConditionType.TargetStackMinimum || last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
+            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharactersExceptSelf || last == ConditionType.SelectRaceWithTrait || last == ConditionType.SelectCharactersWithState || last == ConditionType.SelectCharacterSkill || last == ConditionType.ExcludeTargetRaces || last == ConditionType.TargetStackMinimum || last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
             {
                 result = M(result, @"（重複(?:不可|可能)）$").Success
                     ? RegexReplace(result, @"（(重複(?:不可|可能))）$", "して宣言可能。（$1）") : result + "して宣言可能。";
@@ -63,7 +63,11 @@ public static partial class SkillTextConverter
         foreach (var effect in overrides) texts.AddRange(effect.Contents.Select(c => OverrideText(effect, c)));
         foreach (var effect in deferred)
             texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
-        if (texts.Count == 0) return;
+        if (texts.Count == 0)
+        {
+            if (type == EffectType.Passive && skill.Overrides.SelectMany(x => x.Contents).Any(x => x.Type == OverrideContentType.OptionalSpikeState)) sb.AppendLine("【パッシブ効果】無し。");
+            return;
+        }
         string effectName;
         if (!EffectNames.TryGetValue(type, out effectName)) throw new InvalidOperationException("未対応の効果種別です：" + type);
         string header = "【" + effectName + "】";
@@ -134,6 +138,7 @@ public static partial class SkillTextConverter
         ValidateMagicStates(data);
         ValidateSpiritData(data);
         ValidateBeastRaceData(data);
+        ValidateGodData(data);
         var sb = new StringBuilder();
         sb.AppendLine("```"); sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》"); WriteSkill(sb, data.Skill);
         if (data.Skill.Choices.Count > 0)

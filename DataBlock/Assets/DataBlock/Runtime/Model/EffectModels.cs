@@ -190,7 +190,14 @@ public enum EffectContentType
     OptionalStackOnSelected = 99, // state, amount; give to the selecting actor, optional each selection
     OptionalRecoveryIfStackExists = 100, // state, resource, amount; own turn start, any character with >=1 stack
     AdditionalRaceSkills = 101, // additional count, from currently selectable race skills
-    IncomingCategoriesState = 102 // incoming categories (comma separated, OR), state, turns (Self)
+    IncomingCategoriesState = 102, // incoming categories (comma separated, OR), state, turns (Self)
+    DeferMissingResourceCost = 103, // resource; this skill's Active only, pay available now, remainder next own turn start
+    RemoveAllStacks = 104, // own stack state, after this skill's attack (not its power/cost calculation)
+    TimedTargetStacks = 105, // state, count, duration turns; only these newly granted stacks expire
+    UseStateBoundCharacter = 106, // state; player must be present, ignore state effects for use, state cannot be removed
+    SetTargetResourceAndStates = 107, // resource, value, state A, state B (both)
+    SucceedFailedActivationRoll = 108, // no parameters; triggering normally failed roll becomes success, not Critical
+    UnmodifiableMaximumResourceDamage = 109 // target resource, maximum percent; no power/damage increases or reductions from defense/effects/states
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -272,7 +279,12 @@ public enum OverrideContentType
     PhaseDamageMultiplier = 64, // phase A OR B, incoming damage multiplier
     PowerAgainstState = 65, // target state before this attack, multiplier (this skill only)
     WeaponPowerAgainstState = 66, // weapon category, target state before this attack, multiplier
-    IncomingCategoriesDamageMultiplier = 67 // incoming categories (comma separated, OR), multiplier
+    IncomingCategoriesDamageMultiplier = 67, // incoming categories (comma separated, OR), multiplier
+    EquippedSkillLimit = 68, // maximum equipped skill count formula (not acquired skill count)
+    ThisSkillStackCost = 69, // own stack state, resource, reduction per stack, minimum cost
+    ThisSkillStackPower = 70, // own stack state, minimum stacks, multiplier; before stack removal
+    OptionalSpikeState = 71, // resource A, resource B, cost each, granted own state, battle use limit; unlocked by spike stage
+    AllBonusStatsMultiplier = 72 // all ability bonuses B, multiplier (not base ability values)
 }
 [Serializable]
 public class OverrideDefinition

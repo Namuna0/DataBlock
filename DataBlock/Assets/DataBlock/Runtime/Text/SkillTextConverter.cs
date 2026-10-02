@@ -151,6 +151,7 @@ public static partial class SkillTextConverter
     {
         if (string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException("入力テキストが空です。");
         string text = source.Replace("\r\n", "\n").Replace("\r", "\n");
+        text = RepairGodFence(text);
         // Repair the two-tick opening fence only when followed by a skill header.
         text = RegexReplace(text, @"(?m)^[ \t]*``[ \t]*(?=\n[ \t]*《[^《》\r\n]+》[ \t]*$)", "```");
         text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");

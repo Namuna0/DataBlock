@@ -41,6 +41,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry god = ReadGodCondition(text);
+        if (god != null) return god;
         ConditionEntry nonliving =  ReadNonlivingCondition(text);
         if (nonliving != null) return nonliving;
         ConditionEntry second = ReadBeastSecondCondition(text);
@@ -90,6 +92,8 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        string god = GodConditionText(item);
+        if (god != null) return god;
         string second = BeastSecondConditionText(item);
         if (second != null) return second;
         string beast = BeastRaceConditionText(item);

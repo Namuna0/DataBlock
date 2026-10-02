@@ -40,6 +40,7 @@ public static partial class SkillTextConverter
                 Require(Number(p[0], 1, "下限") <= Number(p[1], 1, "上限") && Number(p[1], 1, "上限") <= 100);
             if (Content == EffectContentType.ExecuteAfterAttackDamage) Require(Number(p[0], 0, "HP割合") <= 100);
             if (Content == EffectContentType.ExtraCountersPerSkill) Require(Number(p[2], 1, "同一対象回数") <= Number(p[1], 1, "宣言回数"));
+            if (Content == EffectContentType.UnmodifiableMaximumResourceDamage) Require(Number(p[1], 1, "最大値割合") <= 100);
             return result;
         }
     }
@@ -159,5 +160,5 @@ public static partial class SkillTextConverter
         Require(effect.Type == rule.Section && (state ? Matches(effect.Triggers, Trigger(TriggerTiming.Always)) : effect.Triggers.Count == 0));
         return rule.Write(content.Parameters);
     }
-    private static IEnumerable<SkillTextRule> SemanticRules() { return BeastSecondRules.Concat(NonlivingRules); }
+    private static IEnumerable<SkillTextRule> SemanticRules() { return BeastSecondRules.Concat(NonlivingRules).Concat(GodRules); }
 }

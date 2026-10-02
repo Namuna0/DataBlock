@@ -6,7 +6,7 @@ public static partial class SkillTextConverter
 {
     private static SkillTextData ParseOne(string source)
     {
-        string[] lines = PrepareBeastRaceLines(PrepareSpiritLines(PrepareMagicLines(PrepareBeastSecondLines(PrepareNonlivingLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'))))));
+        string[] lines = PrepareBeastRaceLines(PrepareSpiritLines(PrepareMagicLines(PrepareBeastSecondLines(PrepareNonlivingLines(PrepareGodLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')))))));
         int start = 0, end = lines.Length - 1;
         while (start <= end && string.IsNullOrWhiteSpace(lines[start])) start++;
         while (end >= start && string.IsNullOrWhiteSpace(lines[end])) end--;

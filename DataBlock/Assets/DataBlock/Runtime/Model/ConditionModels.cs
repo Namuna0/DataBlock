@@ -77,7 +77,9 @@ public enum ConditionType
     AreaWithoutCategory = 62, // excluded area category
     SelectCharactersWithState = 63, // state, count, optional Exact|UpTo (omitted = Exact)
     AutomaticEnemyAction = 64, // triggering action category; target its enemy source
-    OwnStateApplied = 65 // declaration on becoming this state, not while remaining in it
+    OwnStateApplied = 65, // declaration on becoming this state, not while remaining in it
+    SelectCharactersExceptSelf = 66, // exact count
+    SelectRaceWithTrait = 67 // race category, acquired trait name, exact count
 }
 [Serializable]
 public class ConditionEntry

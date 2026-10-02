@@ -7,6 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
+        if (ReadGodSkill(skill, type, Unbullet(text))) return;
         if (ReadNonlivingSkill(skill, type, Unbullet(text))) return;
         if (ReadBeastSecondSkill(skill, type, Unbullet(text))) return;
         if (ReadBeastRaceSkill(skill, type, Unbullet(text))) return;
@@ -401,6 +402,8 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        string god = GodOverrideText(effect, content);
+        if (god != null) return god;
         string nonliving = NonlivingOverrideText(effect, content);
         if (nonliving != null) return nonliving;
         string second = BeastSecondOverrideText(effect, content);

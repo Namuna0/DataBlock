@@ -11,6 +11,7 @@ public static partial class SkillTextConverter
     private static bool ReadStateLine(StateDefinition state, string text)
     {
         text = Unbullet(text).TrimStart('*', '＊').Trim();
+        if (ReadGodState(state, text)) return true;
         if (ReadNonlivingState(state, text)) return true;
         if (ReadBeastSecondState(state, text)) return true;
         if (ReadBeastRaceState(state, text)) return true;

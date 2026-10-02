@@ -157,3 +157,7 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 ## 非生物の22件
 
 `NonlivingRuleTextCodec` と `NonlivingTextCodec` は、復活、リソース不存在、発生源を限定した弱点の抑制、種族別の流血付与、吸血、任意の呪詛スタックを扱います。表記の解釈・型とパラメーターは [NONLIVING_SKILL_SUPPORT.md](NONLIVING_SKILL_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
+
+## 神族の12件
+
+`GodRuleTextCodec`、`GodTextCodec`、`GodValidation` は、装備スキル数制限、不足消費の後払い、期限付きスタック、増減されない割合ダメージ、スパイクによる任意状態付与などを扱います。表記の解釈・モデル変更は [GOD_SKILL_SUPPORT.md](GOD_SKILL_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
