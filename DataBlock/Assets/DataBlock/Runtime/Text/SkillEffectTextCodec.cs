@@ -7,6 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
+        if (ReadNonlivingSkill(skill, type, Unbullet(text))) return;
         if (ReadBeastSecondSkill(skill, type, Unbullet(text))) return;
         if (ReadBeastRaceSkill(skill, type, Unbullet(text))) return;
         if (ReadSpiritSkill(skill, type, Unbullet(text))) return;
@@ -286,6 +287,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
+        string nonliving = NonlivingContentText(content);
+        if (nonliving != null) return nonliving;
         string second = BeastSecondRuleContentText(content, false);
         if (second != null) return second;
         string beast = BeastRaceContentText(content);
@@ -326,7 +329,7 @@ public static partial class SkillTextConverter
                 return Actor(p[0]) + "を" + (p.Length >= 3 ? p[2] + "回連続で" : "") + "スキル値" + p[1] + "で武器攻撃する。" + (p.Length == 4 && p[3] == "PerHit" ? "防御点はそれぞれに適用される。" : "");
             case EffectContentType.SkillAttack:
                 p = VariableArgs(content.Parameters, 2, "SkillAttack");
-                if (p.Length == 2) return Actor(p[0]) + "を" + p[1] + "の威力で攻撃する。";
+                if (p.Length == 2) return TargetText(p[0]) + "を" + p[1] + "の威力で攻撃する。";
                 if (p.Length >= 6 && p[1] == "ElementalWeapon")
                     return TargetText(p[0]) + "をスキル値" + p[2] + "の武器威力+" + p[3] + "の" + string.Join("かつ", p.Skip(4)) + "属性威力で攻撃する。";
                 throw new InvalidOperationException("SkillAttackは対象・威力、または対象・ElementalWeapon・スキル値・属性威力式・2属性以上です。");
@@ -364,6 +367,8 @@ public static partial class SkillTextConverter
     }
     private static string SkillTriggerText(EffectType type, List<TriggerDefinition> triggers)
     {
+        string nonliving = NonlivingTriggerText(type, triggers);
+        if (nonliving != null) return nonliving;
         string second = BeastSecondTriggerText(type, triggers);
         if (second != null) return second;
         string magic = MagicTriggerText(triggers);
@@ -396,6 +401,8 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        string nonliving = NonlivingOverrideText(effect, content);
+        if (nonliving != null) return nonliving;
         string second = BeastSecondOverrideText(effect, content);
         if (second != null) return second;
         string beast = BeastRaceOverrideText(effect, content);

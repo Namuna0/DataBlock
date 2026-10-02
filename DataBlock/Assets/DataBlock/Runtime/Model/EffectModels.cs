@@ -177,7 +177,20 @@ public enum EffectContentType
     PreventSelectionOutsideMelee = 86, // incoming category
     ApplierTurnAttack = 87, // power; Applier attacks state holder on Applier's turn start, current Applier stats
     ExecuteAfterAttackDamage = 88, // HP maximum percent threshold, resulting HP, applied state (Target)
-    ProhibitDeclarationCategory = 89 // category (Self, declaration only)
+    ProhibitDeclarationCategory = 89, // category (Self, declaration only)
+    ReviveAfterBattle = 90, // required/removed own state, HP; only if allies were not wiped out
+    AbsentResource = 91, // resource does not exist (not zero)
+    StateImmunity = 92, // state name (Self)
+    StateOnIncomingCritical = 93, // incoming action category, applied state; activation-roll critical
+    EnvironmentPermanentState = 94, // environment name, maintained state without a turn limit
+    SuppressSourceDamageAndState = 95, // incoming category, source trait, state (only that trait's penalties)
+    SuppressSourceEnvironmentState = 96, // environment, source trait, state
+    HitRaceState = 97, // allowed target races (comma separated, OR), state, turns; this attack hit
+    WeaponHitRaceState = 98, // weapon category, allowed target races (OR), state, turns
+    OptionalStackOnSelected = 99, // state, amount; give to the selecting actor, optional each selection
+    OptionalRecoveryIfStackExists = 100, // state, resource, amount; own turn start, any character with >=1 stack
+    AdditionalRaceSkills = 101, // additional count, from currently selectable race skills
+    IncomingCategoriesState = 102 // incoming categories (comma separated, OR), state, turns (Self)
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -256,7 +269,10 @@ public enum OverrideContentType
     ThisSkillCriticalRange = 61, // inclusive lower and upper activation dice bounds
     CriticalThresholdDelta = 62, // signed delta to this skill's critical threshold
     ItemUseCostDelta = 63, // item category, resource, signed delta
-    PhaseDamageMultiplier = 64 // phase A OR B, incoming damage multiplier
+    PhaseDamageMultiplier = 64, // phase A OR B, incoming damage multiplier
+    PowerAgainstState = 65, // target state before this attack, multiplier (this skill only)
+    WeaponPowerAgainstState = 66, // weapon category, target state before this attack, multiplier
+    IncomingCategoriesDamageMultiplier = 67 // incoming categories (comma separated, OR), multiplier
 }
 [Serializable]
 public class OverrideDefinition

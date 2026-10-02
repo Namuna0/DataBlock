@@ -10,7 +10,7 @@ public static partial class SkillTextConverter
         foreach (var effect in skill.Effects)
         foreach (var content in effect.Contents)
         {
-            var rule = BeastSecondRules.FirstOrDefault(r => !r.State && r.Content != EffectContentType.None && r.Content == content.Type);
+            var rule = SemanticRules().FirstOrDefault(r => !r.State && r.Content != EffectContentType.None && r.Content == content.Type);
             if (rule != null) Require(effect.Type == rule.Section && effect.Triggers.Count == 0);
             bool hit = effect.Triggers.Any(t => t.Timing == TriggerTiming.AttackHit);
             bool branch = content.Type == EffectContentType.OwnAttributeHitState || content.Type == EffectContentType.OwnAttributeHitRemoval;

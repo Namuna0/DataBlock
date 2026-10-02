@@ -41,6 +41,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry nonliving =  ReadNonlivingCondition(text);
+        if (nonliving != null) return nonliving;
         ConditionEntry second = ReadBeastSecondCondition(text);
         if (second != null) return second;
         ConditionEntry beast = ReadBeastRaceCondition(text);

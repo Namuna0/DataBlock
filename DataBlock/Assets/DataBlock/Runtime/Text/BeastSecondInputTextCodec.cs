@@ -10,6 +10,7 @@ public static partial class SkillTextConverter
         var result = new List<string>();
         bool flavor = false;
         string entity = "";
+        string battleTurn = null;
         for (int i = 0; i < lines.Count; i++)
         {
             string line = lines[i];
@@ -53,8 +54,14 @@ public static partial class SkillTextConverter
                 Require(removal.Groups[1].Value == entity);
                 line = "【宣言効果】スキルの処理後にこの罠は除去される。";
             }
-            line = RegexReplace(line, @"このターン〈([^〉]+)〉または〈([^〉]+)〉を含むスキルのみ宣言可能。", "戦闘開始1ターン目は〈$1〉または〈$2〉を含むスキルのみ宣言可能。");
-            line = line.Replace("出来ない, さらに〈移動〉及び〈回避〉を宣言する事が出来ない。", "出来ない。\n自身は〈移動〉を宣言する事が出来ない。\n自身は〈回避〉を宣言する事が出来ない。");
+            var turn = M(line, @"戦闘開始([0-9]+)ターン目、");
+            if (turn.Success) battleTurn = turn.Groups[1].Value;
+            if (line.Contains("このターン〈"))
+            {
+                Require(battleTurn != null);
+                line = RegexReplace(line, @"このターン〈([^〉]+)〉または〈([^〉]+)〉を含むスキルのみ宣言可能。", "戦闘開始" + battleTurn + "ターン目は〈$1〉または〈$2〉を含むスキルのみ宣言可能。");
+            }
+            line = RegexReplace(line, @"出来ない, さらに〈([^〉]+)〉及び〈([^〉]+)〉を宣言する事が出来ない。", "出来ない。\n自身は〈$1〉を宣言する事が出来ない。\n自身は〈$2〉を宣言する事が出来ない。");
             line = RegexReplace(line, @"エリアに〈([^〉]+)〉が含まれている時、\[([^\]]+)\]が×([0-9.]+)倍され、\[([^\]]+)\]による行為判定の達成値は([+-][0-9]+)される。", "エリアに〈$1〉が含まれている時、[$2]が×$3倍される。\nエリアに〈$1〉が含まれている時、[$4]による行為判定の達成値は$5される。");
             line = RegexReplace(line, @"自身の防御点は(\+.+?)加算される。", "自身の防御点$1");
             line = line.Replace("されます。", "される。");
@@ -104,11 +111,13 @@ public static partial class SkillTextConverter
         if (item == null) return null;
         switch (item.Type)
         {
+            case ConditionType.OwnStateApplied: return "自身が《" + Args(item.Parameters, 1, "OwnStateApplied")[0] + "》状態になった時";
             case ConditionType.OwnState: return "自身が《" + Args(item.Parameters, 1, "OwnState")[0] + "》状態の時";
             case ConditionType.AreaWithoutCategory: return "エリアに〈" + Args(item.Parameters, 1, "AreaWithoutCategory")[0] + "〉が含まれない事";
             case ConditionType.SelectCharactersWithState:
-                var p = Args(item.Parameters, 2, "SelectCharactersWithState"); Number(p[1], 1, "人数");
-                return "《" + p[0] + "》状態のキャラクターを" + p[1] + "体選択";
+                var p = VariableArgs(item.Parameters, 2, "SelectCharactersWithState"); Number(p[1], 1, "人数");
+                Require(p.Length == 2 || (p.Length == 3 && (p[2] == "Exact" || p[2] == "UpTo")));
+                return "《" + p[0] + "》状態のキャラクターを" + p[1] + "体" + (p.Length == 3 && p[2] == "UpTo" ? "まで" : "") + "選択";
             case ConditionType.AutomaticEnemyAction: return "〈" + Args(item.Parameters, 1, "AutomaticEnemyAction")[0] + "〉を発動した敵キャラクターを対象に自動発動";
             default: return null;
         }

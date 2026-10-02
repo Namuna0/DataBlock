@@ -227,6 +227,7 @@ MonoBehaviour:
             Count: 1
             Formula: "\u81EA\u52D5\u6210\u529F"
             Target: 
+            FixedResult: -1
           Effects:
           - Type: 1
             Triggers: []
@@ -461,6 +462,7 @@ MonoBehaviour:
             Count: 1
             Formula: "1d100*[\u654F\u6377B]"
             Target: 15
+            FixedResult: -1
           Effects:
           - Type: 1
             Triggers: []
@@ -492,6 +494,7 @@ MonoBehaviour:
             Count: 1
             Formula: "1d100*[\u654F\u6377B]"
             Target: 20
+            FixedResult: -1
           Effects:
           - Type: 1
             Triggers: []
@@ -521,6 +524,7 @@ MonoBehaviour:
             Count: 1
             Formula: "1d100*[\u654F\u6377B]"
             Target: "[\u5BFE\u8C61\u306E\u9054\u6210\u5024]"
+            FixedResult: -1
           Effects:
           - Type: 2
             Triggers: []
@@ -575,50 +579,98 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: "\u7363\u306E\u55C5\u899A"
+      Name: "\u30C9\u30E9\u30B4\u30F3\u30C0\u30A4\u30D6"
       Categories:
       - "\u7A2E\u65CF\u30B9\u30AD\u30EB"
-      - "\u751F\u6D3B\u30B9\u30AD\u30EB"
+      - "\u653B\u6483"
+      - "\u79FB\u52D5"
+      - "\u7269\u7406"
+      - "\u4E0A\u7D1A"
       AcquisitionConditions:
         And:
         - Type: 1
           Parameters: []
         Or: []
       DeclarationConditions:
-        And: []
+        And:
+        - Type: 55
+          Parameters:
+          - "\u63A5\u8FD1"
+        - Type: 7
+          Parameters:
+          - "\u8FD1\u63A5\u6B66\u5668"
+          - 1
+        - Type: 2
+          Parameters:
+          - 1
+          - Exact
+          - Default
         Or: []
-      Costs: []
+      Costs:
+      - Kind: 0
+        Resource: ACT
+        Amount: 6
+      - Kind: 0
+        Resource: SP
+        Amount: 8
       CooldownTurns: 0
       Roll:
         Count: 1
-        Formula: "1d100*[\u611F\u77E5B]"
-        Target: 30
+        Formula: "1d100*[\u654F\u6377B]"
+        Target: 52
+        FixedResult: -1
       Effects:
-      - Type: 4
+      - Type: 1
         Triggers: []
         Contents:
-        - Type: 23
+        - Type: 4
           Parameters:
-          - "\u96A0\u3055\u308C\u305F\u7269\u3092\u898B\u3064\u3051\u308B\u4E8B\u304C\u51FA\u6765\u307E\u3059\u3002"
+          - Self
+          - Target
+          - "\u63A5\u8FD1"
+      - Type: 1
+        Triggers: []
+        Contents:
+        - Type: 14
+          Parameters:
+          - Target
+          - "100+2d100*4.83*[\u7B4B\u529BB]"
+      - Type: 6
+        Triggers: []
+        Contents:
+        - Type: 3
+          Parameters:
+          - Self
+          - ACT
+          - 1
       Overrides:
-      - Type: 3
+      - Type: 1
         Triggers:
-        - Timing: 13
+        - Timing: 1
           Conditions:
             And:
-            - Type: 3
+            - Type: 42
               Parameters:
-              - Self
-            - Type: 34
-              Parameters:
-              - "\u611F\u77E5B"
+              - 1
             Or: []
         Contents:
-        - Type: 12
+        - Type: 2
           Parameters:
-          - +5
+          - 1.2
+      - Type: 1
+        Triggers: []
+        Contents:
+        - Type: 62
+          Parameters:
+          - -5
+      - Type: 5
+        Triggers: []
+        Contents:
+        - Type: 2
+          Parameters:
+          - 1.5
       Choices: []
-      Flavor: "\u3042\u306A\u305F\u306E\u9F3B\u306F\u3068\u3066\u3082\u826F\u304F\u52B9\u304F\u3002\n\u898B\u3048\u306A\u3044\u7372\u7269\u306E\u5C45\u5834\u6240\u3092\u6349\u3048\u3001\u307E\u305F\u5371\u967A\u3082\u7D20\u65E9\u304F\u5BDF\u77E5\u3059\u308B\u4E8B\u304C\u3067\u304D\u308B\u3067\u3057\u3087\u3046\u3002"
+      Flavor: "\u6050\u7ADC\u306E\u8840\u304C\u3001\u5168\u8EAB\u306E\u7B4B\u8089\u3092\u8ECB\u307E\u305B\u308B\u3002\n\u8EAB\u3092\u4F4E\u304F\u6C88\u3081\u3001\u722A\u5148\u3067\u5927\u5730\u3092\u63B4\u307F\u3001\n\u6B21\u306E\u77AC\u9593\u306B\u306F\u7815\u3051\u305F\u571F\u3068\u77F3\u3060\u3051\u3092\u305D\u306E\u5834\u3078\u6B8B\u3057\u3066\u8DF3\u3073\u4E0A\u304C\u308B\u3002\n\n\u62BC\u3057\u6F70\u3059\u307B\u3069\u306E\u4F53\u91CD\u3002\u5927\u5730\u3092\u9707\u308F\u305B\u308B\u7740\u5730\u306E\u885D\u6483\u3002\n\u539F\u59CB\u306E\u6355\u98DF\u8005\u306F\u4E00\u6483\u5FC5\u6BBA\u306E\u7259\u3092\u7A81\u304D\u7ACB\u3066\u308B\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332

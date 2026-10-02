@@ -75,8 +75,9 @@ public enum ConditionType
     ActionTowardsSelf = 60, // action category, Source
     SelectCarriedWeapon = 61, // count, AllowUnarmed
     AreaWithoutCategory = 62, // excluded area category
-    SelectCharactersWithState = 63, // state, exact count
-    AutomaticEnemyAction = 64 // triggering action category; target its enemy source
+    SelectCharactersWithState = 63, // state, count, optional Exact|UpTo (omitted = Exact)
+    AutomaticEnemyAction = 64, // triggering action category; target its enemy source
+    OwnStateApplied = 65 // declaration on becoming this state, not while remaining in it
 }
 [Serializable]
 public class ConditionEntry

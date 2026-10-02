@@ -149,3 +149,11 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 ## 獣人その1の24件
 
 `BeastRaceInputTextCodec`、`BeastRaceSkillTextCodec`、`BeastRaceModifierTextCodec`、`BeastRaceStateAndValidation` は、環境免疫、戦闘不能時の判定変更、状態起因の回復、アイテムの獲得・延長・所持上限、選択した装備スキルの追加宣言などを扱います。表記の解釈とモデル変更は [BEAST_RACE_PART1_SUPPORT.md](BEAST_RACE_PART1_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
+
+## 獣人その2の45件
+
+`BeastSecond*` は、自属性、命中時の追加効果、飛行・拘束、回復禁止、次の1回の補正などを扱います。表記の補正・解釈・モデル変更は [BEAST_RACE_PART2_SUPPORT.md](BEAST_RACE_PART2_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
+
+## 非生物の22件
+
+`NonlivingRuleTextCodec` と `NonlivingTextCodec` は、復活、リソース不存在、発生源を限定した弱点の抑制、種族別の流血付与、吸血、任意の呪詛スタックを扱います。表記の解釈・型とパラメーターは [NONLIVING_SKILL_SUPPORT.md](NONLIVING_SKILL_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。

@@ -82,6 +82,7 @@ public static partial class SkillTextConverter
     {
         if (IsActorTarget(value)) return Actor(value);
         if (value == "AllAllies") return "味方キャラクター全員";
+        if (value == "AllBattleCharacters") return "戦闘中の敵と味方全てのキャラクター";
         if (value == "AllEnemiesExceptSelf") return "自身を除くすべての敵キャラクター";
         if (value != null && value.StartsWith(AllWithStatePrefix, StringComparison.Ordinal))
             return "《" + Need(value.Substring(AllWithStatePrefix.Length), "対象状態名") + "》状態の全ての対象";
