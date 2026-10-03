@@ -151,7 +151,6 @@ public static partial class SkillTextConverter
     {
         if (string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException("入力テキストが空です。");
         string text = source.Replace("\r\n", "\n").Replace("\r", "\n");
-        text = RepairGodFence(text);
         // Repair the two-tick opening fence only when followed by a skill header.
         text = RegexReplace(text, @"(?m)^[ \t]*``[ \t]*(?=\n[ \t]*《[^《》\r\n]+》[ \t]*$)", "```");
         text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");
@@ -312,4 +311,12 @@ public static partial class SkillTextConverter
             }
         }
     }
+
+    private static void AddSkillEffect(SkillBody skill, EffectType type, EffectContent content, params TriggerDefinition[] triggers)
+    {
+        skill.Effects.Add(new EffectDefinition { Type = type, Contents = new List<EffectContent> { content }, Triggers = triggers.ToList() });
+    }
+
+    private static void Require(bool condition) { if (!condition) throw new InvalidOperationException("効果の対象・条件・パラメーターの組み合わせが不正です。"); }
+
 }

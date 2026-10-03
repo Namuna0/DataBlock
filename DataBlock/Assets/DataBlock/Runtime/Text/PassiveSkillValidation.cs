@@ -57,7 +57,7 @@ public static partial class SkillTextConverter
 
     private static void ValidateSetModifierTarget(SkillBody skill, OverrideContent content)
     {
-        if (ValidateHumanModifierTarget(skill, content)) return;
+        if (ValidateModifierRuleTarget(skill, content)) return;
         string[] p = VariableArgs(content.Parameters, 4, "SetModifier");
         int count = 0;
         switch (p[0])

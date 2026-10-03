@@ -11,14 +11,14 @@ public static partial class SkillTextConverter
     private static bool ReadStateLine(StateDefinition state, string text)
     {
         text = Unbullet(text).TrimStart('*', '＊').Trim();
-        if (ReadGodState(state, text)) return true;
-        if (ReadNonlivingState(state, text)) return true;
-        if (ReadBeastSecondState(state, text)) return true;
-        if (ReadBeastRaceState(state, text)) return true;
-        if (ReadSpiritState(state, text)) return true;
-        if (ReadMagicState(state, text)) return true;
-        if (ReadExtendedState(state, text)) return true;
-        Match m = M(text, @"^自身は毎ターン開始時《([^》]+)》状態になる。?$");
+        if (ReadStateEffectStatement(state, text)) return true;
+        Match m = M(text, @"^自身のターン開始時に対象を(.+?)の威力で攻撃する。?$");
+        if (m.Success)
+        {
+            AddStateEffect(state, On(Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Self"))),
+                Content(EffectContentType.SkillAttack, "Target", m.Groups[1].Value)); return true;
+        }
+        m = M(text, @"^自身は毎ターン開始時《([^》]+)》状態になる。?$");
         if (m.Success)
         {
             AddStateEffect(state, On(Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Any"))), Content(EffectContentType.ApplyState, "Self", m.Groups[1].Value)); return true;
@@ -129,18 +129,18 @@ public static partial class SkillTextConverter
     }
     private static string StateOverrideText(List<TriggerDefinition> triggers, OverrideContent content)
     {
-        string nonliving = NonlivingStateOverrideText(triggers, content);
-        if (nonliving != null) return nonliving;
-        string second = BeastSecondStateOverrideText(triggers, content);
-        if (second != null) return second;
-        string beast = BeastRaceStateOverrideText(triggers, content);
-        if (beast != null) return beast;
-        string spirit = SpiritStateOverrideText(triggers, content);
-        if (spirit != null) return spirit;
-        string magic = MagicStateOverrideText(triggers, content);
-        if (magic != null) return magic;
-        string extended = ExtendedOverrideText(new OverrideDefinition { Type = EffectType.Passive, Triggers = triggers }, content);
-        if (extended != null) return extended;
+        string damageRecovery = DamageRecoveryStateModifierText(triggers, content);
+        if (damageRecovery != null) return damageRecovery;
+        string timedCategory = TimedAndCategoryStateModifierText(triggers, content);
+        if (timedCategory != null) return timedCategory;
+        string evasion = EvasionStateModifierText(triggers, content);
+        if (evasion != null) return evasion;
+        string defense = DefenseStateModifierText(triggers, content);
+        if (defense != null) return defense;
+        string attribute = AttributeStateModifierText(triggers, content);
+        if (attribute != null) return attribute;
+        string basic = BasicModifierText(new OverrideDefinition { Type = EffectType.Passive, Triggers = triggers }, content);
+        if (basic != null) return basic;
         if (triggers.Count != 1 || content == null || !ValidTrigger(triggers[0])) throw new InvalidOperationException("状態の数値上書きにはトリガーを1個指定してください。");
         TriggerDefinition t = triggers[0];
         var c = t.Conditions;
@@ -173,15 +173,22 @@ public static partial class SkillTextConverter
     }
     private static string StateContentText(StateDefinition state, List<TriggerDefinition> triggers, EffectContent content)
     {
-        string second = BeastSecondStateContentText(state, triggers, content);
-        if (second != null) return second;
-        string spirit = SpiritStateContentText(triggers, content);
-        if (spirit != null) return spirit;
-        string magic = MagicStateContentText(state, triggers, content);
-        if (magic != null) return magic;
-        string extended = ExtendedStateContentText(state, triggers, content);
-        if (extended != null) return extended;
+        string timedCategory = TimedAndCategoryStateContentText(state, triggers, content);
+        if (timedCategory != null) return timedCategory;
+        string skillControl = SkillControlStateContentText(triggers, content);
+        if (skillControl != null) return skillControl;
+        string stack = StackStateContentText(state, triggers, content);
+        if (stack != null) return stack;
+        string basic = BasicStateContentText(state, triggers, content);
+        if (basic != null) return basic;
         if (triggers == null || content == null || triggers.Any(x => !ValidTrigger(x))) throw new InvalidOperationException("状態のトリガーまたは内容が不正です。");
+        if (content.Type == EffectContentType.SkillAttack &&
+            Matches(triggers, Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Self"))))
+        {
+            string[] p = Args(content.Parameters, 2, "SkillAttack");
+            Require(p[0] == "Target");
+            return "自身のターン開始時に対象を" + p[1] + "の威力で攻撃する。";
+        }
         if (content.Type == EffectContentType.StateAlias && Matches(triggers, Trigger(TriggerTiming.Always)))
         {
             string[] p = Args(content.Parameters, 3, "StateAlias");

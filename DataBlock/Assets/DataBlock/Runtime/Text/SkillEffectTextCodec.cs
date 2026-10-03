@@ -7,14 +7,7 @@ public static partial class SkillTextConverter
 {
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
-        if (ReadGodSkill(skill, type, Unbullet(text))) return;
-        if (ReadNonlivingSkill(skill, type, Unbullet(text))) return;
-        if (ReadBeastSecondSkill(skill, type, Unbullet(text))) return;
-        if (ReadBeastRaceSkill(skill, type, Unbullet(text))) return;
-        if (ReadSpiritSkill(skill, type, Unbullet(text))) return;
-        if (ReadMagicSkill(skill, type, Unbullet(text))) return;
-        if (ReadHumanSkill(skill, type, Unbullet(text))) return;
-        if (ReadExtendedSkill(skill, type, Unbullet(text))) return;
+        if (ReadSkillStatement(skill, type, Unbullet(text))) return;
         foreach (string part in Split(Unbullet(text), "・"))
         {
             string body = RegexReplace(part.Trim(), @"^さらに\s*", "");
@@ -288,20 +281,20 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
-        string nonliving = NonlivingContentText(content);
-        if (nonliving != null) return nonliving;
-        string second = BeastSecondRuleContentText(content, false);
-        if (second != null) return second;
-        string beast = BeastRaceContentText(content);
-        if (beast != null) return beast;
-        string spirit = SpiritContentText(content);
-        if (spirit != null) return spirit;
-        string magic = MagicContentText(content);
-        if (magic != null) return magic;
-        string human = HumanContentText(content);
-        if (human != null) return human;
-        string extended = ExtendedContentText(content);
-        if (extended != null) return extended;
+        string raceRecovery = RaceAndRecoveryContentText(content);
+        if (raceRecovery != null) return raceRecovery;
+        string semantic = SemanticRuleContentText(content, false);
+        if (semantic != null) return semantic;
+        string equipmentItem = EquipmentAndItemContentText(content);
+        if (equipmentItem != null) return equipmentItem;
+        string skillResource = SelectedSkillAndResourceContentText(content);
+        if (skillResource != null) return skillResource;
+        string stackResource = StackAndResourceContentText(content);
+        if (stackResource != null) return stackResource;
+        string checkAcquisition = CheckAndAcquisitionContentText(content);
+        if (checkAcquisition != null) return checkAcquisition;
+        string basic = BasicEffectContentText(content);
+        if (basic != null) return basic;
         if (content == null) throw new InvalidOperationException("効果内容がnullです。");
         string passiveText;
         if (TryPassiveContentText(content, out passiveText)) return passiveText;
@@ -368,14 +361,14 @@ public static partial class SkillTextConverter
     }
     private static string SkillTriggerText(EffectType type, List<TriggerDefinition> triggers)
     {
-        string nonliving = NonlivingTriggerText(type, triggers);
-        if (nonliving != null) return nonliving;
-        string second = BeastSecondTriggerText(type, triggers);
-        if (second != null) return second;
-        string magic = MagicTriggerText(triggers);
-        if (magic != null) return magic;
-        string extended = ExtendedTriggerText(triggers);
-        if (extended != null) return extended;
+        string damageRecovery = DamageRecoveryTriggerText(type, triggers);
+        if (damageRecovery != null) return damageRecovery;
+        string timedAttack = TimedAttackTriggerText(type, triggers);
+        if (timedAttack != null) return timedAttack;
+        string categoryActivation = CategoryActivationTriggerText(triggers);
+        if (categoryActivation != null) return categoryActivation;
+        string basic = BasicEffectTriggerText(triggers);
+        if (basic != null) return basic;
         if (triggers == null) throw new InvalidOperationException("Triggersがnullです。");
         string passiveText;
         if (TryPassiveTriggerText(type, triggers, out passiveText)) return passiveText;
@@ -402,22 +395,22 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
-        string god = GodOverrideText(effect, content);
-        if (god != null) return god;
-        string nonliving = NonlivingOverrideText(effect, content);
-        if (nonliving != null) return nonliving;
-        string second = BeastSecondOverrideText(effect, content);
-        if (second != null) return second;
-        string beast = BeastRaceOverrideText(effect, content);
-        if (beast != null) return beast;
-        string spirit = SpiritOverrideText(effect, content);
-        if (spirit != null) return spirit;
-        string magic = MagicOverrideText(effect, content);
-        if (magic != null) return magic;
-        string human = HumanOverrideText(effect, content);
-        if (human != null) return human;
-        string extended = ExtendedOverrideText(effect, content);
-        if (extended != null) return extended;
+        string actionResult = ActionResultModifierText(effect, content);
+        if (actionResult != null) return actionResult;
+        string damageRecovery = DamageRecoveryModifierText(effect, content);
+        if (damageRecovery != null) return damageRecovery;
+        string timedAttack = TimedAttackModifierText(effect, content);
+        if (timedAttack != null) return timedAttack;
+        string equipmentItem = EquipmentAndItemModifierText(effect, content);
+        if (equipmentItem != null) return equipmentItem;
+        string stateReference = StateReferenceModifierText(effect, content);
+        if (stateReference != null) return stateReference;
+        string stackCategory = StackAndCategoryModifierText(effect, content);
+        if (stackCategory != null) return stackCategory;
+        string modifierRule = ModifierRuleOverrideText(effect, content);
+        if (modifierRule != null) return modifierRule;
+        string basic = BasicModifierText(effect, content);
+        if (basic != null) return basic;
         if (effect.Triggers == null || effect.Triggers.Any(x => !ValidTrigger(x)) || content == null) throw new InvalidOperationException("上書き効果が不正です。");
         string passiveText;
         if (TryPassiveOverrideText(effect, content, out passiveText)) return passiveText;

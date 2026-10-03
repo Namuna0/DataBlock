@@ -121,43 +121,36 @@ SkillCatalog catalog = SkillCatalog.FromShards(shards);
 
 ## 獣人系の13件と追加文型
 
-`Editor/Tests/Fixtures/BeastfolkSkills.txt` は、犬人・狼・狐・狸・熊の13件を保持します。実運用では1件ずつInspectorの構文統一→シリアライズセット→再構築→JSON出力を行います。JSONのルートは従来どおり `Skill / Summons / States`、enumの既存数値は変更しません。
+`Editor/Tests/Fixtures/BeastfolkSkills.txt` は、犬人・狼・狐・狸・熊の13件を保持します。実運用では1件ずつInspectorの構文統一→シリアライズセット→再構築→JSON出力を行います。JSONのルートは `Skill / Summons / States`、enumの既存数値は変更しません。
 
 - 罠は `Summons` の〈罠〉定義として保存し、`PlaceTrap` で参照します。ペットと異なりHP最大値を必須とせず、`RemoveSummon` は罠のDeclaration・AfterSkillResolutionでのみ有効です。
 - `ReactionTarget`: `[行動カテゴリー, Self, Source]`、または `[行動カテゴリー, Ally, Receiver, Automatic]`。自身に対する行動への反応と、味方への行動に反応する自動発動を区別します。
 - `SkillAttack` の追加形は `[Target, PowerAndAttribute, 威力式, 属性威力式]`。`SetAttackComponent` の `Power` と `AttributePower` はそれぞれを変更します。
-- `GainStack` の上限なし形は `[対象, 状態名, 付与数]`。従来の4引数の上限あり形も維持します。
-- `MultiplyDamageTaken` の上限付き形は `[Self, 倍率式, 最大倍率]`。従来の2引数形も維持します。
+- `GainStack` の上限なし形は `[対象, 状態名, 付与数]`。上限ありの形は4引数として区別します。
+- `MultiplyDamageTaken` の上限付き形は `[Self, 倍率式, 最大倍率]`。上限なしの形は2引数として区別します。
 - `AllAlliesExceptSelf` は味方への行為判定補正と任意のリソースダメージ補正で使用します。
 - 状態の複数イベントは各効果の `Triggers` に分けます。複数トリガーはORです。単独の被ダメージ・攻撃威力補正は既存の状態共通トリガー形式を維持します。
 - ロールプレイ効果のみ `RoleplayDescription` に説明文を保存します。戦闘効果の未対応文を説明文へ逃がしません。
 
 `BeastfolkSkillTextConverterTests` は13件のInspector操作処理とUnity JsonUtilityの往復、意味データの各値、罠参照、スタック補正の適用先、重複スパイク、不正な状態倍率などを検証します。
 
-## 人間系の16件と追加文型
+## 文型処理の責務
 
-`HumanSkillTextCodec`、`HumanSkillRules`、`HumanSkillSpikes` は振り直し、制作・環境判定、習得決意、期間付き補正、売値、種族別名・習得制限を扱います。既存モデルの再利用判断、新しいenum、パラメーター契約は [HUMAN_SKILL_SUPPORT.md](HUMAN_SKILL_SUPPORT.md) を参照してください。この追加については依頼に従いテストを実施していません。
+実行コードは種族・クラス・追加時期で分けず、次の責務へまとめます。
 
-## 魔法生物系の32件と追加文型
+- `SkillInputTextCodec`: 改行や表記の正規化。スキル名で入力を補修しません。
+- `ConditionTextCodec`: 習得・宣言・対象選択・反応条件。
+- `SkillEffectReaders` / `SkillContentTextCodec` / `SkillTriggerTextCodec`: 効果文の解析、意味データの書出し、イベント条件。
+- `SkillModifierTextCodec` / `SkillSpikeTextCodec`: 補正の対象と、段階ごとの置換。
+- `StateTextCodec` / `StateEffectTextCodec` / `StateModifierTextCodec`: 状態の効果・イベント・補正。
+- `SemanticRuleTextCodec`: 名前や数値を引数として扱う共通文型表。
+- `CharacterRuleTextCodec`: エリア・種族選択・配分・報酬・パーティー条件の意味データ。
+- `SkillEffectValidation` / `SkillDataValidation`: 効果内の整合性と、状態・召喚をまたぐ参照の整合性。
 
-`MagicSkillTextCodec`、`MagicModifierTextCodec`、`MagicStateTextCodec` はスタック到達・循環、判定範囲、資源吸収、カテゴリ別の目標値補正などを扱います。`OutsiderTextCodec` は《人外》の固有ルールを保持します。意味の解釈・追加の型・引数は [MAGIC_SKILL_SUPPORT.md](MAGIC_SKILL_SUPPORT.md) を参照してください。今回の動作確認はInspectorの実操作に限定します。
+入力の名前、地名、数値はデータとして保持します。曖昧な重複発動ロールや不足したフェンスはエラーとし、特定のスキル名を理由に別の構造へ変換しません。状態の「自身のターン」と「付与者のターン」は別の条件として保持します。スパイクの重複は同じ段階・同じ適用先について検証します。
 
-## 精神体系の18件と追加文型
+既存の各種文型の意味・引数は、`HUMAN_SKILL_SUPPORT.md`、`MAGIC_SKILL_SUPPORT.md`、`SPIRIT_SKILL_SUPPORT.md`、`BEAST_RACE_PART1_SUPPORT.md`、`BEAST_RACE_PART2_SUPPORT.md`、`NONLIVING_SKILL_SUPPORT.md`、`GOD_SKILL_SUPPORT.md`に記録しています。これらは入力資料の分類であり、実行コードの分割基準にはしません。
 
-`SpiritInputTextCodec`、`SpiritSkillTextCodec`、`SpiritModifierTextCodec`、`SpiritStateTextCodec` は、追加の対象選択、カテゴリー免疫、スキル封印、リソース別ダメージ、代理行動宣言、付与時に対象と威力を保持する遅延攻撃を扱います。`DiceRollDefinition.FixedResult` は自動成功時の固定達成値です。原文の解釈・既存型の再利用・追加の型と引数は [SPIRIT_SKILL_SUPPORT.md](SPIRIT_SKILL_SUPPORT.md) を参照してください。この追加については依頼に従いテストを実施していません。
+`SkillArchitectureTests`は代表文型の往復変換、名前・値の変更、重複ロール、段階別スタック変更、状態の行動者とターンの区別、正規化の冪等性、スキル値と属性威力の分離、1万件のShard分割と索引を検証します。追加7バッチの原文全件はfixtureとして保存されていないため、代表文型と既存fixtureによる回帰確認です。1万件のテストはカタログの件数・検索の正しさを対象とし、実戦効果の全組合せや実行速度の保証ではありません。
 
-## 獣人その1の24件
-
-`BeastRaceInputTextCodec`、`BeastRaceSkillTextCodec`、`BeastRaceModifierTextCodec`、`BeastRaceStateAndValidation` は、環境免疫、戦闘不能時の判定変更、状態起因の回復、アイテムの獲得・延長・所持上限、選択した装備スキルの追加宣言などを扱います。表記の解釈とモデル変更は [BEAST_RACE_PART1_SUPPORT.md](BEAST_RACE_PART1_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
-
-## 獣人その2の45件
-
-`BeastSecond*` は、自属性、命中時の追加効果、飛行・拘束、回復禁止、次の1回の補正などを扱います。表記の補正・解釈・モデル変更は [BEAST_RACE_PART2_SUPPORT.md](BEAST_RACE_PART2_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
-
-## 非生物の22件
-
-`NonlivingRuleTextCodec` と `NonlivingTextCodec` は、復活、リソース不存在、発生源を限定した弱点の抑制、種族別の流血付与、吸血、任意の呪詛スタックを扱います。表記の解釈・型とパラメーターは [NONLIVING_SKILL_SUPPORT.md](NONLIVING_SKILL_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
-
-## 神族の12件
-
-`GodRuleTextCodec`、`GodTextCodec`、`GodValidation` は、装備スキル数制限、不足消費の後払い、期限付きスタック、増減されない割合ダメージ、スパイクによる任意状態付与などを扱います。表記の解釈・モデル変更は [GOD_SKILL_SUPPORT.md](GOD_SKILL_SUPPORT.md) を参照してください。依頼に従いテストは実施していません。
+2026-10-03の確認では、Unity 6000.6.2f1のEditModeテスト89件がすべて成功しました。JSON往復、Inspectorの4操作、1万件のカタログ検証を含みます。

@@ -2,7 +2,7 @@
 
 「獣人の実装すべきスキルと特性その1.txt」の24件に対する文章変換・データ表現を追加した。対象はInspectorの構文統一 → シリアライズセット → テキスト再構築 → JSON出力。戦闘・移動・所持品操作そのものの実行は、従来どおりJSONの利用側が実装する。
 
-依頼に従い、テスト・ビルド・Inspector操作による動作確認は実施していない。
+初回追加時には、依頼に従いテスト・ビルド・Inspector操作による動作確認を実施していない。以下はデータ表現と解釈の記録。
 
 ## 対応内容
 
@@ -92,4 +92,4 @@
 | OptionalAreaProgressReduction = 49 | 通常の減少回数, エリアカテゴリー, 置換減少回数, Optional |
 | MultiplyDeclaredSkillPower = 50 | 追加宣言スキルへの倍率 |
 
-新しいコードはBeastRaceInputTextCodec／BeastRaceSkillTextCodec／BeastRaceModifierTextCodec／BeastRaceStateAndValidationへ分離した。読み取り・再構築の両方向、参照先・効果種別・スパイクの基本効果との対応を検証する処理を接続している。検証処理の実行確認を含むテストは未実施。
+入力の整形は `SkillInputTextCodec`、効果の読み取り・再構築は `SkillEffectReaders / SkillContentTextCodec`、補正とスパイクは `SkillModifierTextCodec / SkillSpikeTextCodec`、整合性と参照先の検証は `SkillEffectValidation / SkillDataValidation` が担当する。読み取り・再構築の両方向、参照先・効果種別・スパイクの基本効果との対応を検証する。
