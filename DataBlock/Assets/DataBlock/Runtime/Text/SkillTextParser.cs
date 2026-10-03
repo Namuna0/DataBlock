@@ -6,7 +6,7 @@ public static partial class SkillTextConverter
 {
     private static SkillTextData ParseOne(string source)
     {
-        string[] lines = PrepareBeastRaceLines(PrepareSpiritLines(PrepareMagicLines(PrepareBeastSecondLines(PrepareNonlivingLines(PrepareGodLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')))))));
+        string[] lines = PrepareSkillLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'));
         int start = 0, end = lines.Length - 1;
         while (start <= end && string.IsNullOrWhiteSpace(lines[start])) start++;
         while (end >= start && string.IsNullOrWhiteSpace(lines[end])) end--;
@@ -94,6 +94,7 @@ public static partial class SkillTextConverter
                             if (!cooldown.Success) throw new InvalidOperationException("クールタイムは1ターンの形式です。");
                             current.CooldownTurns = Number(cooldown.Groups[1].Value, 0, "クールタイム"); break;
                         case "発動ロール":
+                            if (current.Roll.Count != 0) throw new InvalidOperationException("同じスキルの発動ロールが重複しています。別の処理は子スキルへ分けてください。");
                             Match automatic = M(body, @"^自動成功、達成値は([0-9]+)となる。?$");
                             if (automatic.Success)
                             {
@@ -142,10 +143,10 @@ public static partial class SkillTextConverter
             catch (InvalidOperationException e) { throw new InvalidOperationException((i + 1) + "行目：" + e.Message + "\n原文：" + lines[i], e); }
         }
         if (!named) throw new InvalidOperationException("スキル名がありません。");
-        CompleteMagicStates(data);
-        CompleteSpiritData(data);
-        CompleteBeastRaceData(data);
-        CompleteBeastSecondData(data);
+        CompleteStackStateReferences(data);
+        CompleteDelayedAttackModifiers(data);
+        CompleteSelectedSkillModifiers(data);
+        CompleteAreaProgressModifiers(data);
         if (description && data.Skill.Choices.Count == 0) throw new InvalidOperationException("説明に対応する子スキルがありません。");
         // Preserve the established common-trigger representation for a state
         // containing only a damage/power modifier. Mixed states use local triggers.

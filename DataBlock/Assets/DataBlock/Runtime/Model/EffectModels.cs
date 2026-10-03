@@ -135,7 +135,7 @@ public enum EffectContentType
     PreventMealPenalties = 44, // Self, MealAndMealSet, ResourceAndStatDecrease
     GrantCreationChoice = 45, // LifePath, count, candidate names...
     GrantRaceTrait = 46, // race category, count
-    OutsiderRule = 47, // dedicated rule key followed by typed parameters; see MAGIC_SKILL_SUPPORT.md
+    CharacterRule = 47, // character-rule kind followed by semantic parameters; see CharacterRuleTextCodec
     OptionalInvalidateAction = 48, // Self, action category, AtMost, achievement value
     UseStateDefinitionAtStacks = 49, // GreaterThan, threshold, definition name, ReplaceEffects, KeepIdentityAndStacks
     LeaveBattle = 50, // Self

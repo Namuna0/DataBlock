@@ -30,7 +30,7 @@ EffectContentType:
 | PreventMealPenalties (44) | Self, MealAndMealSet, ResourceAndStatDecrease |
 | GrantCreationChoice (45) | LifePath, 選択数, 候補名... |
 | GrantRaceTrait (46) | 種族カテゴリ, 選択数 |
-| OutsiderRule (47) | 固有ルール識別子, ルールの値... |
+| CharacterRule (47) | 意味によるルール識別子, 名称・条件・数値などの引数... |
 | OptionalInvalidateAction (48) | Self, 行動カテゴリ, AtMost, 達成値 |
 | UseStateDefinitionAtStacks (49) | GreaterThan, 閾値, 定義名, ReplaceEffects, KeepIdentityAndStacks |
 
@@ -43,15 +43,15 @@ OverrideContentType:
 
 既存型の追加形式：`ApplyState` の対象 `SameMeleeExceptSelf`、`RerollActivation` の能力値指定 `Original`、`InvalidateTriggeredEffect` の `Target / Counter`、`SetAttackRule` の `Response / 回避 / Prohibit / ThisSkill`。`AddResourceCost` の自動適用はカテゴリ指定Passiveにも対応する。
 
-## 人外の固有ルール
+## キャラクタールール
 
-`OutsiderRule` はこの特性専用の13項目に限定する。原文を不透明な文字列として保存せず、各条件・数値・対象を引数として保持する。対応表は `OutsiderTextCodec.cs` の `OutsiderRules` に集約する。
+`CharacterRule` はエリア制限・作成時の選択・回復・報酬など13種類の共通文型を扱う。原文を不透明な文字列として保存せず、各条件・名称・数値・対象を引数として保持する。文型は `CharacterRuleTextCodec.cs` の `CharacterRules` に集約する。同じ文型なら別のスキル・種族にも使用でき、地名・カテゴリー・危険度・回数・割合は固定しない。
 
-町進入禁止、戦闘エリアでの町行動、初期エリア、種族能力値ボーナス合計40%と各20%上限、☆4以下かつ一般エネミー・魔法生物からの選択、選択モンスターの行動条件と特性継承、リスト外スキルのターン制限、移動時回復、全滅時復帰、パーティー種族制限、討伐報酬をそれぞれ別項目とする。
+対応する意味は、指定エリア進入禁止、別エリアの行動権、初期エリア、種族能力値ボーナスの合計・各能力値の上限、危険度とカテゴリーによるモンスター選択、選択モンスターの行動条件と特性継承、リスト外スキルのターン制限、移動時回復、全滅時復帰、パーティー種族制限、討伐報酬。原文の合計40%・各20%・☆4などは、この入力の引数として保持する。
 
-「意外」は「以外」として解釈する。リスト外スキルは全体で1ターン1回の共有制限、移動時20%回復は最大値基準、討伐報酬の1日6点は経験値と決意それぞれの上限として扱う。
+「意外」は「以外」として解釈する。リスト外スキルの宣言回数は全体での共有制限、移動時回復は最大値基準、討伐報酬の日上限は各報酬リソースそれぞれの上限として扱う。原文では1ターン1回・20%回復・1日6点であり、これらの値も引数として変更できる。割合は0.2のような最大値に対する比率で保存し、全滅時の各消費量・討伐時の各報酬量も個別に保持する。
 
-テストは依頼に従いInspectorの実操作のみ。テストランナーや別プロセスで変換処理を実行しない。
+初回実装時の確認は、当時の依頼に従いInspectorの実操作のみで行った。以下はその時点の確認記録。
 
 ## Inspectorでの確認結果
 
@@ -66,4 +66,4 @@ OverrideContentType:
 
 - `ConditionModels.cs`: `ConditionType` に `ActionName (47)`、`HasAttributeBonusPower (48)`、`CounterToOwnActive (49)` を追加。
 - `EffectModels.cs`: `EffectContentType` に上表の38〜49を追加。`OverrideContentType` に31〜34を追加。
-- 既存の列挙値は変更していない。`SkillBody` などのフィールド追加はなく、《人外》は `isMonster` フラグではなく専用の `OutsiderRule` で表現する。
+- 既存の列挙値は変更していない。`SkillBody` などのフィールド追加はなく、《人外》も共通の `CharacterRule` で表現する。旧 `OutsiderRule` の型・専用変換・互換処理は残さない。

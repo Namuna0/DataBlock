@@ -6,8 +6,8 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
-        if (ReadBeastSecondConditions(set, text)) return;
-        if (ReadBeastRaceConditions(set, text)) return;
+        if (ReadCombinedReactionConditions(set, text)) return;
+        if (ReadCheckReactionConditions(set, text)) return;
         text = RegexReplace(text, @"自身が《([^》]+)》を受けた時", "自身が〈$1〉を受けた時");
         text = text.Replace("を受けた時に宣言可能", "を受けた時宣言可能");
         if (ReadReactionCondition(set, text)) return;
@@ -41,19 +41,19 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
-        ConditionEntry god = ReadGodCondition(text);
-        if (god != null) return god;
-        ConditionEntry nonliving =  ReadNonlivingCondition(text);
-        if (nonliving != null) return nonliving;
-        ConditionEntry second = ReadBeastSecondCondition(text);
-        if (second != null) return second;
-        ConditionEntry beast = ReadBeastRaceCondition(text);
-        if (beast != null) return beast;
-        ConditionEntry spirit = ReadSpiritCondition(text);
-        if (spirit != null) return spirit;
+        ConditionEntry excludedSelf = ReadExcludedSelfAndTraitCondition(text);
+        if (excludedSelf != null) return excludedSelf;
+        ConditionEntry stateSelection = ReadStateSelectionCondition(text);
+        if (stateSelection != null) return stateSelection;
+        ConditionEntry areaAutomatic = ReadAreaAndAutomaticCondition(text);
+        if (areaAutomatic != null) return areaAutomatic;
+        ConditionEntry equipmentReaction = ReadEquipmentAndReactionCondition(text);
+        if (equipmentReaction != null) return equipmentReaction;
+        ConditionEntry skillSelection = ReadSkillSelectionCondition(text);
+        if (skillSelection != null) return skillSelection;
         if (text == "自身のアクティブ効果に対してカウンター効果を発動された時に") return Condition(ConditionType.CounterToOwnActive);
-        ConditionEntry human = ReadHumanCondition(text);
-        if (human != null) return human;
+        ConditionEntry check = ReadCheckCondition(text);
+        if (check != null) return check;
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
         if (text == "種族選択時に自動習得") return Condition(ConditionType.AutomaticAtRaceSelection);
         Match m = M(text, @"^装備から([0-9]+)日以上経過している事$");
@@ -92,17 +92,17 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
-        string god = GodConditionText(item);
-        if (god != null) return god;
-        string second = BeastSecondConditionText(item);
-        if (second != null) return second;
-        string beast = BeastRaceConditionText(item);
-        if (beast != null) return beast;
-        string spirit = SpiritConditionText(item);
-        if (spirit != null) return spirit;
+        string excludedSelf = ExcludedSelfAndTraitConditionText(item);
+        if (excludedSelf != null) return excludedSelf;
+        string areaAutomatic = AreaAndAutomaticConditionText(item);
+        if (areaAutomatic != null) return areaAutomatic;
+        string equipmentReaction = EquipmentAndReactionConditionText(item);
+        if (equipmentReaction != null) return equipmentReaction;
+        string skillSelection = SkillSelectionConditionText(item);
+        if (skillSelection != null) return skillSelection;
         if (item != null && item.Type == ConditionType.CounterToOwnActive) { Args(item.Parameters, 0, "CounterToOwnActive"); return "自身のアクティブ効果に対してカウンター効果を発動された時に"; }
-        string human = HumanConditionText(item);
-        if (human != null) return human;
+        string check = CheckConditionText(item);
+        if (check != null) return check;
         if (item != null && item.Type == ConditionType.ReactionTarget) return ReactionConditionText(item);
         if (item == null) throw new InvalidOperationException("条件がnullです。");
         string[] p;
@@ -174,4 +174,238 @@ public static partial class SkillTextConverter
         stateName = Args(state.Parameters, 1, "OwnState")[0];
         return true;
     }
+
+    private static bool ReadCheckReactionConditions(ConditionSet set, string text)
+    {
+        Match m = M(text.Trim(), @"^戦闘中、自身が《([^》]+)》状態の時に一度だけ、あらゆるキャラクターの行為判定に対して(?:（〈([^〉]+)〉を受けた場合回数リセット）)?宣言可能。?$");
+        if (m.Success)
+        {
+            set.And.Add(Condition(ConditionType.IncapacitatedCheckReaction, m.Groups[1].Value, "Battle", "1", "AnyCharacterAction", m.Groups[2].Success ? m.Groups[2].Value : "Unspecified")); return true;
+        }
+        m = M(text.Trim(), @"^〈([^〉]+)〉を受けた場合回数はリセットされる。?$");
+        if (m.Success)
+        {
+            var reaction = set.And.SingleOrDefault(x => x.Type == ConditionType.IncapacitatedCheckReaction);
+            Require(reaction != null && reaction.Parameters[4] == "Unspecified"); reaction.Parameters[4] = m.Groups[1].Value; return true;
+        }
+        m = M(text.Trim(), @"^自身が〈([^〉]+)〉を受けた時、その対象へ発動。?$");
+        if (m.Success) { set.And.Add(Condition(ConditionType.ReactionTarget, m.Groups[1].Value, "Self", "Source")); return true; }
+        if (text.Trim() == "所持している武器を1つ選択して宣言可能。または素手を選択。")
+        { set.And.Add(Condition(ConditionType.SelectCarriedWeapon, "1", "AllowUnarmed")); return true; }
+        return false;
+    }
+
+    private static ConditionEntry ReadEquipmentAndReactionCondition(string text)
+    {
+        text = text.TrimEnd('。');
+        if (text == "種族選択時") return Condition(ConditionType.AtRaceSelection);
+        Match m = M(text, @"^自身が《([^》]+)》状態ではない時$");
+        if (m.Success) return Condition(ConditionType.WithoutOwnState, m.Groups[1].Value);
+        m = M(text, @"^1日([0-9]+)度のみ$");
+        if (m.Success) return Condition(ConditionType.ActivationLimit, "Day", m.Groups[1].Value);
+        m = M(text, @"^([A-Z]+)が([0-9]+)以下になる〈([^〉]+)〉を受けた時(?:に)?$");
+        if (m.Success) return Condition(ConditionType.LethalIncomingAction, m.Groups[1].Value, "AtMost", m.Groups[2].Value, m.Groups[3].Value);
+        m = M(text, @"^消費([A-Z]+)が([0-9]+)以下かつ接近状態を条件としない自身の装備スキルを([0-9]+)つ選択$");
+        if (m.Success) return Condition(ConditionType.SelectEquipmentSkill, m.Groups[3].Value, m.Groups[1].Value, "AtMost", m.Groups[2].Value, "NoMeleeRequirement");
+        m = M(text, @"^自身へ〈([^〉]+)〉を発動した対象に対して$");
+        if (m.Success) return Condition(ConditionType.ActionTowardsSelf, m.Groups[1].Value, "Source");
+        return null;
+    }
+
+    private static string EquipmentAndReactionConditionText(ConditionEntry condition)
+    {
+        if (condition == null) return null;
+        string[] p;
+        switch (condition.Type)
+        {
+            case ConditionType.WithoutOwnState:
+                return "自身が《" + Args(condition.Parameters, 1, "WithoutOwnState")[0] + "》状態ではない時";
+            case ConditionType.AtRaceSelection: Args(condition.Parameters, 0, "AtRaceSelection"); return "種族選択時";
+            case ConditionType.IncapacitatedCheckReaction:
+                p = Args(condition.Parameters, 5, "IncapacitatedCheckReaction"); Require(p[1] == "Battle" && p[2] == "1" && p[3] == "AnyCharacterAction" && p[4] != "Unspecified");
+                return "戦闘中、自身が《" + p[0] + "》状態の時に一度だけ、あらゆるキャラクターの行為判定に対して（〈" + p[4] + "〉を受けた場合回数リセット）";
+            case ConditionType.LethalIncomingAction:
+                p = Args(condition.Parameters, 4, "LethalIncomingAction"); Require(p[1] == "AtMost"); Number(p[2], 0, "閾値");
+                return p[0] + "が" + p[2] + "以下になる〈" + p[3] + "〉を受けた時に";
+            case ConditionType.SelectEquipmentSkill:
+                p = Args(condition.Parameters, 5, "SelectEquipmentSkill"); Number(p[0], 1, "選択数"); Number(p[3], 0, "消費上限"); Require(p[2] == "AtMost" && p[4] == "NoMeleeRequirement");
+                return "消費" + p[1] + "が" + p[3] + "以下かつ接近状態を条件としない自身の装備スキルを" + p[0] + "つ選択";
+            case ConditionType.ActionTowardsSelf:
+                p = Args(condition.Parameters, 2, "ActionTowardsSelf"); Require(p[1] == "Source"); return "自身へ〈" + p[0] + "〉を発動した対象に対して";
+            case ConditionType.SelectCarriedWeapon:
+                p = Args(condition.Parameters, 2, "SelectCarriedWeapon"); Require(p[0] == "1" && p[1] == "AllowUnarmed"); return "所持している武器を1つ選択して宣言可能。または素手を選択。";
+            default: return null;
+        }
+    }
+
+    private static bool ReadCombinedReactionConditions(ConditionSet set, string text)
+    {
+        var m = M(text.Trim(), @"^自身が〈([^〉]+)状態〉かつ〈([^〉]+)〉を受けた時、その対象へ宣言可能。?$");
+        if (m.Success)
+        {
+            set.And.Add(Condition(ConditionType.OwnState, m.Groups[1].Value));
+            set.And.Add(Condition(ConditionType.ReactionTarget, m.Groups[2].Value, "Self", "Source"));
+            return true;
+        }
+        // The canonical combined condition retains the reaction's comma.
+        m = M(text.Trim(), @"^自身が《([^》]+)》状態の時[,、]\s*(自身が〈[^〉]+〉を受けた時、その対象へ(?:宣言可能。)?)$");
+        if (m.Success)
+        {
+            set.And.Add(Condition(ConditionType.OwnState, m.Groups[1].Value));
+            return ReadReactionCondition(set, m.Groups[2].Value);
+        }
+        return false;
+    }
+
+    private static ConditionEntry ReadAreaAndAutomaticCondition(string text)
+    {
+        var own = M(text.TrimEnd('。'), @"^自身が《([^》]+)》状態の時$");
+        if (own.Success) return Condition(ConditionType.OwnState, own.Groups[1].Value);
+        var m = M(text.TrimEnd('。'), @"^エリアに〈([^〉]+)〉が(?:含まれない事|含まれていない時)$");
+        if (m.Success) return Condition(ConditionType.AreaWithoutCategory, m.Groups[1].Value);
+        m = M(text.TrimEnd('。'), @"^《([^》]+)》状態のキャラクターを([0-9]+)体選択$");
+        if (m.Success) return Condition(ConditionType.SelectCharactersWithState, m.Groups[1].Value, m.Groups[2].Value);
+        m = M(text.TrimEnd('。'), @"^〈([^〉]+)〉を発動した敵キャラクターを対象に自動発動$");
+        if (m.Success) return Condition(ConditionType.AutomaticEnemyAction, m.Groups[1].Value);
+        return null;
+    }
+
+    private static string AreaAndAutomaticConditionText(ConditionEntry item)
+    {
+        if (item == null) return null;
+        switch (item.Type)
+        {
+            case ConditionType.OwnStateApplied: return "自身が《" + Args(item.Parameters, 1, "OwnStateApplied")[0] + "》状態になった時";
+            case ConditionType.OwnState: return "自身が《" + Args(item.Parameters, 1, "OwnState")[0] + "》状態の時";
+            case ConditionType.AreaWithoutCategory: return "エリアに〈" + Args(item.Parameters, 1, "AreaWithoutCategory")[0] + "〉が含まれない事";
+            case ConditionType.SelectCharactersWithState:
+                var p = VariableArgs(item.Parameters, 2, "SelectCharactersWithState"); Number(p[1], 1, "人数");
+                Require(p.Length == 2 || (p.Length == 3 && (p[2] == "Exact" || p[2] == "UpTo")));
+                return "《" + p[0] + "》状態のキャラクターを" + p[1] + "体" + (p.Length == 3 && p[2] == "UpTo" ? "まで" : "") + "選択";
+            case ConditionType.AutomaticEnemyAction: return "〈" + Args(item.Parameters, 1, "AutomaticEnemyAction")[0] + "〉を発動した敵キャラクターを対象に自動発動";
+            default: return null;
+        }
+    }
+
+    private static bool ReadReactionCondition(ConditionSet set, string text)
+    {
+        Match m = M(text, @"^自身が[《〈]([^》〉]+)[》〉]を受けた時、その対象へ(?:宣言可能。)?$");
+        if (m.Success) { set.And.Add(Condition(ConditionType.ReactionTarget, m.Groups[1].Value, "Self", "Source")); return true; }
+        m = M(text, @"^〈([^〉]+)〉の対象になった味方キャラクターを対象に自動発動。?$");
+        if (m.Success) { set.And.Add(Condition(ConditionType.ReactionTarget, m.Groups[1].Value, "Ally", "Receiver", "Automatic")); return true; }
+        return false;
+    }
+
+    private static string ReactionConditionText(ConditionEntry item)
+    {
+        string[] p = VariableArgs(item.Parameters, 3, "ReactionTarget");
+        if (p.SequenceEqual(new[] { p[0], "Self", "Source" })) return "自身が〈" + p[0] + "〉を受けた時、その対象へ";
+        if (p.SequenceEqual(new[] { p[0], "Ally", "Receiver", "Automatic" })) return "〈" + p[0] + "〉の対象になった味方キャラクターを対象に自動発動";
+        throw new InvalidOperationException("反応対象の指定が不正です。");
+    }
+
+    private static ConditionEntry ReadExcludedSelfAndTraitCondition(string text)
+    {
+        var m = M(text, @"^自身を除くキャラクターを([0-9]+)体選択$");
+        if (m.Success) return Condition(ConditionType.SelectCharactersExceptSelf, m.Groups[1].Value);
+        m = M(text, @"^特性《([^》]+)》を習得している(.+?)キャラクターを([0-9]+)体選択$");
+        if (m.Success) return Condition(ConditionType.SelectRaceWithTrait, m.Groups[2].Value, m.Groups[1].Value, m.Groups[3].Value);
+        return null;
+    }
+
+    private static string ExcludedSelfAndTraitConditionText(ConditionEntry item)
+    {
+        if (item == null) return null;
+        if (item.Type == ConditionType.SelectCharactersExceptSelf)
+            return "自身を除くキャラクターを" + Number(Args(item.Parameters, 1, "SelectCharactersExceptSelf")[0], 1, "人数") + "体選択";
+        if (item.Type == ConditionType.SelectRaceWithTrait)
+        {
+            var p = Args(item.Parameters, 3, "SelectRaceWithTrait"); Number(p[2], 1, "人数");
+            return "特性《" + p[1] + "》を習得している" + p[0] + "キャラクターを" + p[2] + "体選択";
+        }
+        return null;
+    }
+
+    private static ConditionEntry ReadCheckCondition(string text)
+    {
+        Match m = M(text, @"^戦闘中([0-9]+)(?:度だけ|回まで)$");
+        if (m.Success) return Condition(ConditionType.ActivationLimit, "Battle", m.Groups[1].Value);
+        if (text == "発動ロールに通常失敗した時に") return Condition(ConditionType.RollResult, "Activation", "NormalFailure");
+        m = M(text, @"^([A-Z]+)が(.+?)以下になった時に$");
+        if (m.Success) return Condition(ConditionType.ResourceValue, "Self", m.Groups[1].Value, "AtMost", m.Groups[2].Value);
+        m = M(text, @"^自身に〈([^〉]+)〉状態が付与されている時[、,]?$" );
+        if (m.Success) return Condition(ConditionType.OwnStateCategories, new[] { "Any" }.Concat(Split(m.Groups[1].Value, ",")).ToArray());
+        return null;
+    }
+
+    private static string CheckConditionText(ConditionEntry condition)
+    {
+        if (condition == null) return null;
+        string[] p;
+        if (condition.Type == ConditionType.ActivationLimit && condition.Parameters != null && condition.Parameters.Count == 2 && condition.Parameters[0] == "Battle")
+            return "戦闘中" + Number(condition.Parameters[1], 1, "発動回数") + "回まで";
+        if (condition.Type == ConditionType.RollResult)
+        {
+            p = Args(condition.Parameters, 2, "RollResult"); Require(p.SequenceEqual(new[] { "Activation", "NormalFailure" }));
+            return "発動ロールに通常失敗した時に";
+        }
+        if (condition.Type == ConditionType.ResourceValue)
+        {
+            p = Args(condition.Parameters, 4, "ResourceValue"); Require(p[0] == "Self" && p[2] == "AtMost");
+            return p[1] + "が" + p[3] + "以下になった時に";
+        }
+        if (condition.Type == ConditionType.OwnStateCategories)
+        {
+            p = VariableArgs(condition.Parameters, 2, "OwnStateCategories"); Require(p[0] == "Any");
+            return "自身に〈" + string.Join(", ", p.Skip(1)) + "〉状態が付与されている時";
+        }
+        return null;
+    }
+
+    private static ConditionEntry ReadStateSelectionCondition(string text)
+    {
+        var m = M(text.TrimEnd('。'), @"^自身が《([^》]+)》状態になった時$");
+        if (m.Success) return Condition(ConditionType.OwnStateApplied, m.Groups[1].Value);
+        m = M(text.TrimEnd('。'), @"^《([^》]+)》状態(?:の)?キャラクターを([0-9]+)体まで選択$");
+        if (m.Success) return Condition(ConditionType.SelectCharactersWithState, m.Groups[1].Value, m.Groups[2].Value, "UpTo");
+        return null;
+    }
+
+    private static ConditionEntry ReadSkillSelectionCondition(string text)
+    {
+        text = text.TrimEnd('。');
+        if (text == "エンカウントフェーズ") return Condition(ConditionType.EncounterPhase);
+        Match m = M(text, @"^キャラクター([0-9]+)体のアクティブ効果を持つスキルを([0-9]+)つ選択$");
+        if (m.Success) return Condition(ConditionType.SelectCharacterSkill, m.Groups[1].Value, "Active", m.Groups[2].Value);
+        m = M(text, @"^任意の対象を([0-9]+)体指定(?:して)?$");
+        if (m.Success) return Condition(ConditionType.SelectAnyTarget, m.Groups[1].Value);
+        m = M(text, @"^((?:《[^》]+》)(?:及び《[^》]+》)*)を除くキャラクターを([0-9]+)体選択$");
+        if (m.Success) return Condition(ConditionType.ExcludeTargetRaces, new[] { m.Groups[2].Value }.Concat(AllMatches(m.Groups[1].Value, @"《([^》]+)》").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
+        m = M(text, @"^《([^》]+)》スタックが([0-9]+)以上のキャラクターを([0-9]+)体選択$");
+        if (m.Success) return Condition(ConditionType.TargetStackMinimum, m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value);
+        return null;
+    }
+
+    private static string SkillSelectionConditionText(ConditionEntry item)
+    {
+        if (item == null) return null;
+        string[] p;
+        switch (item.Type)
+        {
+            case ConditionType.EncounterPhase: Args(item.Parameters, 0, "EncounterPhase"); return "エンカウントフェーズ";
+            case ConditionType.SelectCharacterSkill:
+                p = Args(item.Parameters, 3, "SelectCharacterSkill"); Number(p[0], 1, "人数"); Number(p[2], 1, "スキル数"); Require(p[1] == "Active");
+                return "キャラクター" + p[0] + "体のアクティブ効果を持つスキルを" + p[2] + "つ選択";
+            case ConditionType.SelectAnyTarget:
+                p = Args(item.Parameters, 1, "SelectAnyTarget"); Number(p[0], 1, "対象数"); return "任意の対象を" + p[0] + "体指定して";
+            case ConditionType.ExcludeTargetRaces:
+                p = VariableArgs(item.Parameters, 2, "ExcludeTargetRaces"); Number(p[0], 1, "人数");
+                return string.Join("及び", p.Skip(1).Select(x => "《" + x + "》")) + "を除くキャラクターを" + p[0] + "体選択";
+            case ConditionType.TargetStackMinimum:
+                p = Args(item.Parameters, 3, "TargetStackMinimum"); Number(p[1], 1, "スタック下限"); Number(p[2], 1, "人数");
+                return "《" + p[0] + "》スタックが" + p[1] + "以上のキャラクターを" + p[2] + "体選択";
+            default: return null;
+        }
+    }
+
 }
