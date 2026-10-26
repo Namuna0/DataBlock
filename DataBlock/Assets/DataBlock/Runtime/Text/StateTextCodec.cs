@@ -89,9 +89,26 @@ public static partial class SkillTextConverter
     {
         if (ReadStateLine(state, text)) return true;
         string[] sentences = text.Split(new[] { '。' }, StringSplitOptions.RemoveEmptyEntries);
-        if (sentences.Length <= 1) return false;
+        int effectsBefore = state.Effects.Count;
+        int overridesBefore = state.Overrides.Count;
+        TriggerDefinition originalTrigger = state.Trigger;
+        if (sentences.Length <= 1)
+        {
+            AddStateEffect(state, NoTriggers(), Content(EffectContentType.RuleText, text));
+            return true;
+        }
         foreach (string sentence in sentences)
-            if (!ReadStateLine(state, sentence.Trim() + "。")) return false;
+        {
+            if (ReadStateLine(state, sentence.Trim() + "。")) continue;
+
+            // If a multi-sentence state rule is not fully understood, roll back
+            // partial parsing and preserve the original clause as one rule text.
+            state.Effects.RemoveRange(effectsBefore, state.Effects.Count - effectsBefore);
+            state.Overrides.RemoveRange(overridesBefore, state.Overrides.Count - overridesBefore);
+            state.Trigger = originalTrigger;
+            AddStateEffect(state, NoTriggers(), Content(EffectContentType.RuleText, text));
+            return true;
+        }
         return true;
     }
     private static List<TriggerDefinition> StateTriggers(StateDefinition state, List<TriggerDefinition> triggers)
@@ -155,6 +172,8 @@ public static partial class SkillTextConverter
     private static string StateContentText(StateDefinition state, List<TriggerDefinition> triggers, EffectContent content)
     {
         if (triggers == null || content == null || triggers.Any(x => !ValidTrigger(x))) throw new InvalidOperationException("状態のトリガーまたは内容が不正です。");
+        if (content.Type == EffectContentType.RuleText && Matches(triggers, Trigger(TriggerTiming.Always)))
+            return Need(Args(content.Parameters, 1, "RuleText")[0], "状態効果の補足ルール");
         if (content.Type == EffectContentType.StateAlias && Matches(triggers, Trigger(TriggerTiming.Always)))
         {
             string[] p = Args(content.Parameters, 3, "StateAlias");

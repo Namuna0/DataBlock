@@ -6,7 +6,7 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
-        text = text.Trim().Replace("選択して宣言可能。", "選択").Replace("宣言可能。", "");
+        text = text.Trim().Replace("指定して宣言可能。", "指定").Replace("選択して宣言可能。", "選択").Replace("宣言可能。", "");
         if (text.TrimEnd('。') == "毎ターン開始時、ランダムな敵キャラクターを対象に自動発動")
         {
             set.And.Add(Condition(ConditionType.AutomaticActivation, "EveryTurn", "Start", "Random", "Enemy", "1"));
@@ -36,6 +36,7 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        if (text == "片手が素手") return Condition(ConditionType.HandUnarmed);
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
         if (text == "種族選択時に自動習得") return Condition(ConditionType.AutomaticAtRaceSelection);
         Match m = M(text, @"^装備から([0-9]+)日以上経過している事$");
@@ -60,6 +61,8 @@ public static partial class SkillTextConverter
         if (text.TrimEnd('。') == "そのアイテムの宣言条件を満たしていること") return Condition(ConditionType.SelectedItemConditionsMet);
         m = M(text, @"^(自身と同じ接近グループの)?キャラクターを([0-9]+)体(まで)?選択(?:[（(](重複不可)[）)])?$");
         if (m.Success) return Condition(m.Groups[1].Success ? ConditionType.SelectMeleeCharacters : ConditionType.SelectCharacters, m.Groups[2].Value, m.Groups[3].Success ? "UpTo" : "Exact", m.Groups[4].Success ? "Distinct" : "Default");
+        m = M(text, @"^(?:任意の対象|任意のキャラクター)を([0-9]+)体指定$");
+        if (m.Success) return Condition(ConditionType.SelectCharacters, m.Groups[1].Value, "Exact", "Default");
         m = M(text, @"^自身が既に受けている〈([^〉]+)〉状態を([0-9]+)つ選択$");
         if (m.Success) return Condition(ConditionType.SelectOwnState, new[] { m.Groups[2].Value }.Concat(Split(m.Groups[1].Value, ",")).ToArray());
         m = M(text, @"^〈([^〉]+)〉を発動した自身と同じ接近グループのキャラクターに対して$");
@@ -80,6 +83,7 @@ public static partial class SkillTextConverter
         {
             case ConditionType.OptionalAtRaceSelection: Args(item.Parameters, 0, "OptionalAtRaceSelection"); return "種族選択時に任意選択";
             case ConditionType.AutomaticAtRaceSelection: Args(item.Parameters, 0, "AutomaticAtRaceSelection"); return "種族選択時に自動習得";
+            case ConditionType.HandUnarmed: Args(item.Parameters, 0, "HandUnarmed"); return "片手が素手";
             case ConditionType.MinimumEquippedDays:
                 p = Args(item.Parameters, 1, "MinimumEquippedDays");
                 return "装備から" + Number(p[0], 1, "装備経過日数") + "日以上経過している事";

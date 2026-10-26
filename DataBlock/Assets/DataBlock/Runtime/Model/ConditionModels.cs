@@ -51,7 +51,9 @@ public enum ConditionType
     AutomaticAtRaceSelection = 36,
     ResourceValue = 37,
     MappedStateStackInterval = 38,
-    MinimumEquippedDays = 39
+    MinimumEquippedDays = 39,
+    // A hand is free of an equipped item.
+    HandUnarmed = 40
 }
 [Serializable]
 public class ConditionEntry

@@ -61,13 +61,15 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula)
-                    throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
+                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetSkillAttackPower && content.Type != OverrideContentType.AddTargetValue)
+                    throw new InvalidOperationException("スパイクはスキル値・威力・目標値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
                 if (content.Type == OverrideContentType.SetActivationRollFormula &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
                     throw new InvalidOperationException("発動ロールのスパイク変更には通常の発動ロールが必要です。");
                 if (content.Type == OverrideContentType.SetSkillValue && !hasUnconditionalSkillValueAttack)
                     throw new InvalidOperationException("スキル値の上書き先となるアクティブ攻撃を無条件で1件だけ指定してください。");
+                if (content.Type == OverrideContentType.SetSkillAttackPower && !HasSingleUnconditional(skill, skill.Effects.Where(x => x.Type == EffectType.Active).SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.SkillAttack && x.Parameters != null && x.Parameters.Count == 2).ToList(), EffectType.Active))
+                    throw new InvalidOperationException("威力の上書き先となるアクティブSkillAttackを無条件で1件だけ指定してください。");
                 if (content.Type == OverrideContentType.SetAttackComponent || content.Type == OverrideContentType.MultiplyAttackComponent)
                 {
                     string[] p = Args(content.Parameters, 2, content.Type.ToString());
@@ -84,7 +86,7 @@ public static partial class SkillTextConverter
                 if (content.Type == OverrideContentType.PreventCounterDamage && !hasUnconditionalActiveAttack)
                     throw new InvalidOperationException("カウンターダメージ禁止の対象となるアクティブ攻撃を無条件で1件だけ指定してください。");
                 if (content.Type == OverrideContentType.AddStateDuration && (effect.Type != EffectType.Active || skill.DeclarationConditions.And.Count(x => x.Type == ConditionType.SelectOwnState && x.Parameters.Count >= 2 && x.Parameters[0] == "1") != 1)) throw new InvalidOperationException("持続ターン変更にはActiveとSelectOwnState宣言条件が必要です。");
-                if (content.Type == OverrideContentType.AddTargetValue && effect.Type != EffectType.Passive) throw new InvalidOperationException("今回の目標値補正はPassiveに指定してください。");
+                if (content.Type == OverrideContentType.AddTargetValue && effect.Type != EffectType.Passive && !spike) throw new InvalidOperationException("今回の目標値補正はPassiveまたはSpikeに指定してください。");
                 if (content.Type == OverrideContentType.AddResourceCost)
                 {
                     string[] p = Args(content.Parameters, 4, "AddResourceCost");
@@ -152,6 +154,20 @@ public static partial class SkillTextConverter
         {
             if (entries.Count != 1 || rollEntries[0].Definition.Triggers.Count != 0)
                 throw new InvalidOperationException("発動ロールのスパイク変更は各段階に無条件で1件指定してください。");
+            return;
+        }
+        var attackPowerEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetSkillAttackPower).ToList();
+        if (attackPowerEntries.Count > 0)
+        {
+            if (entries.Count != 1 || attackPowerEntries.Count != 1 || attackPowerEntries[0].Definition.Triggers.Count != 0)
+                throw new InvalidOperationException("各段階の攻撃威力スパイクは無条件で1件にしてください。");
+            return;
+        }
+        var targetValueEntries = entries.Where(x => x.Content.Type == OverrideContentType.AddTargetValue).ToList();
+        if (targetValueEntries.Count > 0)
+        {
+            if (entries.Count != 1 || targetValueEntries.Count != 1 || targetValueEntries[0].Definition.Triggers.Count != 0)
+                throw new InvalidOperationException("各段階の目標値スパイクは無条件で1件にしてください。");
             return;
         }
         var modifierEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetModifier).ToList();

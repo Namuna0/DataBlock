@@ -575,27 +575,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: "\u30DE\u30CA\u30A2\u30ED\u30FC"
+      Name: "\u6295\u64F2"
       Categories:
-      - "\u9B54\u8853\u5E2B\u5171\u901A\u30B9\u30AD\u30EB"
+      - "\u4E00\u822C\u30B9\u30AD\u30EB"
       - "\u653B\u6483"
-      - "\u9B54\u6CD5"
-      - "\u30A8\u30EB\u30D5\u9B54\u6CD5"
-      - "\u30DE\u30CA\u64CD\u4F5C\u7CFB"
-      - "\u9B54\u6CD5\u77E2"
+      - "\u7269\u7406"
       AcquisitionConditions:
         And:
         - Type: 6
           Parameters:
           - "\u6C7A\u610F"
-          - 90
+          - 30
         Or: []
       DeclarationConditions:
         And:
-        - Type: 7
-          Parameters:
-          - "\u9B54\u6CD5\u6B66\u5668"
-          - 1
         - Type: 2
           Parameters:
           - 1
@@ -607,12 +600,15 @@ MonoBehaviour:
         Resource: ACT
         Amount: 6
       - Kind: 0
-        Resource: MP
+        Resource: SP
         Amount: 6
+      - Kind: 1
+        Resource: "\u6295\u64F2\u6B66\u5668"
+        Amount: 1
       CooldownTurns: 0
       Roll:
         Count: 1
-        Formula: "1d100*[\u77E5\u529BB]"
+        Formula: "1d100*[\u5668\u7528B]"
         Target: 30
       Effects:
       - Type: 1
@@ -637,20 +633,8 @@ MonoBehaviour:
         - Type: 2
           Parameters:
           - 1.5
-      - Type: 8
-        Triggers: []
-        Contents:
-        - Type: 1
-          Parameters:
-          - 110
-      - Type: 9
-        Triggers: []
-        Contents:
-        - Type: 1
-          Parameters:
-          - 120
       Choices: []
-      Flavor: "\u30A8\u30EB\u30D5\u9B54\u6CD5\u306E\u57FA\u790E\u306E\u653B\u6483\u9B54\u6CD5\u3002\n\u5927\u6C17\u4E2D\u306E\u30DE\u30CA\u3092\u62BC\u3057\u56FA\u3081\u3001\u6575\u3092\u8CAB\u304F\u77E2\u3078\u3068\u5909\u3048\u308B\u3002"
+      Flavor: "\u76F8\u624B\u306B\u69CD\u3084\u65A7\u306A\u3069\u3092\u6295\u3052\u3064\u3051\u3066\u653B\u6483\u3059\u308B\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332

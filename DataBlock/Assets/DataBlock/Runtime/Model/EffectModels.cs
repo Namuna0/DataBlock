@@ -102,7 +102,9 @@ public enum EffectContentType
     // actor, amount, multi-attribute policy, rule key, then attribute/state pairs.
     GainMappedStateStacks = 21,
     // amount
-    AddAreaGathering = 22
+    AddAreaGathering = 22,
+    // Preserves a rule clause that has no executable effect type yet.
+    RuleText = 23
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType
@@ -139,7 +141,9 @@ public enum OverrideContentType
     // Base modifier kind, selector fields, replacement value.
     SetModifier = 21,
     // Replacement formula for a skill activation roll. The base target is retained.
-    SetActivationRollFormula = 22
+    SetActivationRollFormula = 22,
+    // Replacement power formula for an ordinary SkillAttack.
+    SetSkillAttackPower = 23
 }
 [Serializable]
 public class OverrideDefinition
