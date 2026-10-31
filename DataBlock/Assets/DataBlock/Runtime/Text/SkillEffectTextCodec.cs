@@ -64,6 +64,20 @@ public static partial class SkillTextConverter
                     AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollFormula, spike.Groups[1].Value));
                     continue;
                 }
+                if (!skill.Effects.Any(x => x != null && x.Type != EffectType.Roleplay &&
+                    x.Type != EffectType.SecondSpike && x.Type != EffectType.ThirdSpike))
+                {
+                    EffectContentType roleplaySpike = type == EffectType.SecondSpike
+                        ? EffectContentType.RolePlayingCapabilitiesPlus
+                        : EffectContentType.RolePlayingCapabilitiesPlusPlus;
+                    skill.Effects.Add(new EffectDefinition
+                    {
+                        Type = type,
+                        Triggers = NoTriggers(),
+                        Contents = new List<EffectContent> { Content(roleplaySpike, body.Trim()) }
+                    });
+                    continue;
+                }
                 throw new InvalidOperationException("スパイクはスキル値・属性威力・被ダメージ軽減値・発動ロールの変更に対応します。");
             }
             if (!IsOrdinary(type)) throw new InvalidOperationException("効果種別を指定してください。");
@@ -267,6 +281,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.RollDice, m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^ペット《([^》]+)》を召喚する。?$");
         if (m.Success) return Content(EffectContentType.Summon, m.Groups[1].Value);
+        m = M(s, @"^《([^》]+)》罠を設置する。?$");
+        if (m.Success) return Content(EffectContentType.Summon, m.Groups[1].Value, "Trap");
         m = M(s, @"^(自身|対象|付与者)の([A-Z]+)を([+-].+?)(?:減少|変化)させる。?$");
         if (m.Success) return Content(EffectContentType.ModifyResource, ActorKey(m.Groups[1].Value), m.Groups[2].Value, Signed(m.Groups[3].Value));
         m = M(s, @"^(自身|対象|付与者)の((?:〈[^〉]+〉)(?:(?:及び|または)〈[^〉]+〉)*)を無効にする。?$");
@@ -289,7 +305,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.Damage, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^(自身|対象|付与者)への((?:〈[^〉]+〉)(?:(?:及び|または)〈[^〉]+〉)*)を無効にする。?$");
         if (m.Success) return Content(EffectContentType.InvalidateIncomingAction, new[] { ActorKey(m.Groups[1].Value) }.Concat(AllMatches(m.Groups[2].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
-        throw new InvalidOperationException("未対応のスキル効果です：" + s);
+        // Preserve valid but not-yet-executable effect clauses for round-tripping.
+        return Content(EffectContentType.RuleText, s);
     }
     private static bool ValidConditions(ConditionSet c)
     {
@@ -372,13 +389,22 @@ public static partial class SkillTextConverter
                 p = Args(content.Parameters, 2, "RollDice"); Number(p[0], 1, "追加ロール番号");
                 return "追加ロール" + p[0] + "として" + p[1] + "のダイスロールを行う。";
             case EffectContentType.Summon:
-                p = Args(content.Parameters, 1, "Summon"); return "ペット《" + p[0] + "》を召喚する。";
+                p = VariableArgs(content.Parameters, 1, "Summon");
+                if (p.Length == 1) return "ペット《" + p[0] + "》を召喚する。";
+                if (p.Length == 2 && p[1] == "Trap") return "《" + p[0] + "》罠を設置する。";
+                throw new InvalidOperationException("Summonはエンティティ名、任意でTrap種別を指定してください。");
             case EffectContentType.AddAreaGathering:
                 p = Args(content.Parameters, 1, "AddAreaGathering");
                 return "このエリアの採取を" + Number(p[0], 1, "追加採取回数") + "回追加で行うことができる。";
             case EffectContentType.RuleText:
                 p = Args(content.Parameters, 1, "RuleText");
                 return Need(p[0], "スキル効果の補足ルール");
+            case EffectContentType.RolePlayingCapabilitiesPlus:
+                p = Args(content.Parameters, 1, "RolePlayingCapabilitiesPlus");
+                return Need(p[0], "セカンドスパイクのロールプレイ強化");
+            case EffectContentType.RolePlayingCapabilitiesPlusPlus:
+                p = Args(content.Parameters, 1, "RolePlayingCapabilitiesPlusPlus");
+                return Need(p[0], "サードスパイクのロールプレイ強化");
             default: throw new InvalidOperationException("通常のスキル効果には使用できない種別です：" + content.Type);
         }
     }

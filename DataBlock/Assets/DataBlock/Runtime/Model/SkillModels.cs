@@ -38,10 +38,17 @@ public class FormulaStat
     public string Formula = "";
 }
 
-// A summon has the same action grammar as a skill body, plus arbitrary
-// formula-backed stats. It intentionally has no Choices or nested summons.
+public enum SummonedEntityKind
+{
+    Pet = 0,
+    Trap = 1
+}
+
+// A referenced entity has the same action grammar as a skill body, plus
+// arbitrary formula-backed stats. It intentionally has no Choices or nesting.
 [Serializable]
 public class SummonedEntityDefinition : SkillBody
 {
+    public SummonedEntityKind Kind;
     public List<FormulaStat> Stats = new List<FormulaStat>();
 }

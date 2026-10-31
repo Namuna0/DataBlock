@@ -54,6 +54,8 @@ public class DiceRollDefinition
     [Min(0)] public int Count;
     public string Formula = "";
     public string Target = "";
+    // Additional activation-roll clauses, such as an alternative success rule.
+    public List<string> RuleTexts = new List<string>();
 }
 public enum EffectType
 {
@@ -104,7 +106,10 @@ public enum EffectContentType
     // amount
     AddAreaGathering = 22,
     // Preserves a rule clause that has no executable effect type yet.
-    RuleText = 23
+    RuleText = 23,
+    // Narrative-only spike stages; parameters contain one roleplay clause.
+    RolePlayingCapabilitiesPlus = 24,
+    RolePlayingCapabilitiesPlusPlus = 25
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType

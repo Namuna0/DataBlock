@@ -53,7 +53,10 @@ public enum ConditionType
     MappedStateStackInterval = 38,
     MinimumEquippedDays = 39,
     // A hand is free of an equipped item.
-    HandUnarmed = 40
+    HandUnarmed = 40,
+    // Preserves a condition clause that has no executable condition type yet.
+    RuleText = 41,
+    HasLearnedSkill = 42
 }
 [Serializable]
 public class ConditionEntry

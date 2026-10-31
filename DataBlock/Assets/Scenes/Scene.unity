@@ -575,17 +575,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: "\u6295\u64F2"
+      Name: "\u30A2\u30B9\u30EC\u30C1\u30C3\u30AF"
       Categories:
-      - "\u4E00\u822C\u30B9\u30AD\u30EB"
-      - "\u653B\u6483"
-      - "\u7269\u7406"
+      - "\u5192\u967A\u8005\u30B9\u30AD\u30EB"
+      - "\u751F\u6D3B\u30B9\u30AD\u30EB"
+      - "\u30D1\u30EB\u30AF\u30FC\u30EB"
       AcquisitionConditions:
         And:
         - Type: 6
           Parameters:
           - "\u6C7A\u610F"
-          - 30
+          - 90
         Or: []
       DeclarationConditions:
         And:
@@ -595,46 +595,22 @@ MonoBehaviour:
           - Exact
           - Default
         Or: []
-      Costs:
-      - Kind: 0
-        Resource: ACT
-        Amount: 6
-      - Kind: 0
-        Resource: SP
-        Amount: 6
-      - Kind: 1
-        Resource: "\u6295\u64F2\u6B66\u5668"
-        Amount: 1
+      Costs: []
       CooldownTurns: 0
       Roll:
         Count: 1
-        Formula: "1d100*[\u5668\u7528B]"
-        Target: 30
+        Formula: "1d100*[\u654F\u6377B]"
+        Target: "GM\u307E\u305F\u306F\u30A8\u30EA\u30A2\u6307\u5B9A"
       Effects:
-      - Type: 1
+      - Type: 4
         Triggers: []
         Contents:
-        - Type: 7
+        - Type: 23
           Parameters:
-          - Target
-          - 100
-      - Type: 6
-        Triggers: []
-        Contents:
-        - Type: 3
-          Parameters:
-          - Self
-          - ACT
-          - 1
-      Overrides:
-      - Type: 5
-        Triggers: []
-        Contents:
-        - Type: 2
-          Parameters:
-          - 1.5
+          - "\u68EE\u3084\u753A\u4E2D\u306A\u3069\u4F55\u304B\u306B\u6355\u307E\u308B\u4E8B\u304C\u51FA\u6765\u308B\u5834\u6240\u3067\u7D20\u65E9\u304F\u79FB\u52D5\u3067\u304D\u307E\u3059\u3002"
+      Overrides: []
       Choices: []
-      Flavor: "\u76F8\u624B\u306B\u69CD\u3084\u65A7\u306A\u3069\u3092\u6295\u3052\u3064\u3051\u3066\u653B\u6483\u3059\u308B\u3002"
+      Flavor: "\u68EE\u3084\u753A\u4E2D\u306A\u3069\u9AD8\u3044\u5834\u6240\u3092\u98DB\u3073\u79FB\u308A\u79FB\u52D5\u3059\u308B\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332

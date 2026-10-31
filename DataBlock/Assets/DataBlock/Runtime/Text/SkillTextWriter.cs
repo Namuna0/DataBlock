@@ -37,7 +37,7 @@ public static partial class SkillTextConverter
                 const string distinct = "（重複不可）";
                 result = result.EndsWith(distinct) ? result.Substring(0, result.Length - distinct.Length) + "して宣言可能。" + distinct : result + "して宣言可能。";
             }
-            else if (set.Or.Count > 0 || last != ConditionType.SelectedItemConditionsMet) result += "宣言可能。";
+            else if (last != ConditionType.RuleText && (set.Or.Count > 0 || last != ConditionType.SelectedItemConditionsMet)) result += "宣言可能。";
         }
         sb.AppendLine("【" + label + "】" + result);
     }
@@ -112,8 +112,11 @@ public static partial class SkillTextConverter
         WriteEffectGroup(sb, skill, EffectType.Declaration);
         if (automaticRoll) sb.AppendLine("【発動ロール】自動成功");
         else if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
+        if (skill.Roll.RuleTexts != null)
+            foreach (string ruleText in skill.Roll.RuleTexts) sb.AppendLine(Need(ruleText, "発動ロールの補足ルール"));
         foreach (EffectType type in DisplayOrder.Where(x => IsOrdinary(x) && x != EffectType.Declaration)) WriteEffectGroup(sb, skill, type);
-        if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
+        if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike) ||
+            skill.Effects.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
         {
             sb.AppendLine(); WriteEffectGroup(sb, skill, EffectType.SecondSpike); WriteEffectGroup(sb, skill, EffectType.ThirdSpike);
         }
@@ -155,8 +158,17 @@ public static partial class SkillTextConverter
         {
             if (summon.Stats == null) throw new InvalidOperationException("召喚ステータスがnullです：" + summon.Name);
             if (summon.Categories == null) throw new InvalidOperationException("召喚カテゴリーがnullです：" + summon.Name);
-            if (!summon.Categories.Contains("ペット")) throw new InvalidOperationException("現在の召喚定義には〈ペット〉カテゴリーが必要です：" + summon.Name);
-            if (summon.Stats.Count(x => x != null && x.Name == "HP") != 1) throw new InvalidOperationException("ペットにはHP最大値を1件指定してください：" + summon.Name);
+            if (summon.Kind == SummonedEntityKind.Pet)
+            {
+                if (!summon.Categories.Contains("ペット")) throw new InvalidOperationException("ペット定義には〈ペット〉カテゴリーが必要です：" + summon.Name);
+                if (summon.Stats.Count(x => x != null && x.Name == "HP") != 1) throw new InvalidOperationException("ペットにはHP最大値を1件指定してください：" + summon.Name);
+            }
+            else if (summon.Kind == SummonedEntityKind.Trap)
+            {
+                if (!summon.Categories.Contains("罠")) throw new InvalidOperationException("罠定義には〈罠〉カテゴリーが必要です：" + summon.Name);
+                if (summon.Stats.Any(x => x != null)) throw new InvalidOperationException("罠定義にステータス最大値は指定できません：" + summon.Name);
+            }
+            else throw new InvalidOperationException("エンティティ種別が未対応です：" + summon.Kind);
             if (summon.Effects != null && summon.Effects.Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents).Any(x => x != null && x.Type == EffectContentType.Summon))
                 throw new InvalidOperationException("召喚定義から別の召喚は発動できません：" + summon.Name);
         }
@@ -165,10 +177,16 @@ public static partial class SkillTextConverter
         var references = bodies.SelectMany(x => x.Effects ?? new List<EffectDefinition>())
             .Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents)
             .Where(x => x != null && x.Type == EffectContentType.Summon)
-            .Select(x => Args(x.Parameters, 1, "Summon")[0]).ToList();
-        foreach (string reference in references)
-            if (!names.Contains(reference)) throw new InvalidOperationException("召喚定義がありません：" + reference);
-        foreach (string name in names)
-            if (!references.Contains(name)) throw new InvalidOperationException("参照されていない召喚定義です：" + name);
+            .Select(x => VariableArgs(x.Parameters, 1, "Summon")).ToList();
+        foreach (string[] reference in references)
+        {
+            if (!names.Contains(reference[0])) throw new InvalidOperationException("召喚定義がありません：" + reference[0]);
+            if (reference.Length == 2 && (reference[1] != "Trap" || data.Summons.Single(x => x.Name == reference[0]).Kind != SummonedEntityKind.Trap))
+                throw new InvalidOperationException("Trap参照には罠定義が必要です：" + reference[0]);
+            if (reference.Length == 1 && data.Summons.Single(x => x.Name == reference[0]).Kind != SummonedEntityKind.Pet)
+                throw new InvalidOperationException("ペット召喚参照にはペット定義が必要です：" + reference[0]);
+        }
+        foreach (SummonedEntityDefinition entity in data.Summons)
+            if (!references.Any(x => x[0] == entity.Name)) throw new InvalidOperationException("参照されていないエンティティ定義です：" + entity.Name);
     }
 }

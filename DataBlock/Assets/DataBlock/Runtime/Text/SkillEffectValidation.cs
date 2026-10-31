@@ -22,7 +22,13 @@ public static partial class SkillTextConverter
         var counterReductions = new List<EffectContent>();
         foreach (EffectDefinition effect in skill.Effects)
         {
-            if (effect == null || !IsOrdinary(effect.Type) || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("通常効果の種別・内容を指定してください。");
+            if (effect == null || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("通常効果の種別・内容を指定してください。");
+            bool roleplaySpike = effect.Type == EffectType.SecondSpike && effect.Contents.All(x => x != null && x.Type == EffectContentType.RolePlayingCapabilitiesPlus) ||
+                effect.Type == EffectType.ThirdSpike && effect.Contents.All(x => x != null && x.Type == EffectContentType.RolePlayingCapabilitiesPlusPlus);
+            if (!IsOrdinary(effect.Type) && (!roleplaySpike || effect.Triggers.Count != 0)) throw new InvalidOperationException("通常効果またはトリガーなしのロールプレイスパイクを指定してください。");
+            if (roleplaySpike && (!skill.Effects.Any(x => x != null && x.Type == EffectType.Roleplay) ||
+                skill.Effects.Any(x => x != null && x.Type != EffectType.Roleplay && x.Type != EffectType.SecondSpike && x.Type != EffectType.ThirdSpike)))
+                throw new InvalidOperationException("ロールプレイスパイクはロールプレイ効果のみを持つスキルに指定してください。");
             SkillTriggerText(effect.Type, effect.Triggers);
             foreach (EffectContent content in effect.Contents)
             {

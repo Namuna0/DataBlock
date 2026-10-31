@@ -20,7 +20,7 @@ public static partial class SkillTextConverter
         EffectType section = EffectType.None;
         StateDefinition state = null;
         string conditions = "";
-        bool named = false, description = false;
+        bool named = false, description = false, rollRules = false;
         for (int i = start; i <= end; i++)
         {
             // Markdown transport sometimes escapes multiplication signs. Flavor text
@@ -55,7 +55,10 @@ public static partial class SkillTextConverter
                 if (M(line, @"^(?:〈[^〉]+〉)+$").Success && section == EffectType.None && conditions.Length == 0)
                 {
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
-                    current.Categories = Categories(line); continue;
+                    current.Categories = Categories(line);
+                    SummonedEntityDefinition entity = current as SummonedEntityDefinition;
+                    if (entity != null && entity.Categories.Contains("罠")) entity.Kind = SummonedEntityKind.Trap;
+                    continue;
                 }
                 Match stateHeader = M(line, @"^([^・⚫].*?)効果((?:〈[^〉]+〉)+)[：:](.*)$");
                 if (stateHeader.Success)
@@ -72,7 +75,7 @@ public static partial class SkillTextConverter
                 {
                     string key = header.Groups[1].Value, body = header.Groups[2].Value.Trim();
                     if (key == "クリティカル") key = "クリティカル効果";
-                    section = EffectType.None; state = null; conditions = "";
+                    section = EffectType.None; state = null; conditions = ""; rollRules = false;
                     switch (key)
                     {
                         case "説明":
@@ -90,11 +93,13 @@ public static partial class SkillTextConverter
                             if (body == "自動成功")
                             {
                                 current.Roll = new DiceRollDefinition { Count = 1, Formula = "自動成功" };
+                                rollRules = true;
                                 break;
                             }
                             Match roll = M(body, @"^(?:([0-9]+)回[：:]\s*)?(.+?)\s+目標値(.+)$");
                             if (!roll.Success) throw new InvalidOperationException("発動ロールは「式 目標値30」の形式です。");
-                            current.Roll = new DiceRollDefinition { Count = roll.Groups[1].Success ? Number(roll.Groups[1].Value, 1, "回数") : 1, Formula = roll.Groups[2].Value.Trim(), Target = roll.Groups[3].Value.Trim() }; break;
+                            current.Roll = new DiceRollDefinition { Count = roll.Groups[1].Success ? Number(roll.Groups[1].Value, 1, "回数") : 1, Formula = roll.Groups[2].Value.Trim(), Target = roll.Groups[3].Value.Trim().TrimEnd(',', '、') };
+                            rollRules = true; break;
                         default:
                             Match statHeader = M(key, @"^(.+)最大値$");
                             if (statHeader.Success)
@@ -113,6 +118,8 @@ public static partial class SkillTextConverter
                     continue;
                 }
                 line = Unbullet(line);
+                if (rollRules && TryReadRollRule(current.Roll, line)) continue;
+                rollRules = false;
                 if (state != null && ReadStateText(state, line)) continue;
                 if (line.StartsWith("*") || line.StartsWith("＊")) throw new InvalidOperationException("未対応の状態の解除条件です：" + line);
                 if (conditions.Length > 0)
@@ -131,6 +138,18 @@ public static partial class SkillTextConverter
         if (!named) throw new InvalidOperationException("スキル名がありません。");
         if (description && data.Skill.Choices.Count == 0) throw new InvalidOperationException("説明に対応する子スキルがありません。");
         return data;
+    }
+    private static bool TryReadRollRule(DiceRollDefinition roll, string text)
+    {
+        string clause = text.Trim();
+        if (clause.StartsWith("または", StringComparison.Ordinal) ||
+            M(clause, @"^エリアに〈[^〉]+〉が含まれる時[、,]\s*目標値は×?.+倍される。?$").Success)
+        {
+            if (roll.RuleTexts == null) roll.RuleTexts = new System.Collections.Generic.List<string>();
+            roll.RuleTexts.Add(clause);
+            return true;
+        }
+        return false;
     }
     private static void ReadCosts(SkillBody skill, string body)
     {

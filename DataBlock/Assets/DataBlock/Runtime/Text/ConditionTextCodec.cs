@@ -6,6 +6,24 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
+        string original = text.Trim();
+        Match learnedSkillAlternatives = M(original,
+            @"^(.+?)[,、]\s*((?:《[^》]+》\s*[,、]\s*)+《[^》]+》)\s*の(?:(?:内|うち|中から)?)(?:いずれか|どれか)(?:1つ)?を習得。?$");
+        if (learnedSkillAlternatives.Success)
+        {
+            AddConditions(set, learnedSkillAlternatives.Groups[1].Value.Trim());
+            if (set.Or.Count != 0) throw new InvalidOperationException("習得スキルのいずれか条件は、既存のOR条件と同時に指定できません。");
+            string[] skillNames = AllMatches(learnedSkillAlternatives.Groups[2].Value, @"《([^》]+)》")
+                .Cast<Match>().Select(x => Need(x.Groups[1].Value, "前提スキル名")).ToArray();
+            if (skillNames.Length < 2) throw new InvalidOperationException("いずれかの習得条件には2つ以上の候補スキルが必要です。");
+            foreach (string skillName in skillNames) set.Or.Add(Condition(ConditionType.HasLearnedSkill, skillName));
+            return;
+        }
+        if (IsKnownRuleTextCondition(original))
+        {
+            set.And.Add(Condition(ConditionType.RuleText, original));
+            return;
+        }
         text = text.Trim().Replace("指定して宣言可能。", "指定").Replace("選択して宣言可能。", "選択").Replace("宣言可能。", "");
         if (text.TrimEnd('。') == "毎ターン開始時、ランダムな敵キャラクターを対象に自動発動")
         {
@@ -33,12 +51,25 @@ public static partial class SkillTextConverter
             else set.And.Add(ReadCondition(part));
         }
     }
+    private static bool IsKnownRuleTextCondition(string text)
+    {
+        if (text == "エンカウントフェーズ" || text == "スタンバイフェーズ時" ||
+            text == "〈隠密〉を発動したキャラクターに対して宣言可能。" ||
+            text == "所持している武器を1つ選択して宣言可能。または素手を選択。" ||
+            text == "〈移動〉を宣言した〈小型〉でも〈大型〉でもない敵キャラクターを対象に自動発動。")
+            return true;
+        if (M(text, @"^自身が《[^》]+》状態$").Success) return true;
+        if (M(text, @"^スタンバイフェーズ時[、,]\s*〈森〉エリアで宣言可能。$").Success) return true;
+        return M(text, @"^味方キャラクターを[0-9]+体まで選択して宣言可能。(?:（重複不可）)?このスキルは戦闘中パーティー全体で1回のみ使用できる。$").Success;
+    }
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
         if (text == "片手が素手") return Condition(ConditionType.HandUnarmed);
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
         if (text == "種族選択時に自動習得") return Condition(ConditionType.AutomaticAtRaceSelection);
+        Match learnedSkill = M(text, @"^《([^》]+)》を習得$");
+        if (learnedSkill.Success) return Condition(ConditionType.HasLearnedSkill, Need(learnedSkill.Groups[1].Value, "前提スキル名"));
         Match m = M(text, @"^装備から([0-9]+)日以上経過している事$");
         if (m.Success) return Condition(ConditionType.MinimumEquippedDays, Number(m.Groups[1].Value, 1, "装備経過日数").ToString());
         m = M(text, @"^(決意|[A-Z]+)([0-9]+)消費$");
@@ -84,6 +115,8 @@ public static partial class SkillTextConverter
             case ConditionType.OptionalAtRaceSelection: Args(item.Parameters, 0, "OptionalAtRaceSelection"); return "種族選択時に任意選択";
             case ConditionType.AutomaticAtRaceSelection: Args(item.Parameters, 0, "AutomaticAtRaceSelection"); return "種族選択時に自動習得";
             case ConditionType.HandUnarmed: Args(item.Parameters, 0, "HandUnarmed"); return "片手が素手";
+            case ConditionType.RuleText: return Need(Args(item.Parameters, 1, "RuleText")[0], "条件ルール");
+            case ConditionType.HasLearnedSkill: return "《" + Need(Args(item.Parameters, 1, "HasLearnedSkill")[0], "前提スキル名") + "》を習得";
             case ConditionType.MinimumEquippedDays:
                 p = Args(item.Parameters, 1, "MinimumEquippedDays");
                 return "装備から" + Number(p[0], 1, "装備経過日数") + "日以上経過している事";
