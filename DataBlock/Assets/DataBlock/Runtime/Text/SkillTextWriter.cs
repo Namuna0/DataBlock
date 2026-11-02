@@ -37,7 +37,10 @@ public static partial class SkillTextConverter
                 const string distinct = "（重複不可）";
                 result = result.EndsWith(distinct) ? result.Substring(0, result.Length - distinct.Length) + "して宣言可能。" + distinct : result + "して宣言可能。";
             }
-            else if (last != ConditionType.RuleText && (set.Or.Count > 0 || last != ConditionType.SelectedItemConditionsMet)) result += "宣言可能。";
+            else if (set.Or.Count > 0 || last != ConditionType.SelectedItemConditionsMet)
+            {
+                if (!result.EndsWith("宣言可能。", StringComparison.Ordinal)) result += "宣言可能。";
+            }
         }
         sb.AppendLine("【" + label + "】" + result);
     }
@@ -74,6 +77,7 @@ public static partial class SkillTextConverter
         string categories = CategoryText(skill.Categories);
         if (categories.Length > 0) sb.AppendLine(categories);
         WriteConditions(sb, "習得条件", skill.AcquisitionConditions, false);
+        WriteConditions(sb, "装備条件", skill.EquipmentConditions, false);
         if (stats != null)
         {
             if (stats.Any(x => x == null) || stats.GroupBy(x => x.Name, StringComparer.Ordinal).Any(x => x.Count() > 1)) throw new InvalidOperationException("召喚ステータスがnullまたは重複しています。");
@@ -89,6 +93,16 @@ public static partial class SkillTextConverter
                 if (cost == null || cost.Amount < 0) throw new InvalidOperationException("消費リソースが不正です。");
                 string name = Need(cost.Resource, "消費リソース名");
                 if (cost.Kind == CostKind.Resource) costs.Add(name + "-" + cost.Amount.ToString(CultureInfo.InvariantCulture));
+                else if (cost.Kind == CostKind.AllResource)
+                {
+                    if (cost.Amount != 0) throw new InvalidOperationException("全リソース消費の量は0で指定してください。");
+                    costs.Add("全ての" + name);
+                }
+                else if (cost.Kind == CostKind.StateStack)
+                {
+                    if (cost.Amount == 0) throw new InvalidOperationException("消費スタック数は1以上です。");
+                    costs.Add("《" + name + "》スタック-" + cost.Amount.ToString(CultureInfo.InvariantCulture));
+                }
                 else if (cost.Kind == CostKind.ItemCategory || cost.Kind == CostKind.ItemName)
                 {
                     if (cost.Amount == 0) throw new InvalidOperationException("消費アイテム数は1以上です。");

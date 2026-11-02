@@ -82,8 +82,10 @@ public static partial class SkillTextConverter
                             if (current != data.Skill || body != Description || description) throw new InvalidOperationException("説明は親スキルの選択式1種類に対応します。");
                             description = true; break;
                         case "習得条件":
+                        case "装備条件":
                         case "宣言条件":
-                            conditions = key; AddConditions(key == "習得条件" ? current.AcquisitionConditions : current.DeclarationConditions, body); break;
+                            conditions = key;
+                            AddConditions(key == "習得条件" ? current.AcquisitionConditions : key == "装備条件" ? current.EquipmentConditions : current.DeclarationConditions, body); break;
                         case "消費リソース": ReadCosts(current, body); break;
                         case "クールタイム":
                             Match cooldown = M(body, @"^([0-9]+)ターン$");
@@ -107,6 +109,14 @@ public static partial class SkillTextConverter
                                 SummonedEntityDefinition statOwner = current as SummonedEntityDefinition;
                                 if (statOwner == null) throw new InvalidOperationException("最大値は召喚定義に指定してください。");
                                 string statName = Need(statHeader.Groups[1].Value, "召喚ステータス名");
+                                if (statName == "HP/SAN")
+                                {
+                                    if (statOwner.Stats.Any(x => x.Name == "HP" || x.Name == "SAN")) throw new InvalidOperationException("HP/SAN最大値が重複しています。");
+                                    string formula = Need(body, "HP/SAN最大値");
+                                    statOwner.Stats.Add(new FormulaStat { Name = "HP", Formula = formula });
+                                    statOwner.Stats.Add(new FormulaStat { Name = "SAN", Formula = formula });
+                                    break;
+                                }
                                 if (statOwner.Stats.Any(x => x.Name == statName)) throw new InvalidOperationException(statName + "最大値が重複しています。");
                                 statOwner.Stats.Add(new FormulaStat { Name = statName, Formula = Need(body, statName + "最大値") }); break;
                             }
@@ -124,7 +134,7 @@ public static partial class SkillTextConverter
                 if (line.StartsWith("*") || line.StartsWith("＊")) throw new InvalidOperationException("未対応の状態の解除条件です：" + line);
                 if (conditions.Length > 0)
                 {
-                    AddConditions(conditions == "習得条件" ? current.AcquisitionConditions : current.DeclarationConditions, line); continue;
+                    AddConditions(conditions == "習得条件" ? current.AcquisitionConditions : conditions == "装備条件" ? current.EquipmentConditions : current.DeclarationConditions, line); continue;
                 }
                 if (section == EffectType.None && line.TrimEnd().EndsWith("宣言可能。", StringComparison.Ordinal))
                 {
@@ -155,6 +165,23 @@ public static partial class SkillTextConverter
     {
         foreach (string part in Split(body, ","))
         {
+            Match stateStack = M(part, @"^《([^》]+)》スタック-([0-9]+)$");
+            if (stateStack.Success)
+            {
+                skill.Costs.Add(new ResourceCost
+                {
+                    Kind = CostKind.StateStack,
+                    Resource = Need(stateStack.Groups[1].Value, "スタック状態名"),
+                    Amount = Number(stateStack.Groups[2].Value, 1, "消費スタック数")
+                });
+                continue;
+            }
+            Match allResource = M(part, @"^全ての([A-Z]+)$");
+            if (allResource.Success)
+            {
+                skill.Costs.Add(new ResourceCost { Kind = CostKind.AllResource, Resource = allResource.Groups[1].Value, Amount = 0 });
+                continue;
+            }
             Match item = M(part, @"^(?:〈([^〉]+)〉|《([^》]+)》)\s*[×x]\s*([0-9]+)$");
             if (item.Success)
             {

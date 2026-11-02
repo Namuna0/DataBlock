@@ -6,7 +6,9 @@ public enum CostKind
 {
     Resource = 0,
     ItemCategory = 1,
-    ItemName = 2
+    ItemName = 2,
+    AllResource = 3,
+    StateStack = 4
 }
 [Serializable]
 public class ResourceCost
@@ -148,7 +150,9 @@ public enum OverrideContentType
     // Replacement formula for a skill activation roll. The base target is retained.
     SetActivationRollFormula = 22,
     // Replacement power formula for an ordinary SkillAttack.
-    SetSkillAttackPower = 23
+    SetSkillAttackPower = 23,
+    // Replacement target value for a skill activation roll.
+    SetActivationRollTarget = 24
 }
 [Serializable]
 public class OverrideDefinition

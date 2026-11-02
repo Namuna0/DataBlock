@@ -162,22 +162,48 @@ public static partial class SkillTextConverter
         }
         var blocks = new List<string>();
         var body = new List<string>();
+        var outsideBody = new List<string>();
         bool inside = false, quoted = false;
+        bool outsideSkill = false, outsideFlavor = false;
         int openingFenceLength = 0;
         foreach (string raw in lines)
         {
             string line = NormalizeFenceLine(raw);
             if (!inside)
             {
-                if (line.Length == 0 || line == "|" || M(line, @"^\|\s*:?-{3,}:?\s*\|$").Success) continue;
                 Match opening = OpeningFence(line);
-                if (!opening.Success)
+                if (opening.Success)
                 {
-                    // フェンスがある入力では、その外側の説明文はスキルに含めません。
-                    if (line.StartsWith("《") || line.StartsWith("【")) throw new InvalidOperationException("スキルの行がコードブロック外にあります：" + raw);
+                    if (outsideSkill)
+                    {
+                        blocks.Add("```\n" + string.Join("\n", outsideBody) + "\n```");
+                        outsideBody.Clear(); outsideSkill = false; outsideFlavor = false;
+                    }
+                    quoted = line.Contains("\""); openingFenceLength = opening.Groups["ticks"].Value.Length; inside = true; body.Clear(); continue;
+                }
+                if (outsideSkill)
+                {
+                    if (outsideFlavor && line.Length == 0)
+                    {
+                        blocks.Add("```\n" + string.Join("\n", outsideBody) + "\n```");
+                        outsideBody.Clear(); outsideSkill = false; outsideFlavor = false;
+                    }
+                    else
+                    {
+                        outsideBody.Add(raw);
+                        if (line == Separator) outsideFlavor = true;
+                    }
                     continue;
                 }
-                quoted = line.Contains("\""); openingFenceLength = opening.Groups["ticks"].Value.Length; inside = true; body.Clear(); continue;
+                if (line.Length == 0 || line == "|" || M(line, @"^\|\s*:?-{3,}:?\s*\|$").Success) continue;
+                // Mixed documents may contain plain skill blocks between fenced ones.
+                // Capture a plain block through its flavor text, which ends at a blank line.
+                if (M(line, @"^《[^《》]+》$").Success)
+                {
+                    outsideSkill = true;
+                    outsideBody.Add(raw);
+                }
+                continue;
             }
             Match closing = M(line, @"^(?<ticks>`{3,})""?\s*\|?$");
             if (closing.Success && closing.Groups["ticks"].Value.Length >= openingFenceLength)
@@ -189,6 +215,7 @@ public static partial class SkillTextConverter
             body.Add(raw);
         }
         if (inside) throw new InvalidOperationException("末尾のコードフェンスがありません。");
+        if (outsideSkill) blocks.Add("```\n" + string.Join("\n", outsideBody) + "\n```");
         if (blocks.Count == 0) throw new InvalidOperationException("スキルのコードブロックがありません。");
         return blocks;
     }

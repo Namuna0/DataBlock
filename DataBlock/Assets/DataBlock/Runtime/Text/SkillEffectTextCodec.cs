@@ -64,6 +64,12 @@ public static partial class SkillTextConverter
                     AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollFormula, spike.Groups[1].Value));
                     continue;
                 }
+                spike = M(body, @"^この発動ロールによる目標値は(.+?)に変化する。?$");
+                if (spike.Success)
+                {
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollTarget, spike.Groups[1].Value));
+                    continue;
+                }
                 if (!skill.Effects.Any(x => x != null && x.Type != EffectType.Roleplay &&
                     x.Type != EffectType.SecondSpike && x.Type != EffectType.ThirdSpike))
                 {
@@ -78,7 +84,13 @@ public static partial class SkillTextConverter
                     });
                     continue;
                 }
-                throw new InvalidOperationException("スパイクはスキル値・属性威力・被ダメージ軽減値・発動ロールの変更に対応します。");
+                skill.Effects.Add(new EffectDefinition
+                {
+                    Type = type,
+                    Triggers = NoTriggers(),
+                    Contents = new List<EffectContent> { Content(EffectContentType.RuleText, body.Trim()) }
+                });
+                continue;
             }
             if (!IsOrdinary(type)) throw new InvalidOperationException("効果種別を指定してください。");
             if (TryReadPassiveSkillLine(skill, type, body)) continue;
@@ -218,6 +230,17 @@ public static partial class SkillTextConverter
     private static EffectContent ReadContent(string text)
     {
         string s = RegexReplace(Unbullet(text), @"^さらに\s*", "").Trim();
+        Match categoryList = M(s, @"^〈([^〉]+)〉$");
+        if (categoryList.Success)
+        {
+            string[] categoryNames = Split(categoryList.Groups[1].Value, ",")
+                .Select(x => Need(x, "カテゴリー名"))
+                .ToArray();
+            if (categoryNames.Distinct(StringComparer.Ordinal).Count() != categoryNames.Length)
+                throw new InvalidOperationException("カテゴリー一覧に重複があります。");
+            string[] categories = categoryNames.Select(x => "〈" + x + "〉").ToArray();
+            if (categories.Length > 1) return Content(EffectContentType.RuleText, categories);
+        }
         Match ignoredStateAttack = M(s, @"^自身に付与されている〈([^〉]+)〉の効果を無視して[、,]\s*(対象|自身|付与者)を(.+?)の威力で攻撃する。?$");
         if (ignoredStateAttack.Success)
             return Content(EffectContentType.SkillAttack, ActorKey(ignoredStateAttack.Groups[2].Value), ignoredStateAttack.Groups[3].Value, "IgnoreOwnState", ignoredStateAttack.Groups[1].Value);
@@ -397,8 +420,16 @@ public static partial class SkillTextConverter
                 p = Args(content.Parameters, 1, "AddAreaGathering");
                 return "このエリアの採取を" + Number(p[0], 1, "追加採取回数") + "回追加で行うことができる。";
             case EffectContentType.RuleText:
-                p = Args(content.Parameters, 1, "RuleText");
-                return Need(p[0], "スキル効果の補足ルール");
+                p = VariableArgs(content.Parameters, 1, "RuleText");
+                if (p.Length == 1) return Need(p[0], "スキル効果の補足ルール");
+                string[] categoryNames = p.Select(x => M(x, @"^〈([^〉]+)〉$")).Select(x =>
+                {
+                    if (!x.Success) throw new InvalidOperationException("複数パラメーターのRuleTextはカテゴリー一覧に限ります。");
+                    return Need(x.Groups[1].Value, "カテゴリー名");
+                }).ToArray();
+                if (categoryNames.Distinct(StringComparer.Ordinal).Count() != categoryNames.Length)
+                    throw new InvalidOperationException("カテゴリー一覧に重複があります。");
+                return "〈" + string.Join(", ", categoryNames) + "〉";
             case EffectContentType.RolePlayingCapabilitiesPlus:
                 p = Args(content.Parameters, 1, "RolePlayingCapabilitiesPlus");
                 return Need(p[0], "セカンドスパイクのロールプレイ強化");
@@ -518,6 +549,10 @@ public static partial class SkillTextConverter
                 string formula = Need(p[0], "発動ロール式");
                 if (M(formula, @"\s+目標値").Success) throw new InvalidOperationException("スパイクの発動ロール式に空白＋「目標値」は使用できません。");
                 return "この発動ロールは" + formula + "に変化する。";
+            case OverrideContentType.SetActivationRollTarget:
+                p = Args(content.Parameters, 1, "SetActivationRollTarget");
+                if ((effect.Type != EffectType.SecondSpike && effect.Type != EffectType.ThirdSpike) || triggers.Count != 0) break;
+                return "この発動ロールによる目標値は" + Need(p[0], "発動ロール目標値") + "に変化する。";
             case OverrideContentType.SetSkillAttackPower:
                 p = Args(content.Parameters, 1, "SetSkillAttackPower");
                 if ((effect.Type != EffectType.SecondSpike && effect.Type != EffectType.ThirdSpike) || triggers.Count != 0) break;

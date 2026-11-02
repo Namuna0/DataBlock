@@ -56,7 +56,9 @@ public enum ConditionType
     HandUnarmed = 40,
     // Preserves a condition clause that has no executable condition type yet.
     RuleText = 41,
-    HasLearnedSkill = 42
+    HasLearnedSkill = 42,
+    SelfRace = 43,
+    HasLearnedLifePath = 44
 }
 [Serializable]
 public class ConditionEntry

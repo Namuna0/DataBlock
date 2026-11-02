@@ -23,9 +23,11 @@ public static partial class SkillTextConverter
         foreach (EffectDefinition effect in skill.Effects)
         {
             if (effect == null || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("通常効果の種別・内容を指定してください。");
+            bool isSpike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
             bool roleplaySpike = effect.Type == EffectType.SecondSpike && effect.Contents.All(x => x != null && x.Type == EffectContentType.RolePlayingCapabilitiesPlus) ||
                 effect.Type == EffectType.ThirdSpike && effect.Contents.All(x => x != null && x.Type == EffectContentType.RolePlayingCapabilitiesPlusPlus);
-            if (!IsOrdinary(effect.Type) && (!roleplaySpike || effect.Triggers.Count != 0)) throw new InvalidOperationException("通常効果またはトリガーなしのロールプレイスパイクを指定してください。");
+            bool ruleTextSpike = isSpike && effect.Contents.All(x => x != null && x.Type == EffectContentType.RuleText);
+            if (!IsOrdinary(effect.Type) && ((!roleplaySpike && !ruleTextSpike) || effect.Triggers.Count != 0)) throw new InvalidOperationException("通常効果またはトリガーなしのロールプレイ／ルールテキストスパイクを指定してください。");
             if (roleplaySpike && (!skill.Effects.Any(x => x != null && x.Type == EffectType.Roleplay) ||
                 skill.Effects.Any(x => x != null && x.Type != EffectType.Roleplay && x.Type != EffectType.SecondSpike && x.Type != EffectType.ThirdSpike)))
                 throw new InvalidOperationException("ロールプレイスパイクはロールプレイ効果のみを持つスキルに指定してください。");
@@ -67,11 +69,14 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetSkillAttackPower && content.Type != OverrideContentType.AddTargetValue)
+                if (spike && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetActivationRollTarget && content.Type != OverrideContentType.SetSkillAttackPower && content.Type != OverrideContentType.AddTargetValue)
                     throw new InvalidOperationException("スパイクはスキル値・威力・目標値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
                 if (content.Type == OverrideContentType.SetActivationRollFormula &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
                     throw new InvalidOperationException("発動ロールのスパイク変更には通常の発動ロールが必要です。");
+                if (content.Type == OverrideContentType.SetActivationRollTarget &&
+                    (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
+                    throw new InvalidOperationException("発動ロール目標値のスパイク変更には通常の発動ロールが必要です。");
                 if (content.Type == OverrideContentType.SetSkillValue && !hasUnconditionalSkillValueAttack)
                     throw new InvalidOperationException("スキル値の上書き先となるアクティブ攻撃を無条件で1件だけ指定してください。");
                 if (content.Type == OverrideContentType.SetSkillAttackPower && !HasSingleUnconditional(skill, skill.Effects.Where(x => x.Type == EffectType.Active).SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.SkillAttack && x.Parameters != null && x.Parameters.Count == 2).ToList(), EffectType.Active))
@@ -160,6 +165,13 @@ public static partial class SkillTextConverter
         {
             if (entries.Count != 1 || rollEntries[0].Definition.Triggers.Count != 0)
                 throw new InvalidOperationException("発動ロールのスパイク変更は各段階に無条件で1件指定してください。");
+            return;
+        }
+        var rollTargetEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetActivationRollTarget).ToList();
+        if (rollTargetEntries.Count > 0)
+        {
+            if (entries.Count != 1 || rollTargetEntries.Count != 1 || rollTargetEntries[0].Definition.Triggers.Count != 0)
+                throw new InvalidOperationException("発動ロール目標値のスパイク変更は各段階に無条件で1件指定してください。");
             return;
         }
         var attackPowerEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetSkillAttackPower).ToList();
