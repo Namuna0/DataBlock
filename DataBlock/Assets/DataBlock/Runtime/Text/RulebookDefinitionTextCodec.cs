@@ -44,7 +44,7 @@ public static partial class SkillTextConverter
     private static List<ProfileBonus> ProfileBonuses(string text, bool percent)
     {
         var values = new List<ProfileBonus>();
-        foreach (string word in GetRegex(@"[\s,、]+").Split(text.Trim()))
+        foreach (string word in DataBlockText.GetRegex(@"[\s,、]+").Split(text.Trim()))
         {
             var match = M(word, @"^([^+\-\s,%]+)([+-][0-9]+)" + (percent ? "%" : "") + "$");
             if (!match.Success || !int.TryParse(match.Groups[2].Value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int amount))

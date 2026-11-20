@@ -66,6 +66,7 @@ public static partial class SkillTextConverter
     private const string ArithmeticPattern = @"(?:[0-9]+(?:\.[0-9]+)?(?:d[1-9][0-9]*)?|\[[^\[\]。]+\]|\()(?:[0-9d.*+()/\-]|\[[^\[\]。]+\])*";
     private const string RulePositivePattern = @"[1-9][0-9]*";
     private const string RuleFactorPattern = @"(?:[1-9][0-9]*(?:\.[0-9]+)?|0\.[0-9]*[1-9][0-9]*)";
+    private const string RewardRollNamePattern = @"[^【】〈〉《》\s。、,]+ロール";
     private const string RuleResourcePattern = @"[A-Z]+";
     private const string RuleSignedPattern = @"[+-][0-9]+";
 
@@ -73,21 +74,25 @@ public static partial class SkillTextConverter
     {
         private readonly List<SkillTextRule> rules;
         private readonly bool state;
-        private readonly EffectType section;
+        private readonly EffectType[] sections;
 
-        public RuleSection(List<SkillTextRule> rules, bool state, EffectType section)
+        public RuleSection(List<SkillTextRule> rules, bool state, params EffectType[] sections)
         {
             this.rules = rules;
             this.state = state;
-            this.section = section;
+            this.sections = sections;
+        }
+        public RuleSection Including(params EffectType[] otherSections)
+        {
+            return new RuleSection(rules, state, sections.Concat(otherSections).ToArray());
         }
         public void Add(EffectContentType type, string template, params string[] parameters)
         {
-            rules.Add(new SkillTextRule(type, state, section, template, parameters));
+            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, template, parameters));
         }
         public void Add(OverrideContentType type, string template, params string[] parameters)
         {
-            rules.Add(new SkillTextRule(type, state, section, template, parameters));
+            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, template, parameters));
         }
     }
 

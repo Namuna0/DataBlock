@@ -3,7 +3,7 @@ public static partial class SkillTextConverter
     private static void RegisterStateRules(RuleSection rules)
     {
         rules.Add(OverrideContentType.CategoryAchievementScale, "自身の〈{0}〉による達成値は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
-        rules.Add(EffectContentType.LootRollOnStackGain, "《{0}》を得る度に奪略ロール{1}回", RuleNamePattern, RulePositivePattern);
+        rules.Add(EffectContentType.LootRollOnStackGain, "《{0}》を得る度に{1}{2}回", RuleNamePattern, RewardRollNamePattern, RulePositivePattern);
         rules.Add(OverrideContentType.StatRollFactorForAction, "[{0}]による行為判定を行う際、達成値が×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(EffectContentType.ExpireAfterResolution, "その後この状態は解除される。");
         rules.Add(EffectContentType.ExpireAfterApplication, "効果適用後、この状態は解除される。");
@@ -55,8 +55,8 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.UseStateWeaponForCategory, "自身は〈{0}〉を装備している物と同等の扱いとなり、この状態を武器として選択する時、〈{1}〉の発動するなら武器威力として{2}を与えることができる。", RuleNamePattern, RuleNamePattern, ArithmeticPattern);
         rules.Add(EffectContentType.EquipStateWeaponFormula, "自身は〈{0}〉を装備している物と同等の扱いとなり、この状態を武器として選択する時、武器威力として{1}のダメージを与えることができる。", RuleNamePattern, ArithmeticPattern);
         rules.Add(EffectContentType.ReleaseToChooseEffect, "任意のタイミングでこの状態を解除して次の効果を得る事が出来る。");
-        rules.Add(EffectContentType.RevealFutureByGM, "予言：未来についての出来事をGMの指定によって知る事が出来る。");
-        rules.Add(EffectContentType.ChooseNextRollResult, "確約：自身の次の{0}回の行為判定を{1}度振りどちらかの結果を選ぶ事が出来る。", RulePositivePattern, RulePositivePattern);
+        rules.Add(EffectContentType.RevealFutureByGM, "{0}：未来についての出来事をGMの指定によって知る事が出来る。", RuleNamePattern);
+        rules.Add(EffectContentType.ChooseNextRollResult, "{0}：自身の次の{1}回の行為判定を{2}度振りどちらかの結果を選ぶ事が出来る。", RuleNamePattern, RulePositivePattern, RulePositivePattern);
         rules.Add(EffectContentType.ResourceLossOnStateRemoval, "対象に付与された《{0}》状態が解除される時。スキル値{1}*[{2}]の{3}を失う。", RuleNamePattern, @"[0-9]+", RuleNamePattern, RuleResourcePattern);
         rules.Add(EffectContentType.SnapshotPowerOnApply, "（威力の算出は付与の際に行われる）");
         rules.Add(EffectContentType.CapStacksRemovedPerEffect, "この状態は効果によって{0}スタックずつしか解除されない。", RulePositivePattern);
@@ -82,13 +82,11 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.MayRefuseGroupMelee, "自身は{0}体以上の敵から《{1}》状態になる時、その接近を無効にしても良い。", RulePositivePattern, RuleNamePattern);
         rules.Add(EffectContentType.TurnStartResourceDelta, "自身は毎ターン開始時に{0}が{1}される。", RuleResourcePattern, RuleSignedPattern);
         rules.Add(EffectContentType.SnapshotRecipientsAndPower, "対象選択と威力の算出は付与の際に行われる。");
-        rules.Add(EffectContentType.SelectEquivalentWeapon, "選択した〈{0}〉と同等の武器威力、効果として使用可能。", RuleNamePattern);
         rules.Add(EffectContentType.ExpireAfterTriggeredAttack, "効果による攻撃後、この状態は解除される。");
         rules.Add(EffectContentType.ProhibitStateCategoryDeclarations, "自身は〈{0}〉を宣言する事は出来ない。", RuleNamePattern);
         rules.Add(EffectContentType.DeclarationCostsPaidByHolder, "消費リソースなども自身が支払う。");
         rules.Add(EffectContentType.RollStatusCleanup, "{0}ロールによる状態を全て解除する。", RuleNamePattern);
         rules.Add(EffectContentType.ExpireOnApplierNamedSkillSuccess, "付与者が《{0}》発動に成功後、この状態は解除される。", RuleNamePattern);
-        rules.Add(EffectContentType.ExpireWhenEitherUnequipped, "〈{0}〉または〈{1}〉の装備が解除された時、このバフも解除される。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.MustIncludeApplier, "自身がキャラクターを選択する時、付与者を含めて選択する必要がある。");
         rules.Add(EffectContentType.ExpireOnCategoryActivation, "〈{0}〉効果を発動するとこの効果は解除される。", RuleNamePattern);
         rules.Add(EffectContentType.CannotDeclareSkills, "自身はスキルを宣言できない。");
@@ -177,7 +175,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.UseGrantedWeaponDefinition, "対象はこの特性のパッシブ効果記載の武器装備している扱いとなり、その武器威力を扱うことが出来る。");
         rules.Add(EffectContentType.EquipArmorWithApplierDefense, "〈{0}〉、装備部位「{1}」装備している物と同等の扱いとなり、付与者と同等の防御点が加算される。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.MayCancelAnyTargeting, "自身はあらゆる効果の選択対象を無効にできる。");
-        rules.Add(EffectContentType.BlockEquippedCategorySelection, "自身は装備している全ての〈{0}〉を選択出来なくなる。", RuleNamePattern);
         rules.Add(EffectContentType.ExpireOnCategoryDeclaration, "この状態は自身が〈{0}〉を宣言した時解除される。", RuleNamePattern);
         rules.Add(EffectContentType.RestrictDeclaredCategories, "自身は〈{0}〉と〈{1}〉以外の宣言を行えない。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.NegateEffectsOnGroupExceptWeapons, "〈{0}〉及び〈{1}〉を除く、自身または自身の接近グループを対象とする効果を無効にする。", RuleNamePattern, RuleNamePattern);

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -11,8 +10,6 @@ public static partial class SkillTextConverter
     private const string Description = "下記の効果を一つ選んで実行する。";
     private const string Separator = "――――――――――――――――";
     private const string Bullet = "・";
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
-    private static readonly ConcurrentDictionary<RegexCacheKey, Regex> RegexCache = new ConcurrentDictionary<RegexCacheKey, Regex>();
     private static readonly Dictionary<EffectType, string> EffectNames = new Dictionary<EffectType, string>
     {
         { EffectType.Active, "アクティブ効果" },
@@ -28,17 +25,11 @@ public static partial class SkillTextConverter
         { EffectType.ThirdSpike, "サードスパイク" }
     };
     private static readonly Dictionary<string, EffectType> EffectTypesByName = EffectNames.ToDictionary(x => x.Value, x => x.Key, StringComparer.Ordinal);
-    private static Regex GetRegex(string pattern, RegexOptions options = RegexOptions.None)
-    {
-        options |= RegexOptions.CultureInvariant;
-        return RegexCache.GetOrAdd(new RegexCacheKey(pattern, options), CreateRegex);
-    }
-    private static Regex CreateRegex(RegexCacheKey key) { return new Regex(key.Pattern, key.Options, RegexTimeout); }
-    private static Match M(string text, string pattern) { return GetRegex(pattern).Match(text); }
-    private static MatchCollection AllMatches(string text, string pattern) { return GetRegex(pattern).Matches(text); }
+    private static Match M(string text, string pattern) { return DataBlockText.GetRegex(pattern).Match(text); }
+    private static MatchCollection AllMatches(string text, string pattern) { return DataBlockText.GetRegex(pattern).Matches(text); }
     private static string RegexReplace(string text, string pattern, string replacement, RegexOptions options = RegexOptions.None)
     {
-        return GetRegex(pattern, options).Replace(text, replacement);
+        return DataBlockText.GetRegex(pattern, options).Replace(text, replacement);
     }
     private static string Need(string value, string label)
     {
@@ -158,82 +149,38 @@ public static partial class SkillTextConverter
         string[] transported = text.Trim().Split('\n');
         if (transported.Length > 1 && transported[0].Contains("\\`") &&
             transported.Take(transported.Length - 1).All(x => x.EndsWith("\\", StringComparison.Ordinal)) &&
-            OpeningFence(NormalizeFenceLine(transported[0].Substring(0, transported[0].Length - 1))).Success &&
-            M(NormalizeFenceLine(transported.Last()), @"^`{3,}$").Success)
+            DataBlockText.OpeningFence(DataBlockText.NormalizeFenceLine(transported[0].Substring(0, transported[0].Length - 1))).Success &&
+            M(DataBlockText.NormalizeFenceLine(transported.Last()), @"^`{3,}$").Success)
             text = string.Join("\n", transported.Take(transported.Length - 1).Select(x => x.Substring(0, x.Length - 1)).Concat(new[] { transported.Last() }));
         // Repair the two-tick opening fence only when followed by a skill header.
         text = RegexReplace(text, @"(?m)^[ \t]*``[ \t]*(?=\n[ \t]*《[^《》\r\n]+》[ \t]*$)", "```");
         text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");
-        // 改行＋<br>は1改行。連続した<br>による空行は残します。
-        text = RegexReplace(text, @"\n?[ \t]*<br\s*/?>[ \t]*\n?", "\n", RegexOptions.IgnoreCase);
+        text = DataBlockText.NormalizeBreaks(text);
         text = RegexReplace(text, @"(?m)^(`{3,})-[ \t]*$", "$1");
-        string[] lines = text.Split('\n');
-        bool fenced = lines.Any(x => OpeningFence(NormalizeFenceLine(x)).Success);
-        if (!fenced)
-        {
-            string plain = text.Trim();
-            if (plain.Length >= 2 && plain.StartsWith("|") && plain.EndsWith("|")) plain = plain.Substring(1, plain.Length - 2).Trim();
-            // A following top-level entry starts after flavor, not at an embedded
-            // summon/trap header inside a skill body.
-            var plainBlocks = new List<string>();
-            var entry = new List<string>();
-            bool inFlavor = false;
-            foreach (string line in plain.Split('\n'))
-            {
-                if (inFlavor && M(line.Trim(), @"^《[^《》]+》$").Success)
-                {
-                    plainBlocks.Add(string.Join("\n", entry).Trim());
-                    entry.Clear(); inFlavor = false;
-                }
-                entry.Add(line);
-                if (M(line.Trim(), @"^―{8,}$").Success) inFlavor = true;
-            }
-            if (entry.Count > 0) plainBlocks.Add(string.Join("\n", entry).Trim());
-            return plainBlocks;
-        }
-        var blocks = new List<string>();
-        var body = new List<string>();
-        bool inside = false, quoted = false;
-        int openingFenceLength = 0;
-        foreach (string raw in lines)
-        {
-            string line = NormalizeFenceLine(raw);
-            if (!inside)
-            {
-                if (line.Length == 0 || line == "|" || M(line, @"^\|\s*:?-{3,}:?\s*\|$").Success) continue;
-                Match opening = OpeningFence(line);
-                if (!opening.Success)
-                {
-                    // フェンスがある入力では、その外側の説明文はスキルに含めません。
-                    if (line.StartsWith("《") || line.StartsWith("【")) throw new InvalidOperationException("スキルの行がコードブロック外にあります：" + raw);
-                    continue;
-                }
-                quoted = line.Contains("\""); openingFenceLength = opening.Groups["ticks"].Value.Length; inside = true; body.Clear(); continue;
-            }
-            Match closing = M(line, @"^(?<ticks>`{3,})""?\s*\|?$");
-            if (closing.Success && closing.Groups["ticks"].Value.Length >= openingFenceLength)
-            {
-                string block = string.Join("\n", body);
-                if (quoted) block = block.Replace("\"\"", "\"");
-                blocks.Add("```\n" + block + "\n```"); inside = false; continue;
-            }
-            body.Add(raw);
-        }
-        if (inside) throw new InvalidOperationException("末尾のコードフェンスがありません。");
-        if (blocks.Count == 0) throw new InvalidOperationException("スキルのコードブロックがありません。");
-        return blocks;
+        return DataBlockText.ReadBlocks(text, "スキル", splitPlain: SplitPlainSkills);
     }
-    private static Match OpeningFence(string line)
+
+    private static List<string> SplitPlainSkills(string plain)
     {
-        return M(line, @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:[A-Za-z][A-Za-z0-9_.+-]*)?$");
+        // A following top-level entry starts after flavor, not at an embedded
+        // summon/trap header inside a skill body.
+        var plainBlocks = new List<string>();
+        var entry = new List<string>();
+        bool inFlavor = false;
+        foreach (string line in plain.Split('\n'))
+        {
+            if (inFlavor && M(line.Trim(), @"^《[^《》]+》$").Success)
+            {
+                plainBlocks.Add(string.Join("\n", entry).Trim());
+                entry.Clear(); inFlavor = false;
+            }
+            entry.Add(line);
+            if (M(line.Trim(), @"^―{8,}$").Success) inFlavor = true;
+        }
+        if (entry.Count > 0) plainBlocks.Add(string.Join("\n", entry).Trim());
+        return plainBlocks;
     }
-    private static string NormalizeFenceLine(string raw)
-    {
-        string line = raw.Trim();
-        if (!line.Contains("\\`")) return line;
-        string candidate = line.Replace("\\`", "`");
-        return OpeningFence(candidate).Success || M(candidate, @"^`{3,}""?\s*\|?$").Success ? candidate : line;
-    }
+
     private static readonly EffectType[] DisplayOrder = { EffectType.Declaration, EffectType.Active, EffectType.Counter, EffectType.Passive, EffectType.Roleplay, EffectType.Success, EffectType.Failure, EffectType.Critical, EffectType.Fumble, EffectType.SecondSpike, EffectType.ThirdSpike };
     private static OverrideContent Change(OverrideContentType type, params string[] p) { return new OverrideContent { Type = type, Parameters = p.ToList() }; }
     private static void AddOverride(List<OverrideDefinition> list, EffectType type, List<TriggerDefinition> triggers, params OverrideContent[] contents)
@@ -293,36 +240,6 @@ public static partial class SkillTextConverter
     private static string CategoryAlternatives(IEnumerable<string> values, string connector)
     {
         return string.Join(connector, values.Select(x => "〈" + Need(x, "カテゴリー") + "〉"));
-    }
-
-    private readonly struct RegexCacheKey : IEquatable<RegexCacheKey>
-    {
-        public readonly string Pattern;
-        public readonly RegexOptions Options;
-
-        public RegexCacheKey(string pattern, RegexOptions options)
-        {
-            Pattern = pattern;
-            Options = options;
-        }
-
-        public bool Equals(RegexCacheKey other)
-        {
-            return Options == other.Options && string.Equals(Pattern, other.Pattern, StringComparison.Ordinal);
-        }
-
-        public override bool Equals(object value)
-        {
-            return value is RegexCacheKey && Equals((RegexCacheKey)value);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return ((Pattern == null ? 0 : StringComparer.Ordinal.GetHashCode(Pattern)) * 397) ^ (int)Options;
-            }
-        }
     }
 
     private static void AddSkillEffect(SkillBody skill, EffectType type, EffectContent content, params TriggerDefinition[] triggers)

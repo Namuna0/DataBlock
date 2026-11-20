@@ -2,17 +2,16 @@ public static partial class SkillTextConverter
 {
     private static void RegisterSuccessRules(RuleSection rules)
     {
-        rules.Add(EffectContentType.ModifyOutputCount, "個数{0}", RuleSignedPattern);
-        rules.Add(EffectContentType.CraftGradeShift, "生産に成功した時、生産したアイテムのグレードは{0}つだけ{1}される。", RulePositivePattern, RuleSignedPattern);
-        rules.Add(EffectContentType.ChangeSelectedItemDurability, "耐久{0}", RuleSignedPattern);
+        rules.Including(EffectType.Critical, EffectType.Fumble).Add(EffectContentType.ModifyOutputCount, "個数{0}", RuleSignedPattern);
+        rules.Including(EffectType.Failure).Add(EffectContentType.CraftGradeShift, "生産に成功した時、生産したアイテムのグレードは{0}つだけ{1}される。", RulePositivePattern, RuleSignedPattern);
+        rules.Including(EffectType.Critical, EffectType.Fumble).Add(EffectContentType.ChangeSelectedItemDurability, "耐久{0}", RuleSignedPattern);
     }
 
     private static void RegisterFailureRules(RuleSection rules)
     {
         rules.Add(EffectContentType.PartyActsLast, "味方チームは確定後攻となる。");
-        rules.Add(EffectContentType.RemoveSelfNamedState, "自身の《{0}》状態は解除される。", RuleNamePattern);
-        rules.Add(EffectContentType.SetTwoResourcesAndStates, "自身の{0}と{1}は{2}になり。《{3}》及び《{4}》状態になる。", RuleResourcePattern, RuleResourcePattern, @"[0-9]+", RuleNamePattern, RuleNamePattern);
-        rules.Add(EffectContentType.CraftGradeShift, "生産に成功した時、生産したアイテムのグレードは{0}つだけ{1}される。", RulePositivePattern, RuleSignedPattern);
+        rules.Including(EffectType.Fumble).Add(EffectContentType.RemoveSelfNamedState, "自身の《{0}》状態は解除される。", RuleNamePattern);
+        rules.Including(EffectType.Fumble).Add(EffectContentType.SetTwoResourcesAndStates, "自身の{0}と{1}は{2}になり。《{3}》及び《{4}》状態になる。", RuleResourcePattern, RuleResourcePattern, @"[0-9]+", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.PurgeOwnCategoryOnFailure, "自身に付与されている〈{0}〉状態は全て解除される。", RuleNamePattern);
         rules.Add(EffectContentType.NoRollEffect, "何もなし");
     }
@@ -20,7 +19,6 @@ public static partial class SkillTextConverter
     private static void RegisterCriticalRules(RuleSection rules)
     {
         rules.Add(EffectContentType.RepeatActiveEffect, "アクティブ効果を追加で{0}回適用する。", RulePositivePattern);
-        rules.Add(EffectContentType.ModifyOutputCount, "個数{0}", RuleSignedPattern);
         rules.Add(EffectContentType.ChooseDiceOutcome, "ダイスロールから任意の結果を選べる。");
         rules.Add(OverrideContentType.StackGrantMultiplier, "スタック付与×{0}倍", RuleFactorPattern);
         rules.Add(OverrideContentType.AdvanceActionWithCap, "対象はメインフェーズの開始時に先行して{0}{1}までの行動を宣言できる。", RuleResourcePattern, RulePositivePattern);
@@ -32,22 +30,15 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.CriticalDoesNotEnsureSuccess, "このスキルはクリティカルによって自動成功にならない。");
         rules.Add(EffectContentType.PurgeInjuryRollStates, "自身の重傷ロールによって付与された状態を全て解除する。");
         rules.Add(EffectContentType.StealAdditionalItem, "追加で所持品をさらにもう{0}つ選択して奪う。", RulePositivePattern);
-        rules.Add(EffectContentType.MultiplySummonHPAndPower, "召喚された《{0}》のHPと威力は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
-        rules.Add(EffectContentType.ChangeSelectedItemDurability, "耐久{0}", RuleSignedPattern);
+        rules.Including(EffectType.Fumble).Add(EffectContentType.MultiplySummonHPAndPower, "召喚された《{0}》のHPと威力は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
     }
 
     private static void RegisterFumbleRules(RuleSection rules)
     {
-        rules.Add(EffectContentType.ModifyOutputCount, "個数{0}", RuleSignedPattern);
         rules.Add(EffectContentType.DestroyEquipmentCategory, "〈{0}〉は消滅する。", RuleNamePattern);
         rules.Add(OverrideContentType.ReplaceStackQuantity, "《{0}》スタックの付与は{1}に変化する。", RuleNamePattern, RuleSignedPattern);
         rules.Add(EffectContentType.PartyLastAndLoseOpeningResource, "味方チームは確定後攻となり、対象は{0}ターン目開始時に{1}{2}を失う。", RulePositivePattern, RuleResourcePattern, RulePositivePattern);
-        rules.Add(EffectContentType.RemoveSelfNamedState, "自身の《{0}》状態は解除される。", RuleNamePattern);
-        rules.Add(EffectContentType.SetTwoResourcesAndStates, "自身の{0}と{1}は{2}になり。《{3}》及び《{4}》状態になる。", RuleResourcePattern, RuleResourcePattern, @"[0-9]+", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.FailAllCraftRolls, "〈{0}〉の発動ロールは全て自動失敗となる。", RuleNamePattern);
-        rules.Add(EffectContentType.SelfResourceDamage, "自身は{0}ダメージ{1}を受ける。", RuleResourcePattern, ArithmeticPattern);
-        rules.Add(EffectContentType.MultiplySummonHPAndPower, "召喚された《{0}》のHPと威力は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
-        rules.Add(EffectContentType.ChangeSelectedItemDurability, "耐久{0}", RuleSignedPattern);
     }
 
     private static void RegisterSecondSpikeRules(RuleSection rules)
@@ -66,9 +57,7 @@ public static partial class SkillTextConverter
         rules.Add(OverrideContentType.SetEntityActivationRoll, "《{0}》の発動ロールは{1}に変化する。", RuleNamePattern, ArithmeticPattern);
         rules.Add(OverrideContentType.SetActiveResourceRecovery, "このアクティブ効果による{0}回復は{1}に変化する。", RuleResourcePattern, RulePositivePattern);
         rules.Add(OverrideContentType.SetNamedStateDamage, "《{0}》によるダメージは{1}に変化する。", RuleNamePattern, ArithmeticPattern);
-        rules.Add(OverrideContentType.UnlockSkillPrerequisite, "《{0}》の習得条件を達成する。", RuleNamePattern);
         rules.Add(OverrideContentType.SetDefenseIgnoredAtRank, "このパッシブ効果による防御点の無視は{0}に変化する。", RulePositivePattern);
-        rules.Add(OverrideContentType.SetDamageAndPercentReduction, "このアクティブ効果によるダメージは{0}, 減少は{1}と{2}を{3}%に変化する。", ArithmeticPattern, RuleResourcePattern, RuleResourcePattern, RulePositivePattern);
         rules.Add(OverrideContentType.NoSpikeChange, "無し。");
         rules.Add(OverrideContentType.IncreaseRacialBonusByPosition, "種族能力値ボーナスの内{0}番の物が{1}%加算される。", RulePositivePattern, RuleSignedPattern);
         rules.Add(OverrideContentType.LearnNamedSkillAtRank, "スキル《{0}》を習得する。", RuleNamePattern);

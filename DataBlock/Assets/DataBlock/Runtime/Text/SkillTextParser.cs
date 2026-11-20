@@ -17,7 +17,7 @@ public static partial class SkillTextConverter
         }
         var data = new SkillTextData();
         SkillBody current = data.Skill;
-        EffectType section = EffectType.None;
+        EffectType[] sections = Array.Empty<EffectType>();
         StateDefinition state = null;
         string conditions = "";
         bool named = false, description = false;
@@ -29,7 +29,7 @@ public static partial class SkillTextConverter
             string line = lines[i].Trim().Replace("\\*", "*");
             if (line.Length == 0) continue;
             // These are wrapped effect sentences, not additional category headers.
-            if (section == EffectType.Passive &&
+            if (sections.Contains(EffectType.Passive) &&
                 ((M(line, @"^〈[^〉]+〉$").Success && i < end && lines[i + 1].TrimStart().StartsWith("上記の装備", StringComparison.Ordinal)) ||
                  line.EndsWith("および", StringComparison.Ordinal)))
             {
@@ -52,17 +52,18 @@ public static partial class SkillTextConverter
                 {
                     var summon = new SummonedEntityDefinition { Name = Need(summonHeader.Groups[1].Value, "召喚名") };
                     if (data.Summons.Any(x => x.Name == summon.Name)) throw new InvalidOperationException("召喚定義が重複しています：" + summon.Name);
-                    data.Summons.Add(summon); current = summon; section = EffectType.None; state = null; conditions = ""; continue;
+                    data.Summons.Add(summon); current = summon; sections = Array.Empty<EffectType>(); state = null; conditions = ""; continue;
                 }
                 if (line.StartsWith("●"))
                 {
+                    if (state != null && line.Contains("：") && ReadSemanticRule(null, state, EffectType.Passive, line.Substring(1).Trim())) continue;
                     if (!description && current == data.Skill && current.Effects.Count == 0 && current.Roll.Count == 0 &&
                         i + 1 <= end && M(lines[i + 1].Trim(), @"^【(?:消費リソース|宣言条件|発動ロール)】").Success) description = true;
                     if (!description) throw new InvalidOperationException("子スキルの前に選択式の【説明】が必要です。");
                     current = new SkillBody { Name = Need(line.Substring(1), "子スキル名") };
-                    data.Skill.Choices.Add(current); section = EffectType.None; state = null; conditions = ""; continue;
+                    data.Skill.Choices.Add(current); sections = Array.Empty<EffectType>(); state = null; conditions = ""; continue;
                 }
-                if (M(line, @"^(?:〈[^〉]+〉)+$").Success && section == EffectType.None && conditions.Length == 0)
+                if (M(line, @"^(?:〈[^〉]+〉)+$").Success && sections.Length == 0 && conditions.Length == 0)
                 {
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
                     current.Categories = Categories(line); continue;
@@ -95,8 +96,7 @@ public static partial class SkillTextConverter
                         if (owners.Count == 1) current = owners[0];
                     }
                     string key = header.Groups[1].Value, body = header.Groups[2].Value.Trim();
-                    if (key == "クリティカル") key = "クリティカル効果";
-                    section = EffectType.None; state = null; conditions = "";
+                    sections = Array.Empty<EffectType>(); state = null; conditions = "";
                     switch (key)
                     {
                         case "説明":
@@ -156,14 +156,18 @@ public static partial class SkillTextConverter
                             {
                                 SummonedEntityDefinition statOwner = current as SummonedEntityDefinition;
                                 if (statOwner == null) throw new InvalidOperationException("最大値は召喚定義に指定してください。");
-                                string statName = Need(statHeader.Groups[1].Value, "召喚ステータス名");
-                                if (statOwner.Stats.Any(x => x.Name == statName)) throw new InvalidOperationException(statName + "最大値が重複しています。");
-                                statOwner.Stats.Add(new FormulaStat { Name = statName, Formula = Need(body, statName + "最大値") }); break;
+                                foreach (string name in statHeader.Groups[1].Value.Split('/'))
+                                {
+                                    string statName = Need(name, "召喚ステータス名");
+                                    if (statOwner.Stats.Any(x => x.Name == statName)) throw new InvalidOperationException(statName + "最大値が重複しています。");
+                                    statOwner.Stats.Add(new FormulaStat { Name = statName, Formula = Need(body, statName + "最大値") });
+                                }
+                                break;
                             }
-                            EffectType parsedType;
-                            if (!EffectTypesByName.TryGetValue(key, out parsedType)) throw new InvalidOperationException("未対応の見出しです：" + key);
-                            section = parsedType;
-                            if (body.Length > 0) ReadSkillLine(current, section, body); break;
+                            sections = ParseEffectSections(key);
+                            if (body.Length > 0)
+                                foreach (EffectType section in sections) ReadSkillLine(current, section, body);
+                            break;
                     }
                     continue;
                 }
@@ -174,12 +178,12 @@ public static partial class SkillTextConverter
                 {
                     AddConditions(conditions == "習得条件" ? current.AcquisitionConditions : conditions == "装備条件" ? current.EquipmentConditions : current.DeclarationConditions, line); continue;
                 }
-                if (section == EffectType.None && line.TrimEnd().EndsWith("宣言可能。", StringComparison.Ordinal))
+                if (sections.Length == 0 && line.TrimEnd().EndsWith("宣言可能。", StringComparison.Ordinal))
                 {
                     AddConditions(current.DeclarationConditions, line); continue;
                 }
-                if (section == EffectType.None) throw new InvalidOperationException("効果の見出しがありません。");
-                ReadSkillLine(current, section, line);
+                if (sections.Length == 0) throw new InvalidOperationException("効果の見出しがありません。");
+                foreach (EffectType section in sections) ReadSkillLine(current, section, line);
             }
             catch (InvalidOperationException e) { throw new InvalidOperationException((i + 1) + "行目：" + e.Message + "\n原文：" + lines[i], e); }
         }
@@ -205,6 +209,25 @@ public static partial class SkillTextConverter
         }
         return data;
     }
+    private static EffectType[] ParseEffectSections(string key)
+    {
+        if (key == "クリティカル") key = "クリティカル効果";
+        if (EffectTypesByName.TryGetValue(key, out EffectType single)) return new[] { single };
+        if (!key.Contains("/") || !key.EndsWith("効果", StringComparison.Ordinal))
+            throw new InvalidOperationException("未対応の見出しです：" + key);
+
+        var results = new System.Collections.Generic.List<EffectType>();
+        foreach (string part in key.Split('/'))
+        {
+            string label = part.EndsWith("効果", StringComparison.Ordinal) ? part : part + "効果";
+            if (!EffectTypesByName.TryGetValue(label, out EffectType type) ||
+                (type != EffectType.Success && type != EffectType.Failure && type != EffectType.Critical && type != EffectType.Fumble) ||
+                results.Contains(type)) throw new InvalidOperationException("結果を併記する見出しが不正です：" + key);
+            results.Add(type);
+        }
+        return results.ToArray();
+    }
+
     private static void ReadCosts(SkillBody skill, string body)
     {
         body = RegexReplace(body, @"(?<=\d)\s+(?=[A-Z]+-)", ", ").Replace('、', ',');

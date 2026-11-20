@@ -8,11 +8,8 @@ public static partial class SkillTextConverter
 {
     private static string[] NormalizeWrappedAppliedStateSentences(string[] lines)
     {
-        bool flavor = false;
         for (int i = 0; i < lines.Length; i++)
         {
-            if (M(lines[i].Trim(), @"^―{8,}$").Success) flavor = true;
-            if (flavor) continue;
             lines[i] = lines[i].Replace("〈種族学スキル", "〈種族スキル");
             lines[i] = lines[i].Replace("攻撃攻撃する", "攻撃する").Replace("によるをスキル値", "によるスキル値")
                 .Replace("発動ロールの達成値は1d", "発動ロールは1d").Replace("に変化する。。", "に変化する。")
@@ -30,17 +27,15 @@ public static partial class SkillTextConverter
     {
         var lines = source.ToList();
         var result = new List<string>();
-        bool flavor = false;
+
         string entity = "";
         string battleTurn = null;
         for (int i = 0; i < lines.Count; i++)
         {
             string line = lines[i];
-            if (M(line.Trim(), @"^―{8,}$").Success) flavor = true;
-            if (flavor) { result.Add(line); continue; }
             line = line.Replace("自身のはあらゆる宣言", "自身はあらゆる宣言")
                 .Replace("【特性】", "【パッシブ効果】").Replace("による与ダメージは", "によるダメージは")
-                .Replace("効果適応後", "効果適用後").Replace("達成値が低い側となる", "達成値が最も低い値となる");
+                .Replace("効果適応後", "効果適用後");
             line = RegexReplace(line, @"^((?:【パッシブ効果】)?自身の\[[^\]]+B\]は)([+-][0-9.]+)される", "$1$2加算される");
             line = RegexReplace(line, @"^自身の([^〈〉《》\[\]]+B)は([0-9.]+)加算される", "自身の$1が+$2加算される");
             line = RegexReplace(line, @"^([A-Z]+)値最大値が([+-][0-9]+)される。?$", "$1最大値$2");
@@ -52,9 +47,7 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^-(?: )?([火水風電冷土])属性：自身《([^》]+)》(〈[^〉]+〉)：(.+)$", "【アクティブ効果】$1属性を選んだ時、自身は《$2》状態になる。\n$2効果$3：$4");
             line = RegexReplace(line, @"による〈([^〈〉《》]+)》スタック", "による《$1》スタック");
             line = RegexReplace(line, @"^([^：]+効果(?:〈[^〉]+〉)?：)〈([^〉]+)〉を装備している物と同等", "$1自身は〈$2〉を装備している物と同等");
-            line = RegexReplace(line, @"^●(?=予言：|確約：)", "");
             line = RegexReplace(line, @"(自身は《[^》]+》スタックを[0-9]+得る。)\(最大([0-9]+)スタック\)", "$1（最大$2スタック）");
-            line = line.Replace("達成値が低い側となる", "達成値が最も低い値となる");
             if (i + 1 < lines.Count && M(line, @"(?:スキル効果による威力上昇は、|パッシブ効果による威力上昇は、|を解除、|分軽減して、|効果を宣言する場合、|状態が解除される時。|エンカウントフェーズ。)$").Success &&
                 !M(lines[i + 1].Trim(), @"^(?:[【●―]|$)").Success) line += lines[++i].Trim();
             if (i + 1 < lines.Count && line.TrimStart().StartsWith("【発動ロール】") &&
@@ -68,11 +61,11 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^【発動ロール】([^〈〉。]+カード)記載$", "【発動ロール】〈$1〉に記載");
             line = RegexReplace(line, @"^・(?=[^\s〈〉《》【】。]+〈[^〉]+〉[：:])", "");
             line = RegexReplace(line, @"^((?:【[^】]+】)?自身は)([^〈〉《》。、0-9]+)状態になる。$", "$1《$2》状態になる。");
-            line = RegexReplace(line, @"できなくなる、$", "できなくなる。");
             line = RegexReplace(line, @"^(数例[0-9]+：)([0-9]+),([0-9]{3})ジルダ", "$1$2$3ジルダ");
             line = RegexReplace(line, @"(数例[0-9]+：.+?,)  +", "$1 ");
             line = RegexReplace(line, @"^(任意の数字階段[0-9]+桁：)\s+", "$1");
-            line = RegexReplace(line, @"^【(奪略ロール)】([0-9]+d[0-9]+)$", "【アクティブ効果】報酬表〈$1〉のダイスは$2。");
+            if (i + 1 < lines.Count && M(lines[i + 1].Trim(), @"^[0-9]+～[0-9]+：《[^》]+》×[0-9]+$").Success)
+                line = RegexReplace(line, @"^【(?!発動ロール】)([^【】]+ロール)】([1-9][0-9]*d[1-9][0-9]*)$", "【アクティブ効果】報酬表〈$1〉のダイスは$2。");
             line = RegexReplace(line, @"^([0-9]+～[0-9]+)：《([^》]+)》×([0-9]+)$", "出目$1：《$2》×$3を獲得する。");
             line = RegexReplace(line, @"^(- [0-9]+：《[^》]+》)((?:片手|両手|胴体|脚/足|頭|アクセサリー[12]?)(?:, (?:脚/足|アクセサリー2))?)$", "$1装備部位を〈$2〉に変更する。");
             var name = M(line.Trim(), @"^《([^》]+)》$");
@@ -85,7 +78,7 @@ public static partial class SkillTextConverter
                 line.Contains("による発動ロールの達成値が") && lines[i + 1].TrimStart().StartsWith("自身の被ダメージは"))
                 line = line.TrimEnd('、') + "および" + lines[++i].Trim();
             line = line.Replace("【サードスパイクこのアクティブ", "【サードスパイク】このアクティブ")
-                .Replace("さらに対象をを", "さらに対象を").Replace("対象をを", "対象を")
+                .Replace("対象をを", "対象を")
                 .Replace("更に", "さらに").Replace("１ターン", "1ターン")
                 .Replace("自身に〈移動〉を発動した対象", "自身へ〈移動〉を発動した対象");
             line = RegexReplace(line, @"(【(?:セカンド|サード)スパイク】このアクティブ効果による)(?=[0-9])", "$1威力は");
@@ -100,18 +93,6 @@ public static partial class SkillTextConverter
                     line = RegexReplace(line, @"自身が以下のいずれかの種族である(?:事|こと)。?$", "自身の種族が〈" + races.Groups[1].Value + "〉のいずれか、または《" + races.Groups[2].Value + "》であること");
                     i++;
                 }
-            }
-            if (line.TrimStart().StartsWith("【HP/SAN最大値】"))
-            {
-                string value = line.Substring(line.IndexOf('】') + 1).Trim();
-                result.Add("【HP最大値】" + value);
-                line = "【SAN最大値】" + value;
-            }
-            if (line.StartsWith("【失敗/ファンブル効果】"))
-            {
-                string effect = line.Substring(line.IndexOf('】') + 1);
-                result.Add("【失敗効果】" + effect);
-                line = "【ファンブル効果】" + effect;
             }
             if (i + 1 < lines.Count && lines[i + 1].Trim().Length > 0 &&
                 M(line, @"(?:を宣言する時、|を装備している時、|を発動する場合、|を装備しているなら、|状態を付与してい?ない時、|状態を付与している時、|かつ〈[^〉]+〉の場合、|装備している物と同等の扱いとなり、|ジルダと|のターン開始時|の1ターン目、|以下の時、|以外なら、|戦闘を行う場合、|ファンブルとして扱われ、|このアクティブ効果による(?:与)?ダメージは|重症ロールを行う時。)$").Success &&
@@ -184,11 +165,9 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"エリアに〈([^〉]+)〉が含まれている時、\[([^\]]+)\]が×([0-9.]+)倍され、\[([^\]]+)\]による行為判定の達成値は([+-][0-9]+)される。", "エリアに〈$1〉が含まれている時、[$2]が×$3倍される。\nエリアに〈$1〉が含まれている時、[$4]による行為判定の達成値は$5される。");
             line = RegexReplace(line, @"自身の防御点は(\+.+?)加算される。", "自身の防御点$1");
             line = line.Replace("されます。", "される。");
-            line = RegexReplace(line, @"毎ターンACT-(.+?)減少, スキルによるSPとMPの消費量が×(.+?)倍される。", "毎ターン開始時、自身はACTを$1消費する。\nスキルによるSPの消費量が×$2倍される。\nスキルによるMPの消費量が×$2倍される。");
-            line = RegexReplace(line, @"毎ターンSPとMPが(.+?)回復する。", "毎ターン開始時、自身はSPを$1回復する。\n毎ターン開始時、自身はMPを$1回復する。");
-            line = RegexReplace(line, @"自身の〈([^〉]+)〉による行為判定の目標値は([+-][0-9]+)加算され、自身のターン開始時にACT-([0-9]+)及びSP-([0-9]+)。", "自身の〈$1〉による行為判定の目標値は$2加算される。\n自身のターン開始時、自身はACTを$3消費する。\n自身のターン開始時、自身はSPを$4消費する。");
+            line = RegexReplace(line, @"毎ターン([A-Z]+)-(.+?)減少, スキルによる([A-Z]+)と([A-Z]+)の消費量が×(.+?)倍される。", "毎ターン開始時、自身は$1を$2消費する。\nスキルによる$3の消費量が×$5倍される。\nスキルによる$4の消費量が×$5倍される。");
+            line = RegexReplace(line, @"毎ターン([A-Z]+)と([A-Z]+)が(.+?)回復する。", "毎ターン開始時、自身は$1を$3回復する。\n毎ターン開始時、自身は$2を$3回復する。");
             line = RegexReplace(line, @"自身のターン開始時にHP最大値の([0-9]+)%のダメージを受けます。", "自身は自身のターン開始時に[HP最大値]*$1/100のダメージを受ける。");
-            line = line.Replace("自身はHP及びMPを回復することができなくなる。", "自身はHPを回復することができなくなる。\n自身はMPを回復することができなくなる。");
             result.AddRange(line.Split('\n'));
         }
         return result.ToArray();
@@ -197,26 +176,31 @@ public static partial class SkillTextConverter
     private static string[] NormalizeCombinedStackSentences(string[] source)
     {
         var result = new List<string>();
-        bool flavor = false;
-        bool minimumOne = source.Any(x => x.Trim() == "※消費ACT及びMPは0以下にはならない。");
-        bool costRule = source.Any(x => x.Contains("このスキルによる消費ACT及び消費MPは自身の《"));
+
+        const string stackCost = @"このスキルによる消費([A-Z]+)及び消費([A-Z]+)は自身の《([^》]+)》スタック1つにつき-([0-9]+)される。";
+        var costPairs = new HashSet<(string, string)>();
+        var minimumPairs = new HashSet<(string, string)>();
         for (int i = 0; i < source.Length; i++)
         {
             string line = source[i];
-            if (M(line.Trim(), @"^―{8,}$").Success) flavor = true;
-            if (flavor) { result.Add(line); continue; }
-            if (line.Trim() == "※消費ACT及びMPは0以下にはならない。") { Require(costRule); continue; }
+            var minimum = M(line.Trim(), @"^※消費([A-Z]+)及び([A-Z]+)は0以下にはならない。$");
+            if (minimum.Success)
+            {
+                minimumPairs.Add((minimum.Groups[1].Value, minimum.Groups[2].Value));
+                continue;
+            }
             if (i + 1 < source.Length && (line.TrimEnd().EndsWith("が足りない時、", StringComparison.Ordinal) || line.TrimEnd().EndsWith("その場にいる場合、", StringComparison.Ordinal)))
                 line += source[++i].Trim();
             if (line.Contains("状態の効果を無視してそのキャラクターを使用する事が出来る。") && i + 1 < source.Length && source[i + 1].TrimStart().StartsWith("ただし《", StringComparison.Ordinal))
                 line += source[++i].Trim();
             line = RegexReplace(line, @"このスキルの消費リソースの([A-Z]+)が足りない時、可能な限り\1を支払い不足分を次のターン開始時に消費する事でアクティブ効果を発動できる。",
                 "このスキルの消費リソースの$1が足りない時、可能な限り支払い、不足分を自身の次のターン開始時に消費する事でアクティブ効果を発動できる。");
-            if (line.Contains("このスキルによる消費ACT及び消費MPは自身の《"))
+            var cost = M(line, stackCost);
+            if (cost.Success)
             {
-                Require(minimumOne);
-                line = RegexReplace(line, @"このスキルによる消費ACT及び消費MPは自身の《([^》]+)》スタック1つにつき-([0-9]+)される。",
-                    "このスキルの消費ACTは自身の《$1》スタック1つにつき-$2される。（最低消費1）\nこのスキルの消費MPは自身の《$1》スタック1つにつき-$2される。（最低消費1）");
+                costPairs.Add((cost.Groups[1].Value, cost.Groups[2].Value));
+                line = RegexReplace(line, stackCost,
+                    "このスキルの消費$1は自身の《$3》スタック1つにつき-$4される。（最低消費1）\nこのスキルの消費$2は自身の《$3》スタック1つにつき-$4される。（最低消費1）");
             }
             line = RegexReplace(line, @"さらに《([^》]+)》スタックが([0-9]+)以上の場合、このスキルの威力は([0-9.]+)倍される。", "自身の《$1》スタックが$2以上の場合、このスキルの威力は$3倍される。");
             line = RegexReplace(line, @"その後、自身の《([^》]+)》スタックは全て除去される。", "このスキルの攻撃後、自身の《$1》スタックは全て除去される。");
@@ -232,17 +216,15 @@ public static partial class SkillTextConverter
             }
             result.AddRange(line.Split('\n'));
         }
+        Require(costPairs.SetEquals(minimumPairs));
         return result.ToArray();
     }
 
     private static string[] NormalizeWrappedMappings(string[] lines)
     {
-        bool flavor = false;
         for (int i = 0; i < lines.Length; i++)
         {
-            if (M(lines[i].Trim(), @"^―{8,}$").Success) flavor = true;
-            if (flavor) continue;
-            lines[i] = lines[i].Replace("（エルフ魔法〉", "〈エルフ魔法〉").Replace("ここのパッシブ", "このパッシブ");
+            lines[i] = RegexReplace(lines[i], @"（([^（）：〈〉《》【】。,、]+)〉(?=の(?:発動時|威力))", "〈$1〉").Replace("ここのパッシブ", "このパッシブ");
             if (i + 1 < lines.Length && ((lines[i].Contains("複数の〈") && lines[i].TrimEnd().EndsWith("を発動させた場合、", StringComparison.Ordinal)) ||
                 (lines[i].Contains("次のライフパスを一つ選択") && lines[i + 1].TrimStart().StartsWith("《", StringComparison.Ordinal))))
             { lines[i] += lines[i + 1].Trim(); lines[i + 1] = ""; }
@@ -252,18 +234,14 @@ public static partial class SkillTextConverter
 
     private static string[] NormalizeCombinedResourceSentences(string[] source)
     {
-        bool flavor = false;
         var result = new List<string>();
         foreach (string raw in source)
         {
             string line = raw;
-            if (M(line.Trim(), @"^―{8,}$").Success) flavor = true;
-            if (flavor) { result.Add(raw); continue; }
             line = line.Replace("さらに、", "さらに");
-            line = RegexReplace(line, @"^([^\s・\-〈〉《》【】。][^〈〉《》【】。]*?)(?<!効果)(〈[^〉]+〉)[：:]", "$1効果$2：");
             line = RegexReplace(line, @"^((?:【パッシブ効果】)?)([A-Z]+が[0-9]+以下になった時、.+?ロールを行う必要がない。)$", "$1自身は$2");
             line = RegexReplace(line, @"自身は([A-Z]+)が存在せず《([^》]+)》状態にならない。", "自身は$1が存在しない。\n自身は《$2》状態にならない。");
-            line = line.Replace("自身のHPとMPを回復する事が出来なくなる。", "自身はHPを回復することができなくなる。\n自身はMPを回復することができなくなる。");
+            line = RegexReplace(line, @"自身[はの]([A-Z]+)(?:と|及び)([A-Z]+)を回復する(?:事が出来|ことができ)なくなる。", "自身は$1を回復することができなくなる。\n自身は$2を回復することができなくなる。");
             line = RegexReplace(line, @"自身は《([^》]+)》による効果を受けない。", "特性《$1》による効果をすべて無効にする。");
             line = RegexReplace(line, @"環境〈([^〉]+)〉および〈([^〉]+)〉による環境効果を受けない。", "環境《$1》および《$2》による環境効果を受けない。");
             line = RegexReplace(line, @"自身は自身のターン開始時([0-9]+)ダメージを受ける。", "自身は自身のターン開始時に$1のダメージを受ける。");
@@ -281,16 +259,14 @@ public static partial class SkillTextConverter
     private static string[] NormalizeWrappedEffectSentences(string[] source)
     {
         var lines = source.ToList();
-        int separator = lines.FindIndex(x => M(x.Trim(), @"^―{8,}$").Success);
-        if (separator < 0) separator = lines.Count;
-        for (int i = 0; i < separator; i++)
+        for (int i = 0; i < lines.Count; i++)
         {
             lines[i] = lines[i].Replace("》態になる", "》状態になる").Replace("SANダメ―ジ", "SANダメージ");
             // Unwrapped, canonical lines and flavor are deliberately left intact.
-            if (i + 1 < separator && (lines[i].TrimEnd().EndsWith("発動ロールを行う際、", StringComparison.Ordinal) ||
+            if (i + 1 < lines.Count && (lines[i].TrimEnd().EndsWith("発動ロールを行う際、", StringComparison.Ordinal) ||
                 lines[i].TrimEnd().EndsWith("を発動する際、", StringComparison.Ordinal) ||
                 (lines[i].Contains("かつ自身と対象が") && lines[i].TrimEnd().EndsWith("状態の時、", StringComparison.Ordinal))))
-            { lines[i] += lines[i + 1].Trim(); lines.RemoveAt(i + 1); separator--; i--; continue; }
+            { lines[i] += lines[i + 1].Trim(); lines.RemoveAt(i + 1); i--; continue; }
         }
         return lines.ToArray();
     }
@@ -301,14 +277,13 @@ public static partial class SkillTextConverter
     private static string[] SplitCombatAndRoleplayRolls(string[] source)
     {
         var lines = source.ToList();
-        var rules = lines.TakeWhile(line => !line.TrimStart().StartsWith("――――――――")).ToList();
-        if (rules.Any(line => line.TrimStart().StartsWith("●"))) return source;
-        var rolls = Enumerable.Range(0, rules.Count).Where(i => rules[i].TrimStart().StartsWith("【発動ロール】")).ToArray();
-        if (rolls.Length != 2 || rolls[1] + 1 >= rules.Count || !rules[rolls[1] + 1].TrimStart().StartsWith("【ロールプレイ効果】"))
+        if (lines.Any(line => line.TrimStart().StartsWith("●"))) return source;
+        var rolls = Enumerable.Range(0, lines.Count).Where(i => lines[i].TrimStart().StartsWith("【発動ロール】")).ToArray();
+        if (rolls.Length != 2 || rolls[1] + 1 >= lines.Count || !lines[rolls[1] + 1].TrimStart().StartsWith("【ロールプレイ効果】"))
             return source;
-        int first = rules.FindIndex(line => M(line.Trim(), @"^【(?:宣言条件|消費リソース|発動ロール)】").Success);
-        int second = rules.FindLastIndex(rolls[1], line => line.TrimStart().StartsWith("【宣言条件】"));
-        if (second <= rolls[0] || !rules.Skip(rolls[0]).Take(second - rolls[0]).Any(line => line.TrimStart().StartsWith("【アクティブ効果】"))) return source;
+        int first = lines.FindIndex(line => M(line.Trim(), @"^【(?:宣言条件|消費リソース|発動ロール)】").Success);
+        int second = lines.FindLastIndex(rolls[1], line => line.TrimStart().StartsWith("【宣言条件】"));
+        if (second <= rolls[0] || !lines.Skip(rolls[0]).Take(second - rolls[0]).Any(line => line.TrimStart().StartsWith("【アクティブ効果】"))) return source;
         lines.Insert(second, "●ロールプレイ");
         lines.Insert(first, "●戦闘");
         lines.Insert(first, "【説明】" + Description);
@@ -317,8 +292,11 @@ public static partial class SkillTextConverter
 
     private static string[] PrepareSkillLines(string[] source)
     {
-        source = SplitCombatAndRoleplayRolls(source);
-        return NormalizeWrappedAppliedStateSentences(NormalizeWrappedEffectSentences(NormalizeWrappedMappings(
-            NormalizeStructuralSkillLines(NormalizeCombinedResourceSentences(NormalizeCombinedStackSentences(source))))));
+        int end = Array.FindIndex(source, line => M(line.Trim(), @"^―{8,}$").Success);
+        string[] rules = end < 0 ? source : source.Take(end).ToArray();
+        rules = SplitCombatAndRoleplayRolls(rules);
+        rules = NormalizeWrappedAppliedStateSentences(NormalizeWrappedEffectSentences(NormalizeWrappedMappings(
+            NormalizeStructuralSkillLines(NormalizeCombinedResourceSentences(NormalizeCombinedStackSentences(rules))))));
+        return end < 0 ? rules : rules.Concat(source.Skip(end)).ToArray();
     }
 }

@@ -78,6 +78,50 @@ internal sealed class RulebookImportTests
     }
 
     [Test]
+    public void StateChoiceLabelsAndRewardTableNamesComeFromTheSource()
+    {
+        const string source = "《試験》\n〈一般スキル〉\n【アクティブ効果】自身は《先見》状態になる。\n"
+            + "先見効果：\n●見通す：未来についての出来事をGMの指定によって知る事が出来る。\n"
+            + "●見定める：自身の次の2回の行為判定を3度振りどちらかの結果を選ぶ事が出来る。\n"
+            + "【宝探しロール】1d6\n1～6：《記念品》×1";
+        var data = SkillTextConverter.Parse(source);
+        var choices = data.States.Single().Effects.SelectMany(e => e.Contents).ToArray();
+        Assert.That(choices[0].Parameters, Is.EqualTo(new[] { "見通す" }));
+        Assert.That(choices[1].Parameters, Is.EqualTo(new[] { "見定める", "2", "3" }));
+        var table = data.Skill.Effects.SelectMany(e => e.Contents).Single(c => c.Type == EffectContentType.RollNamedRewardTable);
+        Assert.That(table.Parameters, Is.EqualTo(new[] { "宝探しロール", "1d6" }));
+        string text = SkillTextConverter.Build(data);
+        Assert.That(SkillTextConverter.Normalize(text), Is.EqualTo(text));
+    }
+
+    [Test]
+    public void CombinedOutcomesApplyEachLineToEachResult()
+    {
+        const string source = "《試験》\n〈一般スキル〉\n【成功/クリティカル効果】\n個数+1\n耐久+2";
+        var data = SkillTextConverter.Parse(source);
+        foreach (var stage in new[] { EffectType.Success, EffectType.Critical })
+            Assert.That(data.Skill.Effects.Where(e => e.Type == stage).SelectMany(e => e.Contents).Select(c => c.Type),
+                Is.EqualTo(new[] { EffectContentType.ModifyOutputCount, EffectContentType.ChangeSelectedItemDurability }));
+        string text = SkillTextConverter.Build(data);
+        Assert.That(SkillTextConverter.Normalize(text), Is.EqualTo(text));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(source.Replace("成功/クリティカル", "成功/成功")));
+    }
+
+    [Test]
+    public void CommonSummonMaximumAndRecoveryRulesUseTheDeclaredResources()
+    {
+        const string source = "《召喚》\n〈一般スキル〉\n【アクティブ効果】ペット《仲間》を召喚する。\n"
+            + "《仲間》\n〈ペット〉\n【HP/MP/SP最大値】12\n【アクティブ効果】自身は《不調》状態になる。\n"
+            + "不調効果：自身はSP及びSANを回復することができなくなる。";
+        var data = SkillTextConverter.Parse(source);
+        Assert.That(data.Summons.Single().Stats.Select(s => s.Name), Is.EqualTo(new[] { "HP", "MP", "SP" }));
+        Assert.That(data.Summons.Single().Stats.All(s => s.Formula == "12"), Is.True);
+        var text = SkillTextConverter.Build(data);
+        Assert.That(text, Does.Contain("SPを回復する").And.Contain("SANを回復する"));
+        Assert.That(SkillTextConverter.Normalize(text), Is.EqualTo(text));
+    }
+
+    [Test]
     public void Costs_PreserveKindsAndQuantities()
     {
         string text = "《消費確認》\n〈一般スキル〉\n【消費リソース】任意のHP, 《任意名称》スタック-4, MP-(4+[蓄積]*4)";

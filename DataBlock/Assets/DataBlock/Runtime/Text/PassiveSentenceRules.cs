@@ -30,7 +30,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.WearerSharesArea, "自身は他プレイヤーキャラクターに〈{0}〉状態を付与している時、同じエリアに居る物として扱っても良い。（エリア移動時の耐久ロールは行われない）", RuleNamePattern);
         rules.Add(EffectContentType.AreaUnavailableWithoutWielder, "自身は他プレイヤーキャラクターに〈{0}〉状態を付与していない時、あらゆるエリア機能を宣言する事が出来ない。", RuleNamePattern);
         rules.Add(EffectContentType.IgnoreDefenseForTurnAttack, "この攻撃は対象の防御点の影響を受けない。");
-        rules.Add(EffectContentType.IncomingDefenseConversion, "自身は防御点の×{0}倍の{1}防御点を得る。", RuleFactorPattern, RuleResourcePattern);
         rules.Add(EffectContentType.SignedCategoryCost, "自身は〈{0}〉を宣言するたびに、{1}が{2}減少する。", RuleNamePattern, RuleResourcePattern, RuleSignedPattern);
         rules.Add(OverrideContentType.OptionalIncomingStatResultFactor, "自身を対象に[{0}]または[{1}]を参照する行為判定が行われた時、自身はその[対象の達成値]を×{2}倍した値で参照してよい。", RuleNamePattern, RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.TwoSourcesIncomingReduction, "自身が〈{0}〉または〈{1}〉の〈{2}〉を受けた時、被ダメージは{3}減少される。", RuleNamePattern, RuleNamePattern, RuleNamePattern, RuleSignedPattern);
@@ -44,11 +43,9 @@ public static partial class SkillTextConverter
         rules.Add(OverrideContentType.MountedRangedRollBonuses, "自身が《{0}》状態かつ《{1}》状態では無い時、〈{2}〉による達成値は{3}、[{4}]による目標値は{5}される。", RuleNamePattern, RuleNamePattern, RuleNamePattern, RuleSignedPattern, RuleNamePattern, RuleSignedPattern);
         rules.Add(EffectContentType.AttackAllEnemiesOnOwnTurn, "敵全員へ自身のターン開始時〈{0}〉判定で威力{1}の攻撃を与える。", RuleNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.HealOtherCharacterOnOwnTurn, "自身のターン開始時に自身を除くキャラクター{0}体の{1}を{2}回復する。", RulePositivePattern, RuleResourcePattern, RulePositivePattern);
-        rules.Add(EffectContentType.IncrementalPaymentBeforeActivation, "このスキルの消費リソースの{0}が足りない時、次回以降のターンの開始時に可能な限り{1}を支払い、不足分を支払いきる事で、アクティブ効果を発動できる。", RuleResourcePattern, RuleResourcePattern);
         rules.Add(OverrideContentType.AlliesFlatDefense, "味方全員の防御点は{0}加算される。", RuleSignedPattern);
         rules.Add(OverrideContentType.CategoryLearnCostReduction, "自身が〈{0}〉を習得する際、その消費決意は{1}軽減される。", RuleNamePattern, RulePositivePattern);
         rules.Add(OverrideContentType.ClassCategoryLearnCostFactor, "〈{0}〉のクラススキルの習得に必要な消費決意が×{1}倍される。", RuleNamePattern, RuleFactorPattern);
-        rules.Add(EffectContentType.DespawnAfterOwnAction, "このキャラクターは自身の行動終了後、消滅する。");
         rules.Add(EffectContentType.RacialAbilityPercentByOrdinal, "種族能力値ボーナスの内{0}番の物が{1}%加算される。 （{2}なら{3}{4}%に変化）", RulePositivePattern, RuleSignedPattern, RuleNamePattern, RuleNamePattern, RuleSignedPattern);
         rules.Add(OverrideContentType.SingleElementDamageFromStat, "[{0}]による被ダメージは×[{1}]倍される。", RuleNamePattern, RuleNamePattern);
         rules.Add(OverrideContentType.EitherElementDamageFromStat, "[{0}]または[{1}]による被ダメージは×[{2}]倍される。", RuleNamePattern, RuleNamePattern, RuleNamePattern);
@@ -81,13 +78,10 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.AcquireOtherRaceTraits, "自身とは別種族の種族特性を{0}つ選んで習得する。", RulePositivePattern);
         rules.Add(EffectContentType.CannotUseItemCategories, "自身は〈{0}〉及び〈{1}〉を使用する事が出来ない。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.IgnoreTraitItemRestriction, "自身は《{0}》によって〈{1}〉が使用不可能とならない。", RuleNamePattern, RuleNamePattern);
-        rules.Add(EffectContentType.OptionalEncounterExit, "エンカウントフェーズ後に自身は戦闘を離脱してもよい。");
-        rules.Add(EffectContentType.PartyEnvironmentImmunities, "パーティーは環境《{0}》および《{1}》による環境効果を受けない。", RuleNamePattern, RuleNamePattern);
         rules.Add(OverrideContentType.MultiplyCategoryActivationResult, "自身の〈{0}〉による発動ロールの達成値は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.MultiplyCategoryCheckResult, "〈{0}〉による達成値が×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.SetCategoryAcquisitionCost, "〈{0}〉を習得する際、消費決意が{1}になる。", RuleNamePattern, @"[0-9]+");
         rules.Add(OverrideContentType.RepeatedCategoryTurnCost, "{0}ターンの間に{1}回目以降の〈{2}〉宣言時の消費{3}は{4}される。", RulePositivePattern, RulePositivePattern, RuleNamePattern, RuleResourcePattern, RuleSignedPattern);
-        rules.Add(OverrideContentType.ReduceIncomingFromRace, "〈{0}〉から受ける被ダメージはさらに×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.PhaseCheckMultiplier, "{0}フェーズで自身の行為判定の達成値が×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.EquippedBattleStartingResource, "〈{0}〉を{1}つ装備している場合、自身の戦闘開始時の{2}は{3}される。", RuleNamePattern, RulePositivePattern, RuleResourcePattern, RuleSignedPattern);
         rules.Add(OverrideContentType.NamedSkillResultMultiplier, "自身の《{0}》による達成値は×{1}倍される。", RuleNamePattern, RuleFactorPattern);

@@ -23,7 +23,7 @@ public static partial class EquipmentTextConverter
         if (!string.IsNullOrEmpty(equipment.WeaponPowerFormula)) Need(equipment.WeaponPowerFormula, "武器威力");
         if (!string.IsNullOrEmpty(equipment.Flavor) &&
             equipment.Flavor.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')
-                .Any(x => M(NormalizeFenceLine(x), @"^(?<ticks>`{3,})""?\s*\|?$").Success))
+                .Any(x => M(DataBlockText.NormalizeFenceLine(x), @"^(?<ticks>`{3,})""?\s*\|?$").Success))
             throw new InvalidOperationException("装備フレーバーに単独のコードフェンス行は使用できません。");
 
         ValidateEquipmentCategories(equipment.Categories);

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -10,8 +9,6 @@ public static partial class EnemyTextConverter
 {
     private const string Separator = "――――――――――――――――";
     private const string DropRollHeader = "【ドロップロール】1d100";
-    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
-    private static readonly ConcurrentDictionary<EnemyRegexKey, Regex> RegexCache = new ConcurrentDictionary<EnemyRegexKey, Regex>();
 
     public static EnemyTextData Parse(string source)
     {
@@ -226,72 +223,9 @@ public static partial class EnemyTextConverter
         return string.Join("\n", lines.Skip(1).Take(lines.Length - 2));
     }
 
-    private static List<string> InputBlocks(string source)
-    {
-        if (string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException("入力テキストが空です。");
-        string text = source.Replace("\r\n", "\n").Replace("\r", "\n");
-        text = Replace(text, @"\n?[ \t]*<br\s*/?>[ \t]*\n?", "\n", RegexOptions.IgnoreCase);
-        string[] lines = text.Split('\n');
-        bool fenced = lines.Any(x => OpeningFence(NormalizeFenceLine(x)).Success);
-        if (!fenced)
-        {
-            string plain = text.Trim();
-            if (plain.Length >= 2 && plain.StartsWith("|", StringComparison.Ordinal) && plain.EndsWith("|", StringComparison.Ordinal)) plain = plain.Substring(1, plain.Length - 2).Trim();
-            return new List<string> { plain };
-        }
-
-        var blocks = new List<string>();
-        var body = new List<string>();
-        bool inside = false;
-        bool quoted = false;
-        int openingLength = 0;
-        foreach (string raw in lines)
-        {
-            string line = NormalizeFenceLine(raw);
-            if (!inside)
-            {
-                if (line.Length == 0 || line == "|" || Match(line, @"^\|\s*:?-{3,}:?\s*\|$").Success) continue;
-                Match opening = OpeningFence(line);
-                if (!opening.Success)
-                {
-                    if (line.StartsWith("《", StringComparison.Ordinal) || line.StartsWith("【", StringComparison.Ordinal))
-                        throw new InvalidOperationException("エネミーの行がコードブロック外にあります：" + raw);
-                    continue;
-                }
-                quoted = line.Contains("\"");
-                openingLength = opening.Groups["ticks"].Value.Length;
-                inside = true;
-                body.Clear();
-                continue;
-            }
-            Match closing = Match(line, @"^(?<ticks>`{3,})""?\s*\|?$");
-            if (closing.Success && closing.Groups["ticks"].Value.Length >= openingLength)
-            {
-                string block = string.Join("\n", body);
-                if (quoted) block = block.Replace("\"\"", "\"");
-                blocks.Add(block);
-                inside = false;
-                continue;
-            }
-            body.Add(raw);
-        }
-        if (inside) throw new InvalidOperationException("末尾のコードフェンスがありません。");
-        if (blocks.Count == 0) throw new InvalidOperationException("エネミーのコードブロックがありません。");
-        return blocks;
-    }
-
-    private static Match OpeningFence(string line)
-    {
-        return Match(line, @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:text|txt|markdown|md)?""?\s*\|?$");
-    }
-
-    private static string NormalizeFenceLine(string raw)
-    {
-        string line = raw.Trim();
-        if (!line.Contains("\\`")) return line;
-        string candidate = line.Replace("\\`", "`");
-        return OpeningFence(candidate).Success || Match(candidate, @"^`{3,}""?\s*\|?$").Success ? candidate : line;
-    }
+    private static List<string> InputBlocks(string source) =>
+        DataBlockText.ReadBlocks(DataBlockText.NormalizeBreaks(source), "エネミー", keepFences: false,
+            openingPattern: @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:text|txt|markdown|md)?""?\s*\|?$");
 
     private static bool TryNameHeader(string line, out string name)
     {
@@ -360,25 +294,7 @@ public static partial class EnemyTextConverter
         return number;
     }
 
-    private static Match Match(string text, string pattern, RegexOptions options = RegexOptions.None) { return GetRegex(pattern, options).Match(text); }
-    private static MatchCollection Matches(string text, string pattern, RegexOptions options = RegexOptions.None) { return GetRegex(pattern, options).Matches(text); }
-    private static string Replace(string text, string pattern, string replacement, RegexOptions options = RegexOptions.None) { return GetRegex(pattern, options).Replace(text, replacement); }
-    private static Regex GetRegex(string pattern, RegexOptions options)
-    {
-        options |= RegexOptions.CultureInvariant;
-        return RegexCache.GetOrAdd(new EnemyRegexKey(pattern, options), x => new Regex(x.Pattern, x.Options, RegexTimeout));
-    }
-
-    private readonly struct EnemyRegexKey : IEquatable<EnemyRegexKey>
-    {
-        public readonly string Pattern;
-        public readonly RegexOptions Options;
-        public EnemyRegexKey(string pattern, RegexOptions options) { Pattern = pattern; Options = options; }
-        public bool Equals(EnemyRegexKey other) { return Options == other.Options && string.Equals(Pattern, other.Pattern, StringComparison.Ordinal); }
-        public override bool Equals(object value) { return value is EnemyRegexKey && Equals((EnemyRegexKey)value); }
-        public override int GetHashCode()
-        {
-            unchecked { return ((Pattern == null ? 0 : StringComparer.Ordinal.GetHashCode(Pattern)) * 397) ^ (int)Options; }
-        }
-    }
+    private static Match Match(string text, string pattern, RegexOptions options = RegexOptions.None) { return DataBlockText.GetRegex(pattern, options).Match(text); }
+    private static MatchCollection Matches(string text, string pattern, RegexOptions options = RegexOptions.None) { return DataBlockText.GetRegex(pattern, options).Matches(text); }
+    private static string Replace(string text, string pattern, string replacement, RegexOptions options = RegexOptions.None) { return DataBlockText.GetRegex(pattern, options).Replace(text, replacement); }
 }

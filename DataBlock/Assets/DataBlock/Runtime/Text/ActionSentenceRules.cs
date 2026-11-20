@@ -5,10 +5,10 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.GroupedElementWeaponAttack, "対象を(スキル値{0}の武器威力+{1}*[{2}属性B])*{3}の属性威力で攻撃する。", @"[0-9]+", RulePositivePattern, @"[火水風電冷土光闇雷炎]", RuleFactorPattern);
         rules.Add(EffectContentType.RepeatSequenceCurrency, "任意の数字Xの数列XX：{0}ジルダ", RulePositivePattern);
         rules.Add(EffectContentType.StraightSequenceCurrencyAndStacks, "任意の数字階段{0}桁：{1}ジルダ, 永続的に《{2}》スタック{3}獲得", RulePositivePattern, RulePositivePattern, RuleNamePattern, RulePositivePattern);
-        rules.Add(EffectContentType.StraightSequenceRewards, "任意の数字階段{0}桁：経験値{1}, 決意{2}, 奪略ロール{3}回", RulePositivePattern, RuleSignedPattern, RuleSignedPattern, RulePositivePattern);
+        rules.Add(EffectContentType.StraightSequenceRewards, "任意の数字階段{0}桁：経験値{1}, 決意{2}, {3}{4}回", RulePositivePattern, RuleSignedPattern, RuleSignedPattern, RewardRollNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.AlternatingSequenceStacks, "任意の数字Xの数列X○X○X：《{0}》スタック{1}獲得", RuleNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.ExactSequenceStackProductCurrency, "数例{0}：《{1}》を全て消費して《{2}》*《{3}》ジルダ獲得", RulePositivePattern, RuleNamePattern, RuleNamePattern, RuleNamePattern);
-        rules.Add(EffectContentType.ExactSequenceRewards, "数例{0}：{1}ジルダ獲得, 経験値{2}, 決意{3}, 奪略ロール{4}回", RulePositivePattern, RulePositivePattern, RuleSignedPattern, RuleSignedPattern, RulePositivePattern);
+        rules.Add(EffectContentType.ExactSequenceRewards, "数例{0}：{1}ジルダ獲得, 経験値{2}, 決意{3}, {4}{5}回", RulePositivePattern, RulePositivePattern, RuleSignedPattern, RuleSignedPattern, RewardRollNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.ConditionalTripleStackCurrency, "《{0}》状態かつ、{1}と{2}を除く任意の数字Xの数列XXX：《{3}》を全て消費して《{4}》の{5}乗ジルダ獲得, 経験値{6}, 決意{7}", RuleNamePattern, RulePositivePattern, RulePositivePattern, RuleNamePattern, RuleNamePattern, RulePositivePattern, RuleSignedPattern, RuleSignedPattern);
         rules.Add(EffectContentType.StateWhileStackThreshold, "《{0}》スタック{1}以上：自身は《{2}》状態が続く限り《{3}》状態になる。", RuleNamePattern, RulePositivePattern, RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.ExactSequenceTitle, "数例{0}：称号《{1}》を獲得", RulePositivePattern, RuleNamePattern);
@@ -78,7 +78,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.PartyPrepareBeforeProgressBattle, "その後、進行ロールの結果に従って戦闘を行う場合、パーティーメンバーは各自アクティブ効果の発動や装備の変更を行っても良い。");
         rules.Add(EffectContentType.DeferEffectPayment, "このスキルの消費リソースの{0}が足りない時、次回以降のターンの開始時に可能な限り{1}を支払い、不足分を支払いきる事で、アクティブ効果を発動できる。", RuleResourcePattern, RuleResourcePattern);
         rules.Add(EffectContentType.AlliedTurnInitiativeTie, "同様の効果が敵と味方キャラクターで発生した時、先行側が優先される。");
-        rules.Add(EffectContentType.SetPermanentCategorizedState, "自身は永続的に《{0}》〈{1}〉状態になる。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.RemoveSummonAfterAction, "この召喚は行動終了後に除去される。");
         rules.Add(EffectContentType.ResolveCostByResultRange, "達成値：{0}～{1}：{2}を{3}消費する。", @"[0-9]+", @"[0-9]+", RuleResourcePattern, RulePositivePattern);
         rules.Add(EffectContentType.ResolveCostByResultAtLeast, "達成値：{0}～：{1}を{2}消費する。", @"[0-9]+", RuleResourcePattern, RulePositivePattern);
@@ -88,13 +87,13 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.RepeatedSelectedWeaponPower, "対象を[スキル値{0}の〈{1}〉による武器威力]*{2}で{3}回攻撃する。", @"[0-9]+", RuleNamePattern, RuleFactorPattern, RulePositivePattern);
         rules.Add(EffectContentType.DailyLimitOnReceivingRecovery, "このスキルによる回復効果は1日{0}度までしか受ける事が出来ない。", RulePositivePattern);
         rules.Add(EffectContentType.WaiveItemActivationAndCosts, "（消費リソースや発動ロールは不要）");
-        rules.Add(EffectContentType.MakeGrantedBuffPermanent, "この時付与されたバフは永続効果として扱われる。");
+        rules.Including(EffectType.Counter).Add(EffectContentType.MakeGrantedBuffPermanent, "この時付与されたバフは永続効果として扱われる。");
         rules.Add(EffectContentType.CraftNamedCategoryFromOutcome, "発動ロールの結果に応じて《{0}》〈{1}〉を獲得します。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.ClearInjuryAfterHPThreshold, "その後{0}が{1}以上の場合、{2}ロールによって付与された状態を全て解除する。", RuleResourcePattern, @"[0-9]+", RuleNamePattern);
         rules.Add(EffectContentType.CapAtResourceMaximum, "※最大値を超えない。");
         rules.Add(EffectContentType.ClearRollStatesAtThreshold, "{0}が{1}以上になるなら、{2}ロールによって付与された状態を全て解除する。", RuleResourcePattern, @"[0-9]+", RuleNamePattern);
         rules.Add(EffectContentType.PrioritizedMainPhaseAction, "味方チームの先行後攻に関わらず、対象はメインフェーズの開始時に先行して{0}{1}までの行動を宣言できる。", RuleResourcePattern, RulePositivePattern);
-        rules.Add(EffectContentType.TransferSelectedStateStacks, "選択した状態スタックを対象に全て付け替える、");
+        rules.Including(EffectType.Counter).Add(EffectContentType.TransferSelectedStateStacks, "選択した状態スタックを対象に全て付け替える、");
         rules.Add(EffectContentType.SelectedCategoryWeaponPower, "対象を[スキル値{0}の〈{1}〉による武器威力]*{2}で攻撃する。", @"[0-9]+", RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.TargetStateCheckFactor, "対象が《{0}》状態の時、他キャラクターから達成値は×{1}倍して扱われる。", RuleNamePattern, RuleFactorPattern);
         rules.Add(EffectContentType.GuaranteedStateAlternative, "対象が《{0}》状態なら代わりに{1}ターンの間確定で《{2}》にする。", RuleNamePattern, RulePositivePattern, RuleNamePattern);
@@ -114,7 +113,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.GrantOwnCategorizedState, "自身は《{0}》〈{1}〉：状態になる。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.DeclareForTargetIgnoringState, "《{0}》の効果を無視して対象に代って{1}{2}までの宣言できる。", RuleNamePattern, RuleResourcePattern, RulePositivePattern);
         rules.Add(EffectContentType.ElementWeaponResourceDamage, "対象をスキル値{0}の武器威力+{1}の属性威力で{2}ダメージを与える。", @"[0-9]+", ArithmeticPattern, RuleResourcePattern);
-        rules.Add(EffectContentType.CancelDeclarationAndCounter, "自身の宣戦した〈{0}〉の発動を取り消し、対象のカウンター効果を無効にする。", RuleNamePattern);
+        rules.Including(EffectType.Counter).Add(EffectContentType.CancelDeclarationAndCounter, "自身の宣戦した〈{0}〉の発動を取り消し、対象のカウンター効果を無効にする。", RuleNamePattern);
         rules.Add(OverrideContentType.RequireAdditionalSuccessfulResponses, "この攻撃に対して〈{0}〉を行う時、発動ロールを追加で{1}回行い、成功する必要がある。", RuleNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.InitialBattleTargetState, "戦闘開始から{0}ターンの間、対象は《{1}》状態になる。", RulePositivePattern, RuleNamePattern);
         rules.Add(EffectContentType.RollTargetDrop, "ドロップロールを{0}回行う。", RulePositivePattern);
@@ -122,7 +121,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.UnmodifiableDamage, "この攻撃による威力及び被ダメージは、防御点、効果、状態によって増加も軽減もされない。");
         rules.Add(EffectContentType.DisarmTargetCategory, "対象の〈{0}〉を解除する。", RuleNamePattern);
         rules.Add(EffectContentType.ActivateNamedEntity, "《{0}》を発動出来る。", RuleNamePattern);
-        rules.Add(EffectContentType.SummonFromItem, "{0}記載のキャラクターを召喚する事が出来る。", RuleNamePattern);
         rules.Add(EffectContentType.RestrictionOnNegatingState, "この付与は〈{0}〉は〈{1}〉以外によって無効化する事が出来ない。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.TargetStateOnCheckFailure, "失敗した場合、対象を《{0}》状態にする。", RuleNamePattern);
         rules.Add(EffectContentType.ApplyFormulaTargetStacks, "対象に《{0}》状態のスタックを{1}付与する。", RuleNamePattern, ArithmeticPattern);
@@ -142,7 +140,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.RemoveForOwnStacks, "自身に付与されている〈{0}〉を{1}つ解除して、《{2}》スタックを{3}得る。", RuleNamePattern, RulePositivePattern, RuleNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.SetReferenceActionResult, "達成値は{0}として扱われる。", @"[0-9]+");
         rules.Add(EffectContentType.SumRollsAsResult, "達成値は合計した値で扱われる。");
-        rules.Add(EffectContentType.SelfResourceDamage, "自身は{0}ダメージ{1}を受ける。", RuleResourcePattern, ArithmeticPattern);
+        rules.Including(EffectType.Fumble).Add(EffectContentType.SelfResourceDamage, "自身は{0}ダメージ{1}を受ける。", RuleResourcePattern, ArithmeticPattern);
         rules.Add(EffectContentType.EqualizeTargetResources, "対象の{0}は[対象全員の合計{1}]/[対象の数]になる。", RuleResourcePattern, RuleResourcePattern);
         rules.Add(EffectContentType.MinimumRollAlliesFirst, "パーティーを編成している時、味方ターンの中で自身が最初に行動を開始しなければならない。");
         rules.Add(EffectContentType.DropResourceAndApplyTimedState, "対象の{0}を{1}減少させて、{2}ターンの間《{3}》状態にする。", RuleResourcePattern, RulePositivePattern, RulePositivePattern, RuleNamePattern);
@@ -158,19 +156,17 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.ImmediateNextAction, "次のターンを待たずに、即行動可能となる。");
         rules.Add(EffectContentType.ChooseWhetherEncounterEnemy, "そのエネミーと戦闘を行うか、任意で選択できる。");
         rules.Add(EffectContentType.CasterNamedTitle, "自身は称号《{0}》を獲得する。", RuleNamePattern);
-        rules.Add(EffectContentType.OptionalEncounterExit, "エンカウントフェーズ後に自身は戦闘を離脱してもよい。");
-        rules.Add(EffectContentType.UnequipSelectedCategory, "選択した〈{0}〉の装備を解除する。", RuleNamePattern);
-        rules.Add(EffectContentType.PartyEnvironmentImmunities, "パーティーは環境《{0}》および《{1}》による環境効果を受けない。", RuleNamePattern, RuleNamePattern);
+        rules.Including(EffectType.Passive).Add(EffectContentType.OptionalEncounterExit, "エンカウントフェーズ後に自身は戦闘を離脱してもよい。");
+        rules.Including(EffectType.Counter).Add(EffectContentType.UnequipSelectedCategory, "選択した〈{0}〉の装備を解除する。", RuleNamePattern);
+        rules.Including(EffectType.Passive).Add(EffectContentType.PartyEnvironmentImmunities, "パーティーは環境《{0}》および《{1}》による環境効果を受けない。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.RepeatAttackScaledWeapon, "対象を(スキル値{0})*{1}の武器威力で{2}回連続攻撃する。", @"[0-9]+", RuleFactorPattern, RulePositivePattern);
         rules.Add(EffectContentType.RepeatAttackRolledCount, "対象を(スキル値{0}の武器威力)*{1}で[{2}d{3}]回連続攻撃する。", @"[0-9]+", RuleFactorPattern, RulePositivePattern, RulePositivePattern);
         rules.Add(EffectContentType.AttackForEachSuccessfulActivation, "発動ロールに成功する度、(対象をスキル値{0})*{1}で武器攻撃する。", @"[0-9]+", RuleFactorPattern);
         rules.Add(EffectContentType.MultiplySelectedBarrierStacks, "対象に付与されているバリアスタックを×{0}倍する。", ArithmeticPattern);
         rules.Add(EffectContentType.CurrentAreaProgressFactor, "このエリアの進行ロール達成値が{0}倍される。", ArithmeticPattern);
-        rules.Add(EffectContentType.ShareItemEffectUntilProgress, "次の進行ロールを行うまで、パーティー全員は〈{0}〉による効果を共有して適用する。", RuleNamePattern);
         rules.Add(EffectContentType.DamagePercentTargetHP, "対象へ最大HPの{0}%のダメージを与える。", @"[0-9]+(?:\.[0-9]+)?");
         rules.Add(EffectContentType.GainStateNextTurn, "自身は次のターン開始時《{0}》状態になる。", RuleNamePattern);
         rules.Add(EffectContentType.RemoveSelectedStateCount, "対象の状態を{0}つ解消する。", RulePositivePattern);
-        rules.Add(EffectContentType.PartyLeavesBattle, "パーティー全員は戦闘を離脱する。");
         rules.Add(EffectContentType.JoinMeleeAndSecondState, "自身と対象は同じ接近グループの《{0}》状態かつ《{1}》状態になる。", RuleNamePattern, RuleNamePattern);
         rules.Add(OverrideContentType.IncomingDamageThisTurn, "このターン被ダメージは×{0}倍される。", RuleFactorPattern);
         rules.Add(OverrideContentType.TargetStateStackFactor, "対象が《{0}》状態の場合、付与するスタックは×{1}倍される。", RuleNamePattern, RuleFactorPattern);
@@ -191,7 +187,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.NextOwnTurnResource, "自身の次のターン開始時、{0}を{1}得る", RuleResourcePattern, RulePositivePattern);
         rules.Add(EffectContentType.OpposedTargetCheck, "対象は{0} 目標値[自身の達成値]の行為判定を行う。", RuleFormulaPattern);
         rules.Add(EffectContentType.RemoveBuffsAffectingStat, "自身の[{0}]に影響を与えるバフを解除する。", RuleNamePattern);
-        rules.Add(EffectContentType.SubjectResourceLossFloorZero, "自身の{0}が({1})減少する。（減少{2}は0未満にならない）", RuleResourcePattern, RuleFormulaPattern, RuleResourcePattern);
+        rules.Including(EffectType.Declaration).Add(EffectContentType.SubjectResourceLossFloorZero, "自身の{0}が({1})減少する。（減少{2}は0未満にならない）", RuleResourcePattern, RuleFormulaPattern, RuleResourcePattern);
         rules.Add(EffectContentType.NextCategoryDiceBonus, "次の{0}回のスキル、〈{1}〉によるあらゆるダイスロールが+{2}dされる。", RulePositivePattern, RuleNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.HealSanityWithSkillValue, "対象を[スキル値{0}]*{1}でSANを回復する。", @"[0-9]+", RuleFactorPattern);
         rules.Add(EffectContentType.HealPowerWithSkillValue, "対象を[スキル値{0}]*{1}で回復する。", @"[0-9]+", RuleFactorPattern);
@@ -204,7 +200,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.GrantSelfStacksPerTarget, "自身は永続的に《{0}》スタックを[選択対象数]分得る。", RuleNamePattern);
         rules.Add(EffectContentType.ProhibitInvalidationExceptCategory, "この攻撃は〈{0}〉以外によって無効化する事は出来ない。", RuleNamePattern);
         rules.Add(EffectContentType.ElementAttackPower, "対象を{0}の{1}属性威力で攻撃する。", ArithmeticPattern, @"[炎火水電冷風土光闇]");
-        rules.Add(EffectContentType.RemoveOwnStateCategories, "自身に付与されている〈{0}〉状態を全て解除する。", RuleNamePattern);
+        rules.Including(EffectType.Counter).Add(EffectContentType.RemoveOwnStateCategories, "自身に付与されている〈{0}〉状態を全て解除する。", RuleNamePattern);
         rules.Add(EffectContentType.ReturnStacksSpentInBattle, "自身は《{0}》スタックを戦闘中に消費した数分得る。", RuleNamePattern);
         rules.Add(EffectContentType.ResetTargetResourceByFormula, "対象の{0}を{1}減少させる。", RuleResourcePattern, ArithmeticPattern);
         rules.Add(EffectContentType.SetTargetMeleeGroup, "対象を自身の《{0}》グループの接近状態にする。", RuleNamePattern);
@@ -225,7 +221,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.RemovePartyStateCategory, "味方全員の〈{0}〉を解除する。", RuleNamePattern);
         rules.Add(EffectContentType.GroupInNewMelee, "同一の新しい接近グループの《{0}》状態にする。", RuleNamePattern);
         rules.Add(EffectContentType.ReviveWithMaximumRatio, "その後対象の{0}を最大値の{1}%回復して蘇生する。", RuleResourcePattern, @"[0-9]+(?:\.[0-9]+)?");
-        rules.Add(EffectContentType.DespawnAfterOwnAction, "このキャラクターは自身の行動終了後、消滅する。");
+        rules.Including(EffectType.Passive).Add(EffectContentType.DespawnAfterOwnAction, "このキャラクターは自身の行動終了後、消滅する。");
         rules.Add(EffectContentType.CleanseTargetStateCategories, "対象の状態〈{0}〉を解除する。", RuleNamePattern);
         rules.Add(EffectContentType.NextTargetDieMultiplier, "対象は次の一回のダイスの出目が×{0}倍される。", RuleFormulaPattern);
         rules.Add(EffectContentType.ConditionalSelfRestore, "対象が《{0}》状態なら、{1}を{2}回復する。", RuleNamePattern, RuleResourcePattern, @"[0-9]+");
@@ -277,7 +273,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.ApplyRollOutcome, "次の効果を適用する。");
         rules.Add(OverrideContentType.ResultWhenLackingState, "自身が《{0}》状態ではない場合、達成値は{1}される。", RuleNamePattern, RuleSignedPattern);
         rules.Add(OverrideContentType.OrderedActionResultDelta, "指定された行動の発動ロールの達成値は{0}される。", RuleSignedPattern);
-        rules.Add(OverrideContentType.TargetCheckThresholdDelta, "対象の目標値を{0}する。", RuleSignedPattern);
         rules.Add(EffectContentType.ReturnCategoryToCaster, "〈{0}〉の対象は発動者に変更される。", RuleNamePattern);
         rules.Add(EffectContentType.RedirectBuffOrAuraToCaster, "〈{0}〉及びバフ付与効果の適用対象(スキルに付随する攻撃などは含まれない)を発動者に変更する。", RuleNamePattern);
         rules.Add(EffectContentType.InstallerWeaponResourceDamage, "設置者は対象をスキル値{0}で武器威力による{1}ダメージを与える。", @"[0-9]+", RuleResourcePattern);
@@ -286,15 +281,12 @@ public static partial class SkillTextConverter
         rules.Add(OverrideContentType.TargetResultFactor, "対象の達成値は×{0}倍される。", RuleFactorPattern);
         rules.Add(EffectContentType.NegateTargetResponseAndResolve, "対象の〈{0}〉をさらに無効にして効果を与える。", RuleNamePattern);
         rules.Add(EffectContentType.NegateTriggeringAction, "その後〈{0}〉を無効にする。", RuleNamePattern);
-        rules.Add(OverrideContentType.ReduceIncomingFromRace, "〈{0}〉から受ける被ダメージはさらに×{1}倍される。", RuleNamePattern, RuleFactorPattern);
+        rules.Including(EffectType.Passive).Add(OverrideContentType.ReduceIncomingFromRace, "〈{0}〉から受ける被ダメージはさらに×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(OverrideContentType.TriggerCategoryResultDelta, "対象の〈{0}〉の発動ロールによる達成値は{1}される。", RuleNamePattern, RuleSignedPattern);
         rules.Add(EffectContentType.RemoveStateFullyRecover, "自身は《{0}》状態を解除して、{1}を全回復する。", RuleNamePattern, RuleResourcePattern);
         rules.Add(OverrideContentType.CounterCategoryPower, "〈{0}〉による威力は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Add(EffectContentType.WaiveCategoryCost, "〈{0}〉の消費{1}を支払わなくても良い。", RuleNamePattern, RuleResourcePattern);
-        rules.Add(EffectContentType.MakeGrantedBuffPermanent, "この時付与されたバフは永続効果として扱われる。");
-        rules.Add(EffectContentType.CancelDeclarationAndCounter, "自身の宣戦した〈{0}〉の発動を取り消し、対象のカウンター効果を無効にする。", RuleNamePattern);
         rules.Add(EffectContentType.InstallerWeaponAttack, "設置者は対象をスキル値{0}で武器攻撃する。", @"[0-9]+");
-        rules.Add(EffectContentType.TransferSelectedStateStacks, "選択した状態スタックを対象に全て付け替える、");
         rules.Add(EffectContentType.TakeTwoActionsForTarget, "対象の代わりに〈{0}〉及び〈{1}〉を受ける。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.ConditionalSelfRestore, "対象が《{0}》状態なら、{1}を{2}回復する。", RuleNamePattern, RuleResourcePattern, RulePositivePattern);
         rules.Add(EffectContentType.TriggerAttackIfMelee, "発動対象が自身と同じ接近グループに居る時、スキル値{0}で武器攻撃する。", @"[0-9]+");
@@ -312,12 +304,10 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.RedirectTargetToSelf, "選択対象を自身へ変更する。");
         rules.Add(EffectContentType.CancelItemActive, "対象のアイテムのアクティブ効果を無効にする。");
         rules.Add(EffectContentType.CancelDurabilityRoll, "耐久ロールの結果を無効に出来る。");
-        rules.Add(EffectContentType.RemoveOwnStateCategories, "自身に付与されている〈{0}〉状態を全て解除する。", RuleNamePattern);
         rules.Add(EffectContentType.RerollTargetActivation, "対象の発動ロールをやり直させる。");
         rules.Add(EffectContentType.RedirectCategoryTarget, "〈{0}〉の選択対象を任意で変更できる。", RuleNamePattern);
         rules.Add(EffectContentType.InvalidateTargetEffect, "対象への効果を無効にする。");
         rules.Add(EffectContentType.ReceiveActionForTarget, "対象の代わりに〈{0}〉を受ける。", RuleNamePattern);
-        rules.Add(EffectContentType.UnequipSelectedCategory, "選択した〈{0}〉の装備を解除する。", RuleNamePattern);
         rules.Add(EffectContentType.CancelIncomingActive, "自身へのアクティブ効果を無効にする。");
         rules.Add(EffectContentType.SucceedFailedActivationRoll, "発動ロールを自動成功にする。");
     }
@@ -326,7 +316,6 @@ public static partial class SkillTextConverter
     {
         rules.Add(EffectContentType.AlternateElementRollSuccess, "または{0}属性威力を含む〈{1}〉発動成功。", @"[火水風電冷土光闇雷炎]", RuleNamePattern);
         rules.Add(OverrideContentType.AreaTargetMultiplier, "エリアに〈{0}〉が含まれる時、目標値は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
-        rules.Add(EffectContentType.IncrementalPaymentBeforeActivation, "このスキルの消費リソースの{0}が足りない時、次回以降のターンの開始時に可能な限り{1}を支払い、不足分を支払いきる事で、アクティブ効果を発動できる。", RuleResourcePattern, RuleResourcePattern);
-        rules.Add(EffectContentType.SubjectResourceLossFloorZero, "自身の{0}が({1})減少する。（減少{2}は0未満にならない）", RuleResourcePattern, RuleFormulaPattern, RuleResourcePattern);
+        rules.Including(EffectType.Passive).Add(EffectContentType.IncrementalPaymentBeforeActivation, "このスキルの消費リソースの{0}が足りない時、次回以降のターンの開始時に可能な限り{1}を支払い、不足分を支払いきる事で、アクティブ効果を発動できる。", RuleResourcePattern, RuleResourcePattern);
     }
 }
