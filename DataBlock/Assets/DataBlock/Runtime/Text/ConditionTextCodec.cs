@@ -11,7 +11,8 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"自身が《([^》]+)》を受けた時", "自身が〈$1〉を受けた時");
         text = text.Replace("を受けた時に宣言可能", "を受けた時宣言可能");
         if (ReadReactionCondition(set, text)) return;
-        text = text.Trim().Replace("選択して宣言可能。", "選択").Replace("宣言可能。", "");
+        text = RegexReplace(text.Trim(), @"選択して宣言可能。?", "選択");
+        text = RegexReplace(text, @"宣言可能。?", "");
         if (text.TrimEnd('。') == "毎ターン開始時、ランダムな敵キャラクターを対象に自動発動")
         {
             set.And.Add(Condition(ConditionType.AutomaticActivation, "EveryTurn", "Start", "Random", "Enemy", "1"));
@@ -56,6 +57,7 @@ public static partial class SkillTextConverter
         if (check != null) return check;
         if (text == "種族選択時に任意選択") return Condition(ConditionType.OptionalAtRaceSelection);
         if (text == "種族選択時に自動習得") return Condition(ConditionType.AutomaticAtRaceSelection);
+        if (text == "片手が素手") return Condition(ConditionType.HasFreeHand);
         Match m = M(text, @"^装備から([0-9]+)日以上経過している事$");
         if (m.Success) return Condition(ConditionType.MinimumEquippedDays, Number(m.Groups[1].Value, 1, "装備経過日数").ToString());
         m = M(text, @"^(決意|[A-Z]+)([0-9]+)消費$");
@@ -76,7 +78,7 @@ public static partial class SkillTextConverter
         m = M(text, @"^消費する〈([^〉]+)〉を([0-9]+)個選択$");
         if (m.Success) return Condition(ConditionType.SelectConsumedItem, m.Groups[1].Value, m.Groups[2].Value);
         if (text.TrimEnd('。') == "そのアイテムの宣言条件を満たしていること") return Condition(ConditionType.SelectedItemConditionsMet);
-        m = M(text, @"^(自身と同じ接近グループの)?キャラクターを([0-9]+)体(まで)?選択(?:[（(](重複不可|重複可能)[）)])?$");
+        m = M(text, @"^(?:(自身と同じ接近グループの)|任意の)?キャラクターを([0-9]+)体(まで)?選択(?:[（(](重複不可|重複可能)[）)])?$");
         if (m.Success) return Condition(m.Groups[1].Success ? ConditionType.SelectMeleeCharacters : ConditionType.SelectCharacters, m.Groups[2].Value, m.Groups[3].Success ? "UpTo" : "Exact", m.Groups[4].Success ? (m.Groups[4].Value == "重複不可" ? "Distinct" : "AllowDuplicates") : "Default");
         m = M(text, @"^自身が既に受けている〈([^〉]+)〉状態を([0-9]+)つ選択$");
         if (m.Success) return Condition(ConditionType.SelectOwnState, new[] { m.Groups[2].Value }.Concat(Split(m.Groups[1].Value, ",")).ToArray());
@@ -109,6 +111,7 @@ public static partial class SkillTextConverter
         switch (item.Type)
         {
             case ConditionType.OptionalAtRaceSelection: Args(item.Parameters, 0, "OptionalAtRaceSelection"); return "種族選択時に任意選択";
+            case ConditionType.HasFreeHand: Args(item.Parameters, 0, "HasFreeHand"); return "片手が素手";
             case ConditionType.AutomaticAtRaceSelection: Args(item.Parameters, 0, "AutomaticAtRaceSelection"); return "種族選択時に自動習得";
             case ConditionType.MinimumEquippedDays:
                 p = Args(item.Parameters, 1, "MinimumEquippedDays");

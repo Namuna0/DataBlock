@@ -45,7 +45,8 @@ public enum TriggerTiming
     ActionDeclared = 23,
     BattleEnd = 24,
     ResourceRecovery = 25, // when a resource restoration amount is determined
-    AttackHit = 26 // this skill's attack hit its target (not merely a successful roll)
+    AttackHit = 26, // this skill's attack hit its target (not merely a successful roll)
+    ActionReceived = 27 // after an incoming action resolves on the holder, including zero damage
 }
 [Serializable]
 public class TriggerDefinition
@@ -95,12 +96,12 @@ public enum EffectContentType
     RemoveState = 6,
     WeaponAttack = 7,
     ApplyConsumedItemActive = 8,
-    GainStack = 9, // actor, state, amount, optional maximum stacks
+    GainStack = 9, // actor, state, amount/formula, optional maximum stacks
     Damage = 10,
     ApplyStateInMeleeGroup = 11,
     InvalidateIncomingAction = 12,
     InvalidateTriggeredEffect = 13,
-    SkillAttack = 14, // actor, power | actor, PowerAndAttribute, power, attribute power | ElementalWeapon form
+    SkillAttack = 14, // actor, power | actor, PowerAndAttribute, power, attribute power | actor, IgnoreOwnStateCategory, category, power | ElementalWeapon form
     ModifyResource = 15,
     InvalidateAction = 16,
     ReduceDamage = 17,
@@ -197,7 +198,14 @@ public enum EffectContentType
     UseStateBoundCharacter = 106, // state; player must be present, ignore state effects for use, state cannot be removed
     SetTargetResourceAndStates = 107, // resource, value, state A, state B (both)
     SucceedFailedActivationRoll = 108, // no parameters; triggering normally failed roll becomes success, not Critical
-    UnmodifiableMaximumResourceDamage = 109 // target resource, maximum percent; no power/damage increases or reductions from defense/effects/states
+    UnmodifiableMaximumResourceDamage = 109, // target resource, maximum percent; no power/damage increases or reductions from defense/effects/states
+    ConsumeStacks = 110, // Self, local state, ReceivedActionPower (not post-mitigation damage)
+    ApplyPermanentLinkedStates = 111, // Self state, selected character's state; retain this pair's partner
+    RemoveLinkedStates = 112, // Self state, partner state; resolve partner before clearing either instance
+    UsePartnerMeleeGroup = 113, // engagement state name; inherit its check and the partner's group
+    UsePartnerStat = 114, // stat name; read the linked partner's current value
+    SharePartnerAreaEligibility = 115, // holder qualifies when partner meets the area's movement conditions
+    FollowPartnerBattleExit = 116 // holder also leaves when partner leaves the battle
 }
 // 数値・判定・消費などへの変更。通常の効果内容には入れません。
 public enum OverrideContentType

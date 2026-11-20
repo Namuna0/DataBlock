@@ -233,6 +233,8 @@ public static partial class SkillTextConverter
         }
         m = M(s, @"^(自身|対象|付与者)(?:1体)?を(.+?)の威力で攻撃する。?$");
         if (m.Success) return Content(EffectContentType.SkillAttack, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
+        m = M(s, @"^自身に付与されている〈([^〉]+)〉の効果を無視して、(対象|自身|付与者)を(.+?)の威力で攻撃する。?$");
+        if (m.Success) return Content(EffectContentType.SkillAttack, ActorKey(m.Groups[2].Value), "IgnoreOwnStateCategory", m.Groups[1].Value, m.Groups[3].Value);
         m = M(s, @"^ターン中に発動した[、,]\s*全てのバフによる効果を([0-9]+)回まで適用しなおす。?$");
         if (m.Success) return Content(EffectContentType.ReapplyEffects, "Turn", "バフ", "All", m.Groups[1].Value);
         m = M(s, @"^このエリアの採取を([0-9]+)回追加で行うことができる。?$");
@@ -260,6 +262,8 @@ public static partial class SkillTextConverter
         m = M(s, @"^(自身|対象|付与者)は《([^》]+)》スタックを(.+?)得る。?[（(]最大([0-9]+)スタック[）)]。?$");
         if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value, m.Groups[4].Value);
         m = M(s, @"^(自身|対象|付与者)は(.+?)(?:の)?ダメージを受ける。?$");
+        if (m.Success) return Content(EffectContentType.Damage, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
+        m = M(s, @"^(対象|自身|付与者)に([0-9]+)のダメージを与える。?$");
         if (m.Success) return Content(EffectContentType.Damage, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^(自身|対象|付与者)への((?:〈[^〉]+〉)(?:(?:及び|または)〈[^〉]+〉)*)を無効にする。?$");
         if (m.Success) return Content(EffectContentType.InvalidateIncomingAction, new[] { ActorKey(m.Groups[1].Value) }.Concat(AllMatches(m.Groups[2].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
@@ -324,6 +328,8 @@ public static partial class SkillTextConverter
             case EffectContentType.SkillAttack:
                 p = VariableArgs(content.Parameters, 2, "SkillAttack");
                 if (p.Length == 2) return TargetText(p[0]) + "を" + p[1] + "の威力で攻撃する。";
+                if (p.Length == 4 && p[1] == "IgnoreOwnStateCategory")
+                    return "自身に付与されている〈" + p[2] + "〉の効果を無視して、" + Actor(p[0]) + "を" + p[3] + "の威力で攻撃する。";
                 if (p.Length >= 6 && p[1] == "ElementalWeapon")
                     return TargetText(p[0]) + "をスキル値" + p[2] + "の武器威力+" + p[3] + "の" + string.Join("かつ", p.Skip(4)) + "属性威力で攻撃する。";
                 throw new InvalidOperationException("SkillAttackは対象・威力、または対象・ElementalWeapon・スキル値・属性威力式・2属性以上です。");
@@ -461,6 +467,8 @@ public static partial class SkillTextConverter
                 break;
             case OverrideContentType.AddTargetValue:
                 p = Args(content.Parameters, 1, "AddTargetValue");
+                if (IsSpikeStage(effect.Type) && triggers.Count == 0 && M(p[0], @"^[+-][0-9]+$").Success)
+                    return "このアクティブ効果による目標値は" + p[0] + "される。";
                 if (triggers.Count != 2) break;
                 var weapon = triggers.FirstOrDefault(t => t.Conditions.And.Any(c => c.Type == ConditionType.WeaponCategory));
                 var action = triggers.FirstOrDefault(t => t.Conditions.And.Any(c => c.Type == ConditionType.ActionCategory));

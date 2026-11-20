@@ -79,7 +79,8 @@ public enum ConditionType
     AutomaticEnemyAction = 64, // triggering action category; target its enemy source
     OwnStateApplied = 65, // declaration on becoming this state, not while remaining in it
     SelectCharactersExceptSelf = 66, // exact count
-    SelectRaceWithTrait = 67 // race category, acquired trait name, exact count
+    SelectRaceWithTrait = 67, // race category, acquired trait name, exact count
+    HasFreeHand = 68 // Self has at least one unequipped hand
 }
 [Serializable]
 public class ConditionEntry

@@ -180,7 +180,19 @@ public static partial class SkillTextConverter
         new SkillTextRule(EffectContentType.UnmodifiableMaximumResourceDamage, false, EffectType.Active,
             "対象へ対象の{0}最大値の{1}%のダメージを与える。（この攻撃による威力及び被ダメージは、防御点、効果、状態によって増加も軽減もされない）", RuleResourcePattern, RulePositivePattern),
         new SkillTextRule(OverrideContentType.AllBonusStatsMultiplier, true, EffectType.Passive,
-            "自身のすべての能力値Bは×{0}倍される。", RuleFactorPattern)
+            "自身のすべての能力値Bは×{0}倍される。", RuleFactorPattern),
+        new SkillTextRule(EffectContentType.ApplyPermanentLinkedStates, false, EffectType.Active,
+            "自身は永続的に《{0}》状態になる。選択した対象は永続的に《{1}》状態になる。", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(EffectContentType.RemoveLinkedStates, false, EffectType.Active,
+            "自身は《{0}》状態を解除する。その状態で結び付いていた相手の《{1}》状態は解除される。", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(EffectContentType.UsePartnerMeleeGroup, true, EffectType.Passive,
+            "自身の《{0}》および接近グループの判定は選択したキャラクターに委ねられる。", RuleNamePattern),
+        new SkillTextRule(EffectContentType.UsePartnerStat, true, EffectType.Passive,
+            "自身が参照する{0}は被騎乗キャラクターの物に置き換わる。", @"[^\s〈〉《》。\[\]]+B"),
+        new SkillTextRule(EffectContentType.SharePartnerAreaEligibility, true, EffectType.Passive,
+            "被騎乗キャラクターがエリアの移動条件を満たしている時、自身も条件を満たしているとして扱われる。"),
+        new SkillTextRule(EffectContentType.FollowPartnerBattleExit, true, EffectType.Passive,
+            "被騎乗キャラクターが戦闘から離脱した時、自身も離脱したものとして扱われる。")
     };
 
     private static bool ReadSemanticRule(SkillBody skill, StateDefinition state, EffectType type, string text)

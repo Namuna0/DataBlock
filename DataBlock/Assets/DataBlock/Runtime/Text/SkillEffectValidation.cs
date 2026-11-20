@@ -63,9 +63,9 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && content.Type != OverrideContentType.SetActivationRollFormula && content.Type != OverrideContentType.SetActivationRollTarget && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
+                if (spike && content.Type != OverrideContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && !IsRollSpike(content.Type) && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
                     throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
-                if (content.Type == OverrideContentType.SetActivationRollFormula &&
+                if (spike && IsRollSpike(content.Type) &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
                     throw new InvalidOperationException("発動ロールのスパイク変更には通常の発動ロールが必要です。");
                 if (content.Type == OverrideContentType.SetSkillValue && !hasUnconditionalSkillValueAttack)
@@ -87,7 +87,7 @@ public static partial class SkillTextConverter
                 if (content.Type == OverrideContentType.PreventCounterDamage && !hasUnconditionalActiveAttack)
                     throw new InvalidOperationException("カウンターダメージ禁止の対象となるアクティブ攻撃を無条件で1件だけ指定してください。");
                 if (content.Type == OverrideContentType.AddStateDuration && (effect.Type != EffectType.Active || skill.DeclarationConditions.And.Count(x => x.Type == ConditionType.SelectOwnState && x.Parameters.Count >= 2 && x.Parameters[0] == "1") != 1)) throw new InvalidOperationException("持続ターン変更にはActiveとSelectOwnState宣言条件が必要です。");
-                if (content.Type == OverrideContentType.AddTargetValue && effect.Type != EffectType.Passive) throw new InvalidOperationException("今回の目標値補正はPassiveに指定してください。");
+                if (content.Type == OverrideContentType.AddTargetValue && !spike && effect.Type != EffectType.Passive) throw new InvalidOperationException("目標値補正はパッシブまたはスパイクに指定してください。");
                 if (content.Type == OverrideContentType.AddResourceCost)
                 {
                     string[] p = Args(content.Parameters, 4, "AddResourceCost");
@@ -156,12 +156,17 @@ public static partial class SkillTextConverter
         }
     }
 
+    private static bool IsRollSpike(OverrideContentType type)
+    {
+        return type == OverrideContentType.SetActivationRollFormula || type == OverrideContentType.SetActivationRollTarget || type == OverrideContentType.AddTargetValue;
+    }
+
     private static void ValidateSpikeStage(SkillBody skill, EffectType stage)
     {
         var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c }))
             .Where(x => x.Content.Type != OverrideContentType.OptionalSpikeState && x.Content.Type != OverrideContentType.SetRollRange && x.Content.Type != OverrideContentType.StateTurnRecovery && !IsStateReferenceSpike(x.Content.Type) && !IsAppliedStateSpike(x.Content.Type)).ToList();
         if (entries.Count == 0) return;
-        var rollEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetActivationRollFormula || x.Content.Type == OverrideContentType.SetActivationRollTarget).ToList();
+        var rollEntries = entries.Where(x => IsRollSpike(x.Content.Type)).ToList();
         if (rollEntries.Count > 0)
         {
             if (entries.Count != 1 || rollEntries[0].Definition.Triggers.Count != 0)
@@ -242,6 +247,9 @@ public static partial class SkillTextConverter
         {
             var rule = SemanticTextRules.FirstOrDefault(r => !r.State && r.Content != EffectContentType.None && r.Content == content.Type);
             if (rule != null) Require(effect.Type == rule.Section && effect.Triggers.Count == 0);
+            if (content.Type == EffectContentType.ApplyPermanentLinkedStates)
+                Require(skill.DeclarationConditions.And.Count(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) &&
+                    c.Parameters[0] == "1" && c.Parameters[1] == "Exact") == 1);
             bool hit = effect.Triggers.Any(t => t.Timing == TriggerTiming.AttackHit);
             bool branch = content.Type == EffectContentType.OwnAttributeHitState || content.Type == EffectContentType.OwnAttributeHitRemoval;
             if (hit || branch || content.Type == EffectContentType.ExecuteAfterAttackDamage || content.Type == EffectContentType.MissingOwnAttributePower)
@@ -362,12 +370,6 @@ public static partial class SkillTextConverter
                 Require(skill.Effects.Where(e => e.Type == EffectType.Counter && e.Triggers.Count == 0).SelectMany(e => e.Contents).Count(c => c.Type == EffectContentType.SetResourceValue) == 1);
             if (content.Type == EffectContentType.LimitAcquisition || content.Type == EffectContentType.RaceAlias)
                 Require(effect.Type == EffectType.Passive && effect.Triggers.Count == 0);
-        }
-        foreach (var effect in skill.Overrides)
-        foreach (var content in effect.Contents)
-        {
-            if (content.Type == OverrideContentType.SetActivationRollTarget)
-                Require(skill.Roll.Count > 0 && skill.Roll.Formula != "自動成功" && !string.IsNullOrWhiteSpace(skill.Roll.Target));
         }
     }
 

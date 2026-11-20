@@ -47,6 +47,11 @@ public static partial class SkillTextConverter
         {
             AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollTarget, m.Groups[1].Value)); return true;
         }
+        m = M(s, @"^このアクティブ効果による目標値は([+-][0-9]+)される。?$");
+        if (m.Success)
+        {
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.AddTargetValue, m.Groups[1].Value)); return true;
+        }
         m = M(s, @"^このカウンター効果による\[([^\]]+)\]の達成値は×?(.+?)倍される。?$");
         if (m.Success) { AddModifierSpike(skill, type, m.Groups[2].Value, "RerollResult", m.Groups[1].Value); return true; }
         m = M(s, @"^このパッシブ効果による達成値が([+-][0-9]+)、被ダメージは×(.+?)倍に変化する。?$");

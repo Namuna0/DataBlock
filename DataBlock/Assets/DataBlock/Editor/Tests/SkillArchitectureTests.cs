@@ -306,5 +306,263 @@ internal sealed class SkillArchitectureTests
         Assert.That(catalog.FindByName("技術9999").Single(), Is.SameAs(records[9999]));
         for (int i = 0; i < 10; i++) Assert.That(catalog.FindByCategory("分類" + i).Count, Is.EqualTo(1000));
     }
+
+    private static string SharedStackFixture()
+    {
+        return System.IO.File.ReadAllText("Assets/DataBlock/Editor/Tests/Fixtures/WizardSkills.txt").Replace("\r", "");
+    }
+
+    private const string SharedStackHeader = "バリア効果〈顕現〉：自身はこのバフスタック×1につき1の防御点を得る。";
+    private const string SharedStackDecay = "*このスタックは自身が〈攻撃〉を受けた時その威力分減少する。";
+
+    [Test]
+    public void SharedStackChoices_PreserveModesFormulaAndSharedState()
+    {
+        var data = RoundTrip(SharedStackFixture());
+        Assert.That(data.Skill.Choices.Count, Is.EqualTo(2));
+        Assert.That(data.Skill.AcquisitionConditions.And.Single().Parameters, Is.EqualTo(new[] { "決意", "270" }));
+        var active = data.Skill.Choices[0];
+        var counter = data.Skill.Choices[1];
+        Assert.That(active.Roll.Formula, Is.EqualTo("1d100*[知力B]"));
+        Assert.That(active.Roll.Target, Is.EqualTo("39"));
+        Assert.That(counter.Roll.Formula, Is.EqualTo("1d100*[魔力B]*1.2"));
+        Assert.That(counter.Roll.Target, Is.EqualTo("[対象の達成値]"));
+        foreach (var child in data.Skill.Choices)
+        {
+            Assert.That(child.Costs.Select(x => x.Resource + ":" + x.Amount), Is.EqualTo(new[] { "ACT:6", "MP:10" }));
+            Assert.That(child.Effects.Single().Type, Is.EqualTo(child == active ? EffectType.Active : EffectType.Counter));
+            Assert.That(child.Effects.Single().Contents.Single().Parameters,
+                Is.EqualTo(new[] { "Self", "バリア", "[スキル値131の武器威力]*0.67" }));
+        }
+        var state = data.States.Single();
+        Assert.That(state.Categories, Is.EqualTo(new[] { "顕現" }));
+        Assert.That(state.Overrides.Single().Contents.Single().Parameters,
+            Is.EqualTo(new[] { "Self", "防御点", "Add", "+[スタック]*1/1" }));
+        var decay = state.Effects.Single();
+        Assert.That(decay.Triggers.Single().Timing, Is.EqualTo(TriggerTiming.ActionReceived));
+        Assert.That(decay.Triggers.Single().Conditions.And.Select(x => x.Parameters.Single()),
+            Is.EqualTo(new[] { "Self", "攻撃" }));
+        Assert.That(decay.Contents.Single().Type, Is.EqualTo(EffectContentType.ConsumeStacks));
+        Assert.That(decay.Contents.Single().Parameters, Is.EqualTo(new[] { "Self", "バリア", "ReceivedActionPower" }));
+    }
+
+    [Test]
+    public void SharedStackChoices_AllowDifferentNamesNumbersAndRatios()
+    {
+        var data = RoundTrip(SharedStackFixture().Replace("アドバンスドマナバリア", "任意の術式")
+            .Replace("バリア", "別の状態").Replace("131", "212").Replace("0.67", "0.5")
+            .Replace("スタック×1につき1", "スタック×3につき2"));
+        Assert.That(data.Skill.Name, Is.EqualTo("任意の術式"));
+        Assert.That(data.States.Single().Name, Is.EqualTo("別の状態"));
+        Assert.That(data.Skill.Choices[1].Effects.Single().Contents.Single().Parameters,
+            Is.EqualTo(new[] { "Self", "別の状態", "[スキル値212の武器威力]*0.5" }));
+        Assert.That(data.States.Single().Overrides.Single().Contents.Single().Parameters.Last(), Is.EqualTo("+[スタック]*2/3"));
+    }
+
+    [Test]
+    public void SharedStackChoices_KeepFullDefinitionWhenItAppearsLast()
+    {
+        string source = SharedStackFixture().Replace("\n" + SharedStackDecay, "");
+        int end = source.LastIndexOf(SharedStackHeader, StringComparison.Ordinal) + SharedStackHeader.Length;
+        source = source.Insert(end, "\n" + SharedStackDecay);
+        Assert.That(RoundTrip(source).States.Single().Effects.Single().Contents.Single().Type,
+            Is.EqualTo(EffectContentType.ConsumeStacks));
+    }
+
+    [TestCase("1の防御点", "2の防御点")]
+    [TestCase("〈顕現〉", "〈身体〉")]
+    public void SharedStackChoices_RejectConflictingDefinitions(string before, string after)
+    {
+        string source = SharedStackFixture();
+        int start = source.LastIndexOf(SharedStackHeader, StringComparison.Ordinal);
+        source = source.Substring(0, start) + source.Substring(start).Replace(before, after);
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(source));
+    }
+
+    [Test]
+    public void SharedStackChoices_RejectIncomparableExtensionsAndSameOwnerDuplicates()
+    {
+        string source = SharedStackFixture();
+        int end = source.LastIndexOf(SharedStackHeader, StringComparison.Ordinal) + SharedStackHeader.Length;
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(
+            source.Insert(end, "\n自身のターン開始時HP2回復。")));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(
+            source.Replace(SharedStackDecay, SharedStackDecay + "\n" + SharedStackHeader)));
+    }
+
+    [TestCase("0")]
+    [TestCase("-1")]
+    [TestCase("不明な戦闘効果")]
+    [TestCase("[スキル値0の武器威力]*0.67")]
+    [TestCase("[スキル値131の武器威力]*0")]
+    [TestCase("[スキル値131の武器威力]*-1")]
+    public void StackFormula_RejectsInvalidAmounts(string amount)
+    {
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(
+            SharedStackFixture().Replace("[スキル値131の武器威力]*0.67", amount)));
+        var data = SkillTextConverter.Parse(SharedStackFixture());
+        data.Skill.Choices[0].Effects.Single().Contents.Single().Parameters[2] = amount;
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(data));
+    }
+
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(3)]
+    public void StackConsumption_RejectsDifferentStateAmountSourceOrEvent(int variant)
+    {
+        var data = SkillTextConverter.Parse(SharedStackFixture());
+        var effect = data.States.Single().Effects.Single();
+        if (variant == 0) effect.Contents.Single().Parameters[1] = "別の状態";
+        if (variant == 1) effect.Contents.Single().Parameters[2] = "ReceivedDamage";
+        if (variant == 2) effect.Triggers.Single().Timing = TriggerTiming.DamageReceived;
+        if (variant == 3) effect.Triggers.Single().Conditions.And[0].Parameters[0] = "Target";
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(data));
+    }
+
+    [Test]
+    public void SharedStackChoices_AcceptEscapedLineContinuedTransportWithoutChangingFlavor()
+    {
+        string source = SharedStackFixture();
+        string[] lines = source.TrimEnd().Split('\n');
+        string escaped = string.Join("\n", lines.Select((line, i) =>
+            (line == "```" ? line.Replace("`", "\\`") : line.Replace("*", "\\*")) + (i < lines.Length - 1 ? "\\" : "")));
+        Assert.That(RoundTrip(escaped).Skill.Flavor, Is.EqualTo(RoundTrip(source).Skill.Flavor));
+        var plain = RoundTrip(source.Replace("青白く", "C:\\道\\\n青白く"));
+        Assert.That(plain.Skill.Flavor, Does.Contain("C:\\道\\\n"));
+    }
+
+    private static string[] GeneralSkillSources()
+    {
+        string source = System.IO.File.ReadAllText("Assets/DataBlock/Editor/Tests/Fixtures/GeneralSkills.txt").Trim();
+        return System.Text.RegularExpressions.Regex.Matches(source, @"(?s)```.*?```")
+            .Cast<System.Text.RegularExpressions.Match>().Select(m => m.Value.Replace("\r", "")).ToArray();
+    }
+
+    [Test]
+    public void GeneralSkills_KeepAttackRulesCostsAndRollOutcomes()
+    {
+        var rows = GeneralSkillSources().Select(RoundTrip).ToArray();
+        Assert.That(rows.Select(x => x.Skill.Name), Is.EqualTo(new[] { "パンチ", "頭突き", "応急処置", "目星", "乗馬" }));
+        var punch = rows[0];
+        Assert.That(punch.Skill.DeclarationConditions.And.Select(c => c.Type),
+            Is.EqualTo(new[] { ConditionType.HasFreeHand, ConditionType.SelectMeleeCharacters }));
+        Assert.That(Contents(punch).Single(c => c.Type == EffectContentType.SkillAttack).Parameters,
+            Is.EqualTo(new[] { "Target", "1d100*[筋力B]*3" }));
+        Assert.That(Overrides(punch, EffectType.SecondSpike).Single().Parameters, Is.EqualTo(new[] { "Power", "1d100*[筋力B]*5" }));
+        Assert.That(Overrides(punch, EffectType.ThirdSpike).Single().Parameters, Is.EqualTo(new[] { "Power", "1d100*[筋力B]*7" }));
+        var head = rows[1].Skill;
+        Assert.That(head.Costs.Single(c => c.Resource == "HP").Amount, Is.EqualTo(20));
+        Assert.That(head.Effects.Single(e => e.Type == EffectType.Active).Contents.Single().Parameters,
+            Is.EqualTo(new[] { "Target", "IgnoreOwnStateCategory", "行動阻害", "1d100*[筋力B]*3" }));
+        var aid = rows[2].Skill;
+        var cloth = aid.Costs.Single(c => c.Kind == CostKind.ItemCategory);
+        Assert.That(cloth.Resource, Is.EqualTo("布"));
+        Assert.That(cloth.Amount, Is.EqualTo(1));
+        Assert.That(aid.Effects.Single(e => e.Type == EffectType.Active).Contents.Single().Parameters, Is.EqualTo(new[] { "Target", "HP", "100" }));
+        var critical = aid.Overrides.Single(e => e.Type == EffectType.Critical).Contents.Single();
+        Assert.That(critical.Type, Is.EqualTo(OverrideContentType.MultiplyRecovery));
+        Assert.That(critical.Parameters, Is.EqualTo(new[] { "1.5" }));
+        var fumble = aid.Effects.Single(e => e.Type == EffectType.Fumble).Contents.Single();
+        Assert.That(fumble.Type, Is.EqualTo(EffectContentType.Damage));
+        Assert.That(fumble.Parameters, Is.EqualTo(new[] { "Target", "50" }));
+        var search = rows[3];
+        Assert.That(search.Skill.Roll.Target, Is.EqualTo("GMまたはエリア指定"));
+        Assert.That(search.Skill.DeclarationConditions.And.Single().Type, Is.EqualTo(ConditionType.SelectAnyTarget));
+        Assert.That(search.Skill.Effects.Single().Type, Is.EqualTo(EffectType.Roleplay));
+        foreach (var stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike })
+        {
+            var delta = Overrides(search, stage).Single();
+            Assert.That(delta.Type, Is.EqualTo(OverrideContentType.AddTargetValue));
+            Assert.That(delta.Parameters.Single(), Is.EqualTo(stage == EffectType.SecondSpike ? "-5" : "-10"));
+        }
+    }
+
+    [Test]
+    public void LinkedStates_RetainPartnerAndStatWhenNamesChange()
+    {
+        var riding = RoundTrip(GeneralSkillSources().Last().Replace("《騎乗》", "《同行》").Replace("《被騎乗》", "《随伴》")
+            .Replace("被騎乗効果", "随伴効果").Replace("騎乗効果", "同行効果").Replace("敏捷B", "感知B").Replace("-0.1", "-0.25"));
+        var choices = riding.Skill.Choices;
+        Assert.That(choices.Select(c => c.Name), Is.EqualTo(new[] { "騎乗", "下馬", "操縦" }));
+        Assert.That(choices[0].Roll.Formula, Is.EqualTo("自動成功"));
+        Assert.That(choices[0].DeclarationConditions.And.Single().Type, Is.EqualTo(ConditionType.SelectCharacters));
+        var pair = choices[0].Effects.Single().Contents.Single();
+        var release = choices[1].Effects.Single().Contents.Single();
+        Assert.That(pair.Type, Is.EqualTo(EffectContentType.ApplyPermanentLinkedStates));
+        Assert.That(release.Type, Is.EqualTo(EffectContentType.RemoveLinkedStates));
+        Assert.That(pair.Parameters, Is.EqualTo(new[] { "同行", "随伴" }));
+        Assert.That(release.Parameters, Is.EqualTo(pair.Parameters));
+        Assert.That(choices[1].DeclarationConditions.And, Is.Empty);
+        Assert.That(choices[2].Effects.Single().Type, Is.EqualTo(EffectType.Roleplay));
+        var effects = riding.States.Single(s => s.Name == "同行").Effects.SelectMany(e => e.Contents).ToArray();
+        Assert.That(effects.Select(c => c.Type), Is.EqualTo(new[] { EffectContentType.UsePartnerMeleeGroup, EffectContentType.UsePartnerStat,
+            EffectContentType.SharePartnerAreaEligibility, EffectContentType.FollowPartnerBattleExit }));
+        Assert.That(effects[0].Parameters.Single(), Is.EqualTo("接近"));
+        Assert.That(effects[1].Parameters.Single(), Is.EqualTo("感知B"));
+        Assert.That(riding.States.Single(s => s.Name == "随伴").Overrides.Single().Contents.Single().Parameters,
+            Is.EqualTo(new[] { "Self", "感知B", "Add", "-0.25" }));
+    }
+
+    [Test]
+    public void GeneralSkills_ValidateSelectedCharacterAndRollSpikes()
+    {
+        var sources = GeneralSkillSources();
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(sources[4].Replace("任意のキャラクターを1体", "キャラクターを2体")));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(sources[3].Replace("1d100*[感知B] 目標値GMまたはエリア指定", "自動成功")));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(sources[3].Replace("【サードスパイク】", "【セカンドスパイク】")));
+    }
+
+    [Test]
+    public void GeneralSkills_NormalizeEscapedBatch()
+    {
+        string source = string.Join("\n\n", GeneralSkillSources());
+        string escaped = source.Replace("`", "\\`").Replace("*", "\\*").Replace("\n", "\\\n");
+        Assert.That(SkillTextConverter.Normalize(escaped), Is.EqualTo(SkillTextConverter.Normalize(source)));
+    }
+
+    [TestCase(-1)]
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(3)]
+    [TestCase(4)]
+    public void SkillFixtures_InspectorFourOperationsAndUnityJsonRoundTrip(int index)
+    {
+        var go = new UnityEngine.GameObject("SkillInspector_Test");
+        UnityEditor.Editor editor = null;
+        try
+        {
+            var block = go.AddComponent<DataBlock>();
+            editor = UnityEditor.Editor.CreateEditor(block);
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var text = typeof(DataBlockEditor).GetField("_text", flags);
+            var messageType = typeof(DataBlockEditor).GetField("_messageType", flags);
+            var message = typeof(DataBlockEditor).GetField("_message", flags);
+            var run = typeof(DataBlockEditor).GetMethod("Run", flags);
+            string source = index < 0 ? SharedStackFixture() : GeneralSkillSources()[index];
+            text.SetValue(editor, source);
+            run.Invoke(editor, new object[] { 0 });
+            Assert.That(messageType.GetValue(editor), Is.EqualTo(UnityEditor.MessageType.Info), (string)message.GetValue(editor));
+            string normalized = (string)text.GetValue(editor);
+            run.Invoke(editor, new object[] { 1 });
+            Assert.That(messageType.GetValue(editor), Is.EqualTo(UnityEditor.MessageType.Info), (string)message.GetValue(editor));
+            string before = UnityEngine.JsonUtility.ToJson(block.Data);
+            run.Invoke(editor, new object[] { 2 });
+            Assert.That(messageType.GetValue(editor), Is.EqualTo(UnityEditor.MessageType.Info), (string)message.GetValue(editor));
+            Assert.That((string)text.GetValue(editor), Is.EqualTo(normalized));
+            run.Invoke(editor, new object[] { 3 });
+            Assert.That(messageType.GetValue(editor), Is.EqualTo(UnityEditor.MessageType.Info), (string)message.GetValue(editor));
+            var copy = UnityEngine.JsonUtility.FromJson<SkillTextData>((string)text.GetValue(editor));
+            Assert.That(UnityEngine.JsonUtility.ToJson(copy), Is.EqualTo(before));
+            Assert.That(SkillTextConverter.Build(copy), Is.EqualTo(normalized));
+            Assert.That(copy.States.Count, Is.EqualTo(SkillTextConverter.Parse(source).States.Count));
+        }
+        finally
+        {
+            if (editor != null) UnityEngine.Object.DestroyImmediate(editor);
+            UnityEngine.Object.DestroyImmediate(go);
+        }
+    }
 }
 #endif

@@ -112,7 +112,20 @@ public static partial class SkillTextConverter
     private static bool ReadBasicStateEffects(StateDefinition state, string s)
     {
         s = RegexReplace(s, @"^さらに\s*", "");
-        Match m = M(s, @"^自身が〈([^〉]+)〉によるダメージを与えた時、与えたダメージの(.+?)倍の値の([A-Z]+)を回復する。?$");
+        Match m = M(s, @"^自身はこのバフスタック[×*]([0-9]+)につき([0-9]+)の防御点を得る。?$");
+        if (m.Success)
+        {
+            Number(m.Groups[1].Value, 1, "参照スタック数"); Number(m.Groups[2].Value, 1, "防御点");
+            AddOverride(state.Overrides, EffectType.Passive, NoTriggers(),
+                Change(OverrideContentType.ModifyStat, "Self", "防御点", "Add", "+[スタック]*" + m.Groups[2].Value + "/" + m.Groups[1].Value)); return true;
+        }
+        m = M(s, @"^このスタックは自身が〈([^〉]+)〉を受けた時その威力分減少する。?$");
+        if (m.Success)
+        {
+            AddStateEffect(state, On(Trigger(TriggerTiming.ActionReceived, Condition(ConditionType.ActionTarget, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value))),
+                Content(EffectContentType.ConsumeStacks, "Self", state.Name, "ReceivedActionPower")); return true;
+        }
+        m = M(s, @"^自身が〈([^〉]+)〉によるダメージを与えた時、与えたダメージの(.+?)倍の値の([A-Z]+)を回復する。?$");
         if (m.Success) { AddStateEffect(state, On(Trigger(TriggerTiming.DamageDealt, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Content(EffectContentType.RestoreFromDamage, "Self", m.Groups[3].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^自身の〈([^〉]+)〉によって相手を《([^》]+)》状態にした時、《([^》]+)》スタックを([0-9]+)獲得する。?$");
         if (m.Success) { AddStateEffect(state, On(Trigger(TriggerTiming.DamageDealt, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.AttackAppliedState, "Target", m.Groups[2].Value))), Content(EffectContentType.GainStack, "Self", m.Groups[3].Value, m.Groups[4].Value)); return true; }
@@ -145,6 +158,8 @@ public static partial class SkillTextConverter
         if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Multiply", m.Groups[2].Value)); return true; }
         m = M(s, @"^(.+?点)([+-].+?)。?$");
         if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Add", Signed(m.Groups[2].Value))); return true; }
+        m = M(s, @"^自身の([^\s〈〉《》。\[\]]+B)は([+-][0-9]+(?:\.[0-9]+)?)される。?$");
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Add", m.Groups[2].Value)); return true; }
         if (s.TrimEnd('。') == "自身はカウンター効果を発動できなくなる") { AddStateEffect(state, NoTriggers(), Content(EffectContentType.ProhibitEffect, "Self", "Counter")); return true; }
         m = M(s, @"^自身の〈([^〉]+)〉による威力(?:が|は)×?(.+?)倍される。?$");
         if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
@@ -163,6 +178,16 @@ public static partial class SkillTextConverter
     {
         if (content == null || t == null) return null;
         string[] p;
+        if (content.Type == EffectContentType.ConsumeStacks)
+        {
+            p = Args(content.Parameters, 3, "ConsumeStacks");
+            Require(p[0] == "Self" && p[1] == state.Name && p[2] == "ReceivedActionPower" && t.Count == 1 && ValidTrigger(t[0]));
+            var category = t[0].Conditions.And.SingleOrDefault(x => x.Type == ConditionType.ActionCategory);
+            Require(category != null);
+            string name = Args(category.Parameters, 1, "ActionCategory")[0];
+            Require(Matches(t, Trigger(TriggerTiming.ActionReceived, Condition(ConditionType.ActionTarget, "Self"), Condition(ConditionType.ActionCategory, name))));
+            return "このスタックは自身が〈" + name + "〉を受けた時その威力分減少する。";
+        }
         if (content.Type == EffectContentType.RestoreFromDamage)
         {
             p = Args(content.Parameters, 3, "RestoreFromDamage"); string category = StateDamageCategory(t, false); Require(p[0] == "Self");

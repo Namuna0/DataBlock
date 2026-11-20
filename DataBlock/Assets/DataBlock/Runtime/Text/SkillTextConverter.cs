@@ -151,6 +151,14 @@ public static partial class SkillTextConverter
     {
         if (string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException("入力テキストが空です。");
         string text = source.Replace("\r\n", "\n").Replace("\r", "\n");
+        // Decode a wholly line-continued, escaped Markdown block as transport.
+        // Ordinary flavor (including literal trailing backslashes) is untouched.
+        string[] transported = text.Trim().Split('\n');
+        if (transported.Length > 1 && transported[0].Contains("\\`") &&
+            transported.Take(transported.Length - 1).All(x => x.EndsWith("\\", StringComparison.Ordinal)) &&
+            OpeningFence(NormalizeFenceLine(transported[0].Substring(0, transported[0].Length - 1))).Success &&
+            M(NormalizeFenceLine(transported.Last()), @"^`{3,}$").Success)
+            text = string.Join("\n", transported.Take(transported.Length - 1).Select(x => x.Substring(0, x.Length - 1)).Concat(new[] { transported.Last() }));
         // Repair the two-tick opening fence only when followed by a skill header.
         text = RegexReplace(text, @"(?m)^[ \t]*``[ \t]*(?=\n[ \t]*《[^《》\r\n]+》[ \t]*$)", "```");
         text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");

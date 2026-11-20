@@ -71,6 +71,8 @@ public static partial class SkillTextConverter
             p = Args(content.Parameters, 4, "ModifyStat"); Require(p[0] == "Self");
             if (p[2] == "Multiply" && p[1].EndsWith("最大値")) return p[1] + "が×" + p[3] + "倍増加。";
             if (p[2] == "Add" && p[1].EndsWith("点")) return p[1] + Signed(p[3]) + "。";
+            if (p[2] == "Add" && M(p[1], @"^[^\s〈〉《》。\[\]]+B$").Success && M(p[3], @"^[+-][0-9]+(?:\.[0-9]+)?$").Success)
+                return "自身の" + p[1] + "は" + p[3] + "される。";
         }
         return null;
     }

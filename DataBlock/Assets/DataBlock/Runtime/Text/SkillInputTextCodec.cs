@@ -57,6 +57,22 @@ public static partial class SkillTextConverter
             if (line.Contains("回カウンター効果を宣言する事が出来る。") && i + 1 < lines.Count &&
                 lines[i + 1].Trim().StartsWith("この宣言は同一対象へ", StringComparison.Ordinal)) line += lines[++i].Trim();
 
+            // The second sentence identifies the other member of the same state pair.
+            if (i + 1 < lines.Count)
+            {
+                string next = lines[i + 1].Trim();
+                if (next.StartsWith("選択した対象は永続的に《", StringComparison.Ordinal) && M(line, @"自身は永続的に《[^》]+》状態となります。$").Success)
+                {
+                    line = (line + next).Replace("状態となります。", "状態になる。");
+                    i++;
+                }
+                else if (next.StartsWith("自身が騎乗していたキャラクターの《", StringComparison.Ordinal) && M(line, @"自身は《[^》]+》状態を解除します。$").Success)
+                {
+                    line = (line + next).Replace("状態を解除します。", "状態を解除する。").Replace("自身が騎乗していたキャラクターの《", "その状態で結び付いていた相手の《");
+                    i++;
+                }
+            }
+
             if (line.Trim() == "攻撃が命中した時、自属性に応じた追加効果を適用する。")
             {
                 Require(i + 1 < lines.Count && M(lines[i + 1].Trim(), @"^- [火水風電冷土]属性：").Success);

@@ -466,7 +466,7 @@ public static partial class SkillTextConverter
         m = M(s, @"^自身の〈([^〉]+)〉による発動ロールを行う際、ダイスが([0-9]+)[-～]([0-9]+)の時にクリティカルとなる。?$");
         if (m.Success)
         { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetRollRange, "Activation", "Critical", m.Groups[2].Value, m.Groups[3].Value, m.Groups[1].Value)); return true; }
-        m = M(s, @"^効果量([0-9.]+)倍。?$");
+        m = M(s, @"^(?:効果量|回復量は×)([0-9.]+)倍(?:される)?。?$");
         if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.MultiplyRecovery, m.Groups[1].Value)); return true; }
         m = M(s, @"^このクールタイムは([0-9]+)ターンに変化する。?$");
         if (m.Success && IsSpikeStage(type)) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetCooldown, m.Groups[1].Value)); return true; }

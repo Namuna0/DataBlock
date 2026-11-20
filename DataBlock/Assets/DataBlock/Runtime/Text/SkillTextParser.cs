@@ -21,6 +21,7 @@ public static partial class SkillTextConverter
         StateDefinition state = null;
         string conditions = "";
         bool named = false, description = false;
+        var stateOwners = new System.Collections.Generic.Dictionary<StateDefinition, SkillBody>();
         for (int i = start; i <= end; i++)
         {
             // Markdown transport sometimes escapes multiplication signs. Flavor text
@@ -68,7 +69,10 @@ public static partial class SkillTextConverter
                 if (stateHeader.Success)
                 {
                     state = new StateDefinition { Name = Need(stateHeader.Groups[1].Value, "状態名"), Categories = stateHeader.Groups[2].Value.Length == 0 ? new System.Collections.Generic.List<string>() : Categories(stateHeader.Groups[2].Value) };
-                    if (data.States.Any(x => x.Name == state.Name)) throw new InvalidOperationException("状態定義が重複しています：" + state.Name);
+                    if (data.States.Any(x => x.Name == state.Name &&
+                        (stateOwners[x] == current || !data.Skill.Choices.Contains(current) || !data.Skill.Choices.Contains(stateOwners[x]))))
+                        throw new InvalidOperationException("状態定義が重複しています：" + state.Name);
+                    stateOwners.Add(state, current);
                     data.States.Add(state); conditions = "";
                     string body = stateHeader.Groups[3].Value.Trim();
                     if (body.Length > 0 && !ReadStateText(state, body)) throw new InvalidOperationException("未対応の状態効果です：" + body);
@@ -143,6 +147,7 @@ public static partial class SkillTextConverter
             catch (InvalidOperationException e) { throw new InvalidOperationException((i + 1) + "行目：" + e.Message + "\n原文：" + lines[i], e); }
         }
         if (!named) throw new InvalidOperationException("スキル名がありません。");
+        MergeChoiceStateDefinitions(data);
         CompleteStackStateReferences(data);
         CompleteDelayedAttackModifiers(data);
         CompleteSelectedSkillModifiers(data);

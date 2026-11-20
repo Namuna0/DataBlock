@@ -6,6 +6,33 @@ using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
+    private static void MergeChoiceStateDefinitions(SkillTextData data)
+    {
+        if (!data.States.GroupBy(x => x.Name).Any(x => x.Count() > 1)) return;
+        var states = new List<StateDefinition>();
+        foreach (StateDefinition state in data.States)
+        {
+            int index = states.FindIndex(x => x.Name == state.Name);
+            if (index < 0) { states.Add(state); continue; }
+            StateDefinition prior = states[index];
+            if (!new HashSet<string>(prior.Categories, StringComparer.Ordinal).SetEquals(state.Categories))
+                throw new InvalidOperationException("選択肢の状態カテゴリーが一致しません：" + state.Name);
+            var priorTexts = StateTexts(prior);
+            var texts = StateTexts(state);
+            // A repeated reminder can omit details, but cannot alter or combine
+            // conflicting definitions. Keep one whole, most complete definition.
+            if (ContainsStateTexts(priorTexts, texts)) continue;
+            if (ContainsStateTexts(texts, priorTexts)) { states[index] = state; continue; }
+            throw new InvalidOperationException("選択肢の状態効果が一致しません：" + state.Name);
+        }
+        data.States = states;
+    }
+
+    private static bool ContainsStateTexts(List<string> definition, List<string> reminder)
+    {
+        return reminder.GroupBy(x => x).All(x => definition.Count(y => y == x.Key) >= x.Count());
+    }
+
     private static void CompleteSelectedSkillModifiers(SkillTextData data)
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices))

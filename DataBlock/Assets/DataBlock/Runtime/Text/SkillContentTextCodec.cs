@@ -38,8 +38,8 @@ public static partial class SkillTextConverter
 
     private static EffectContent ReadBasicEffectContent(string s)
     {
-        Match m = M(s, @"^(自身|対象)(?:に|は)《([^》]+)》スタックを([0-9]+)(?:付与する|獲得する)。?$");
-        if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value);
+        Match m = M(s, @"^(自身|対象)(?:に|は)《([^》]+)》スタックを(.+?)(?:付与する|獲得する)。?$");
+        if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, StackAmount(m.Groups[3].Value));
         m = M(s, @"^対象を(.+?)の威力\+(.+?)の属性威力で攻撃する。?$");
         if (m.Success) return Content(EffectContentType.SkillAttack, "Target", "PowerAndAttribute", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^対象の《([^》]+)》スタックをすべて消費して、被ダメージを×(.+?)倍増加する。?$");
@@ -66,7 +66,7 @@ public static partial class SkillTextConverter
                 p = Args(content.Parameters, 3, "OptionalCategoryExclusion"); Require(p[0] == "Self" && p[2] == "PerOccurrence"); return "自身を〈" + p[1] + "〉ではない物として扱うかその都度任意で選択可能。";
             case EffectContentType.GainStack:
                 if (content.Parameters == null || content.Parameters.Count != 3) return null;
-                p = Args(content.Parameters, 3, "GainStack"); Number(p[2], 1, "スタック数"); return Actor(p[0]) + "に《" + p[1] + "》スタックを" + p[2] + "付与する。";
+                p = Args(content.Parameters, 3, "GainStack"); return Actor(p[0]) + "に《" + p[1] + "》スタックを" + StackAmount(p[2]) + "付与する。";
             case EffectContentType.SkillAttack:
                 if (content.Parameters == null || content.Parameters.Count != 4 || content.Parameters[1] != "PowerAndAttribute") return null;
                 p = Args(content.Parameters, 4, "SkillAttack"); Require(p[0] == "Target"); return "対象を" + p[2] + "の威力+" + p[3] + "の属性威力で攻撃する。";
@@ -76,6 +76,17 @@ public static partial class SkillTextConverter
             case EffectContentType.RemoveSummon: Require(Args(content.Parameters, 1, "RemoveSummon")[0] == "Self"); return "スキルの処理後にこの罠は除去される。";
         }
         return null;
+    }
+
+    private static string StackAmount(string value)
+    {
+        value = Need(value, "スタック数").Replace("×", "*");
+        if (M(value, @"^[0-9]+$").Success) { Number(value, 1, "スタック数"); return value; }
+        Match formula = M(value, @"^\[スキル値([0-9]+)の武器威力\](?:\*([0-9]+(?:\.[0-9]+)?))?$");
+        if (!formula.Success) throw new InvalidOperationException("スタック数は正の整数、または[スキル値Nの武器威力]*倍率で指定してください。");
+        Number(formula.Groups[1].Value, 1, "スキル値");
+        if (formula.Groups[2].Success) PositiveModifierFactor(formula.Groups[2].Value);
+        return value;
     }
 
     private static string CheckAndAcquisitionContentText(EffectContent content)
