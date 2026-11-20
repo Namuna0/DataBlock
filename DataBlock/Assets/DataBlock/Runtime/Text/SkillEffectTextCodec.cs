@@ -49,6 +49,7 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"^自身の次のターン開始時、(《[^》]+》状態になる)", "自身は次のターン開始時$1");
         text = RegexReplace(text, @"^対象の([A-Z]+)を([0-9]+)回復する、。?$", "対象の$1を+$2変化させる。");
         text = RegexReplace(text, @"^([A-Z]+)(?:は|を)([0-9]+)(?:得る|回復する)。(?!.)", "$1を$2回復する。");
+        text = RegexReplace(text, @"^(?:さらに[、]?\s*)?自身に付与されている(〈[^〉]+〉)状態は全て解除される。?$", "自身に付与されている$1状態を全て解除する。");
         text = RegexReplace(text, @"^自身に付与されている状態(〈[^〉]+〉)を解除する", "自身に付与されている$1状態を全て解除する");
         text = RegexReplace(text, @"^《([^》]+)》スタックを([0-9]+)付与する。?$", "対象に《$1》スタックを$2付与する。");
         return text;
@@ -64,11 +65,14 @@ public static partial class SkillTextConverter
             return;
         }
         if (ReadSkillStatement(skill, type, statement)) return;
-        if (type != EffectType.Roleplay && statement.TrimEnd('。').Contains("。") &&
-            !statement.Contains("。（") && !statement.Contains("。「"))
+        if (type != EffectType.Roleplay && statement.TrimEnd('。').Contains("。"))
         {
-            foreach (string sentence in Split(statement.TrimEnd('。'), "。")) ReadSkillLine(skill, type, sentence + "。");
-            return;
+            var sentences = Split(statement, "。");
+            if (sentences.Count > 1)
+            {
+                foreach (string sentence in sentences) ReadSkillLine(skill, type, sentence);
+                return;
+            }
         }
         foreach (string part in Split(statement, "・"))
         {

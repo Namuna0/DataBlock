@@ -6,11 +6,13 @@ using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
-    // Each grammar maps to a distinct semantic enum. Parameters contain selectors,
-    // numbers or formulas, never an uninterpreted combat sentence or a skill-name key.
+    [Flags]
+    private enum AttackParts { None = 0, Power = 1, SkillValue = 2, AttributePower = 4, Weapon = Power | SkillValue, ElementalWeapon = Weapon | AttributePower }
+
     private sealed class SkillTextRule
     {
         public readonly EffectContentType Content;
+        public readonly AttackParts Attack;
         public readonly OverrideContentType Modifier;
         public readonly ConditionType ConditionKind;
         public readonly bool State;
@@ -20,12 +22,12 @@ public static partial class SkillTextConverter
         private readonly string prefix;
         public readonly int Count;
 
-        public SkillTextRule(EffectContentType content, bool state, EffectType section, string template, params string[] parameters)
-            : this(content, OverrideContentType.None, state, section, template, parameters) { }
+        public SkillTextRule(EffectContentType content, bool state, EffectType section, AttackParts attack, string template, params string[] parameters)
+            : this(content, OverrideContentType.None, state, section, template, parameters) { Attack = attack; }
         public SkillTextRule(OverrideContentType modifier, bool state, EffectType section, string template, params string[] parameters)
             : this(EffectContentType.None, modifier, state, section, template, parameters) { }
         public SkillTextRule(ConditionType condition, string template, params string[] parameters)
-            : this(EffectContentType.None, false, EffectType.None, template, parameters) { ConditionKind = condition; }
+            : this(EffectContentType.None, OverrideContentType.None, false, EffectType.None, template, parameters) { ConditionKind = condition; }
 
         public string[] Read(string text)
         {
@@ -87,8 +89,11 @@ public static partial class SkillTextConverter
             return new RuleSection(rules, state, sections.Concat(otherSections).ToArray());
         }
         public void Add(EffectContentType type, string template, params string[] parameters)
+            => Add(type, AttackParts.None, template, parameters);
+
+        public void Add(EffectContentType type, AttackParts attack, string template, params string[] parameters)
         {
-            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, template, parameters));
+            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, attack, template, parameters));
         }
         public void Add(OverrideContentType type, string template, params string[] parameters)
         {
@@ -116,6 +121,8 @@ public static partial class SkillTextConverter
     private static readonly ILookup<(bool, EffectType), SkillTextRule> RulesBySection = SemanticTextRules.ToLookup(r => (r.State, r.Section));
     private static readonly ILookup<(bool, EffectContentType), SkillTextRule> ContentRules = SemanticTextRules
         .Where(r => r.Content != EffectContentType.None).ToLookup(r => (r.State, r.Content));
+    private static readonly Dictionary<EffectContentType, AttackParts> ActiveAttackParts = SemanticTextRules
+        .Where(r => !r.State && r.Section == EffectType.Active && r.Attack != AttackParts.None).ToDictionary(r => r.Content, r => r.Attack);
     private static readonly ILookup<(bool, EffectType, OverrideContentType), SkillTextRule> ModifierRules = SemanticTextRules
         .Where(r => r.Modifier != OverrideContentType.None).ToLookup(r => (r.State, r.Section, r.Modifier));
 

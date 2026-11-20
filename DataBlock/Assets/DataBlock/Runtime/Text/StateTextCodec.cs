@@ -8,7 +8,7 @@ public static partial class SkillTextConverter
     {
         state.Effects.Add(new EffectDefinition { Type = EffectType.Passive, Triggers = triggers, Contents = contents.ToList() });
     }
-    private static bool ReadStateLine(StateDefinition state, string text)
+    private static bool ReadStateLine(StateDefinition state, string text, bool compound = false)
     {
         text = RegexReplace(Unbullet(text), @"^さらに[、]?\s*", "").TrimStart('*', '＊').Trim();
         text = RegexReplace(text, @"^再び付与者が《([^》]+)》発動する時", "再び付与者が《$1》を発動する時");
@@ -22,6 +22,8 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"^自身の(〈[^〉]+〉)かつ(〈[^〉]+〉)による威力は", "自身は$1かつ$2による威力は");
         text = RegexReplace(text, @"^自身の([^,]+B, [^,]+B, [^,]+Bによる達成値は)([0-9.]+)倍", "自身の$1×$2倍");
         text = RegexReplace(text, @"^自身は(〈[^〉]+〉)を宣言する事はできない", "自身は$1を宣言する事は出来ない");
+        if (compound)
+            return ReadSemanticRule(null, state, EffectType.Passive, text) || ReadCompoundStatePower(state, text);
         if (ReadStateEffectStatement(state, text)) return true;
         Match m = M(text, @"^自身のターン開始時に対象を(.+?)の威力で攻撃する。?$");
         if (m.Success)
@@ -103,13 +105,34 @@ public static partial class SkillTextConverter
         }
         return false;
     }
-    private static bool ReadStateText(StateDefinition state, string text)
+    private static bool ReadStateText(StateDefinition state, string text, SkillBody skill = null, EffectType[] sections = null)
     {
-        if (ReadStateLine(state, text)) return true;
-        string[] sentences = text.Split(new[] { '。' }, StringSplitOptions.RemoveEmptyEntries);
-        if (sentences.Length <= 1) return false;
-        foreach (string sentence in sentences)
-            if (!ReadStateLine(state, sentence.Trim() + "。")) return false;
+        var sentences = text.TrimEnd('。').Contains("。") ? Split(text, "。") : null;
+        if (sentences == null || sentences.Count < 2) return ReadStateLine(state, text);
+        bool roleplay = sections?.Contains(EffectType.Roleplay) == true;
+        for (int i = 0; i < sentences.Count; i++)
+        {
+            string sentence = sentences[i];
+            if (i + 1 < sentences.Count)
+            {
+                string pair = sentence + sentences[i + 1];
+                if (ReadStateLine(state, pair, compound: true) ||
+                    (sections?.Length == 1 && ReadSemanticRule(skill, null, sections[0], NormalizeEffectSentence(pair))))
+                {
+                    i++;
+                    continue;
+                }
+            }
+            if (ReadStateLine(state, sentence)) continue;
+            if (roleplay)
+            {
+                ReadSkillLine(skill, EffectType.Roleplay, string.Concat(sentences.Skip(i)));
+                return true;
+            }
+            if (sections == null || sections.Length == 0 || sentence.StartsWith("*") || sentence.StartsWith("＊"))
+                throw new InvalidOperationException("未対応の状態効果です：" + sentence);
+            foreach (EffectType section in sections) ReadSkillLine(skill, section, sentence);
+        }
         return true;
     }
     private static List<TriggerDefinition> StateTriggers(StateDefinition state, List<TriggerDefinition> triggers)

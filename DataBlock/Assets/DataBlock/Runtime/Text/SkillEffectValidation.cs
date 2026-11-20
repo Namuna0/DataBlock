@@ -5,32 +5,20 @@ using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
-    private static bool IsElementalWeaponAttack(EffectContent content)
+    private static AttackParts GetAttackParts(EffectContent content)
     {
-        return content?.Type == EffectContentType.MeleeGroupElementWeaponAttack || content != null && content.Type == EffectContentType.SkillAttack && content.Parameters != null &&
-               content.Parameters.Count >= 4 && content.Parameters[1] == "ElementalWeapon";
+        if (content.Type == EffectContentType.WeaponAttack) return AttackParts.Weapon;
+        if (content.Type != EffectContentType.SkillAttack)
+            return ActiveAttackParts.TryGetValue(content.Type, out var parts) ? parts : AttackParts.None;
+
+        var p = content.Parameters;
+        if (p.Count >= 4 && p[1] == "ElementalWeapon") return AttackParts.ElementalWeapon;
+        if (p.Count == 4 && p[1] == "PowerAndAttribute") return AttackParts.Power | AttackParts.AttributePower;
+        if (p.Count == 2 && M(p[1], @"^スキル値[0-9]+$").Success) return AttackParts.Weapon;
+        return AttackParts.Power;
     }
 
-    private static bool HasRuleSkillValue(EffectContent content)
-    {
-        switch (content.Type)
-        {
-            case EffectContentType.RepeatAttackScaledWeapon:
-            case EffectContentType.RepeatAttackRolledCount:
-            case EffectContentType.CategoryPairWeaponAttack:
-            case EffectContentType.MeleeGroupElementWeaponAttack:
-            case EffectContentType.ScaleWeaponPower:
-            case EffectContentType.ScaledElementWeaponAttack:
-            case EffectContentType.SelectedCategoryWeaponPower:
-            case EffectContentType.RepeatedSelectedWeaponPower:
-            case EffectContentType.WeaponResourceDamage:
-            case EffectContentType.ElementWeaponResourceDamage:
-                return true;
-            case EffectContentType.SkillAttack:
-                return IsElementalWeaponAttack(content) || (content.Parameters.Count == 2 && M(content.Parameters[1], @"^スキル値[0-9]+$").Success);
-            default: return content.Type == EffectContentType.WeaponAttack;
-        }
-    }
+    private static bool HasRuleSkillValue(EffectContent content) => (GetAttackParts(content) & AttackParts.SkillValue) != 0;
 
     private static void ValidateSkillEffects(SkillBody skill)
     {
@@ -48,18 +36,20 @@ public static partial class SkillTextConverter
             foreach (EffectContent content in effect.Contents)
             {
                 SkillContentText(content);
-                if (effect.Type == EffectType.Active && (HasRuleSkillValue(content) || content.Type == EffectContentType.SkillAttack)) activeAttacks.Add(content);
-                if (effect.Type == EffectType.Active && HasRuleSkillValue(content)) skillValueAttacks.Add(content);
-                if (effect.Type == EffectType.Active && IsElementalWeaponAttack(content)) elementalAttacks.Add(content);
+                if (effect.Type == EffectType.Active)
+                {
+                    var parts = GetAttackParts(content);
+                    if ((parts & AttackParts.Power) != 0) activeAttacks.Add(content);
+                    if ((parts & AttackParts.SkillValue) != 0) skillValueAttacks.Add(content);
+                    if ((parts & AttackParts.AttributePower) != 0) elementalAttacks.Add(content);
+                }
                 if (effect.Type == EffectType.Counter && content.Type == EffectContentType.ReduceDamage) counterReductions.Add(content);
             }
         }
 
         bool hasUnconditionalActiveAttack = HasSingleUnconditional(skill, activeAttacks, EffectType.Active);
         bool hasUnconditionalSkillValueAttack = HasSingleUnconditional(skill, skillValueAttacks, EffectType.Active);
-        bool hasUnconditionalAttributeAttack = HasSingleUnconditional(skill, activeAttacks.Where(x =>
-            IsElementalWeaponAttack(x) || (x.Type == EffectContentType.SkillAttack &&
-            x.Parameters.Count == 4 && x.Parameters[1] == "PowerAndAttribute")).ToList(), EffectType.Active);
+        bool hasUnconditionalAttributeAttack = HasSingleUnconditional(skill, elementalAttacks, EffectType.Active);
         bool hasUnconditionalCounterReduction = HasSingleUnconditional(skill, counterReductions, EffectType.Counter);
 
         bool seenWeaponAttack = false;

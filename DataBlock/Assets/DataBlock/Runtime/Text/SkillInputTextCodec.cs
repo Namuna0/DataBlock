@@ -23,6 +23,12 @@ public static partial class SkillTextConverter
         return lines;
     }
 
+    private static Match RewardTableHeader(string line, string firstEntry)
+    {
+        var header = M(line, @"^【(?!発動ロール】)([^【】]+ロール)】([1-9][0-9]*d[1-9][0-9]*)$");
+        return header.Success && M(firstEntry, @"^[0-9]+～[0-9]+：《[^》]+》×[0-9]+$").Success ? header : Match.Empty;
+    }
+
     private static string[] NormalizeStructuralSkillLines(string[] source)
     {
         var lines = source.ToList();
@@ -64,8 +70,8 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^(数例[0-9]+：)([0-9]+),([0-9]{3})ジルダ", "$1$2$3ジルダ");
             line = RegexReplace(line, @"(数例[0-9]+：.+?,)  +", "$1 ");
             line = RegexReplace(line, @"^(任意の数字階段[0-9]+桁：)\s+", "$1");
-            if (i + 1 < lines.Count && M(lines[i + 1].Trim(), @"^[0-9]+～[0-9]+：《[^》]+》×[0-9]+$").Success)
-                line = RegexReplace(line, @"^【(?!発動ロール】)([^【】]+ロール)】([1-9][0-9]*d[1-9][0-9]*)$", "【アクティブ効果】報酬表〈$1〉のダイスは$2。");
+            var reward = i + 1 < lines.Count ? RewardTableHeader(line, lines[i + 1].Trim()) : Match.Empty;
+            if (reward.Success) line = "【アクティブ効果】報酬表〈" + reward.Groups[1].Value + "〉のダイスは" + reward.Groups[2].Value + "。";
             line = RegexReplace(line, @"^([0-9]+～[0-9]+)：《([^》]+)》×([0-9]+)$", "出目$1：《$2》×$3を獲得する。");
             line = RegexReplace(line, @"^(- [0-9]+：《[^》]+》)((?:片手|両手|胴体|脚/足|頭|アクセサリー[12]?)(?:, (?:脚/足|アクセサリー2))?)$", "$1装備部位を〈$2〉に変更する。");
             var name = M(line.Trim(), @"^《([^》]+)》$");

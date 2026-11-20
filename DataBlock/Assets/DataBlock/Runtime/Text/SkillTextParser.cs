@@ -1,9 +1,33 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
+    private enum SkillField { Other, Description, Equipment, Acquisition, Declaration, Costs, Act, Mp, Cooldown, Roll }
+    private static readonly Dictionary<string, SkillField> SkillFields = new Dictionary<string, SkillField>(StringComparer.Ordinal)
+    {
+        { "説明", SkillField.Description }, { "装備条件", SkillField.Equipment }, { "習得条件", SkillField.Acquisition },
+        { "宣言条件", SkillField.Declaration }, { "宣言上限", SkillField.Declaration }, { "消費リソース", SkillField.Costs },
+        { "消費ACT", SkillField.Act }, { "消費MP", SkillField.Mp }, { "クールダウン", SkillField.Cooldown },
+        { "クールタイム", SkillField.Cooldown }, { "発動", SkillField.Roll }, { "発動ロール", SkillField.Roll }
+    };
+
+    private static bool IsCategoryLine(string line) => M(line, @"^(?:〈[^〉]+〉)+$").Success;
+    private static Match FieldHeader(string line) => M(line, @"^【([^】]+)】(.*)$");
+
+    private static bool StartsChoiceFields(string line) => M(line, @"^【(?:消費リソース|宣言条件|発動ロール)】").Success;
+
+    internal static bool IsSkillBodyStart(string line, string nextLine)
+    {
+        if (IsCategoryLine(line) || (line.StartsWith("●") && StartsChoiceFields(nextLine))) return true;
+        var header = FieldHeader(line);
+        if (!header.Success) return false;
+        string key = header.Groups[1].Value;
+        return SkillFields.ContainsKey(key) || ParseEffectSections(key) != null || RewardTableHeader(line, nextLine).Success;
+    }
+
     private static SkillTextData ParseOne(string source)
     {
         string[] lines = PrepareSkillLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'));
@@ -58,12 +82,12 @@ public static partial class SkillTextConverter
                 {
                     if (state != null && line.Contains("：") && ReadSemanticRule(null, state, EffectType.Passive, line.Substring(1).Trim())) continue;
                     if (!description && current == data.Skill && current.Effects.Count == 0 && current.Roll.Count == 0 &&
-                        i + 1 <= end && M(lines[i + 1].Trim(), @"^【(?:消費リソース|宣言条件|発動ロール)】").Success) description = true;
+                        i + 1 <= end && StartsChoiceFields(lines[i + 1].Trim())) description = true;
                     if (!description) throw new InvalidOperationException("子スキルの前に選択式の【説明】が必要です。");
                     current = new SkillBody { Name = Need(line.Substring(1), "子スキル名") };
                     data.Skill.Choices.Add(current); sections = Array.Empty<EffectType>(); state = null; conditions = ""; continue;
                 }
-                if (M(line, @"^(?:〈[^〉]+〉)+$").Success && sections.Length == 0 && conditions.Length == 0)
+                if (IsCategoryLine(line) && sections.Length == 0 && conditions.Length == 0)
                 {
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
                     current.Categories = Categories(line); continue;
@@ -81,7 +105,7 @@ public static partial class SkillTextConverter
                     if (body.Length > 0 && !ReadStateText(state, body)) throw new InvalidOperationException("未対応の状態効果です：" + body);
                     continue;
                 }
-                Match header = M(line, @"^【([^】]+)】(.*)$");
+                Match header = FieldHeader(line);
                 if (header.Success)
                 {
                     // A trap can be defined between its placing attack and that attack's
@@ -97,28 +121,26 @@ public static partial class SkillTextConverter
                     }
                     string key = header.Groups[1].Value, body = header.Groups[2].Value.Trim();
                     sections = Array.Empty<EffectType>(); state = null; conditions = "";
-                    switch (key)
+                    SkillFields.TryGetValue(key, out var field);
+                    switch (field)
                     {
-                        case "説明":
+                        case SkillField.Description:
                             if (current != data.Skill || body != Description || description) throw new InvalidOperationException("説明は親スキルの選択式1種類に対応します。");
                             description = true; break;
-                        case "装備条件":
-                        case "習得条件":
-                        case "宣言条件":
-                        case "宣言上限":
+                        case SkillField.Equipment:
+                        case SkillField.Acquisition:
+                        case SkillField.Declaration:
                             if (key == "宣言上限") key = "宣言条件";
                             conditions = key; AddConditions(key == "習得条件" ? current.AcquisitionConditions : key == "装備条件" ? current.EquipmentConditions : current.DeclarationConditions, body); break;
-                        case "消費リソース": ReadCosts(current, body); break;
-                        case "消費ACT": ReadCosts(current, "ACT-" + Number(body, 0, "ACT消費")); break;
-                        case "消費MP": ReadCosts(current, "MP-" + Number(body, 0, "MP消費")); break;
-                        case "クールダウン":
-                        case "クールタイム":
+                        case SkillField.Costs: ReadCosts(current, body); break;
+                        case SkillField.Act: ReadCosts(current, "ACT-" + Number(body, 0, "ACT消費")); break;
+                        case SkillField.Mp: ReadCosts(current, "MP-" + Number(body, 0, "MP消費")); break;
+                        case SkillField.Cooldown:
                             if (M(body, @"^戦闘中[0-9]+度だけ$").Success) { AddConditions(current.DeclarationConditions, body); break; }
                             Match cooldown = M(body, @"^([0-9]+)ターン$");
                             if (!cooldown.Success) throw new InvalidOperationException("クールタイムは1ターンの形式です。");
                             current.CooldownTurns = Number(cooldown.Groups[1].Value, 0, "クールタイム"); break;
-                        case "発動":
-                        case "発動ロール":
+                        case SkillField.Roll:
                             if (current.Roll.Count != 0) throw new InvalidOperationException("同じスキルの発動ロールが重複しています。別の処理は子スキルへ分けてください。");
                             if (body.TrimEnd('、', '。') == "自動成功、達成値は召喚者と同値として扱われる")
                             {
@@ -164,7 +186,7 @@ public static partial class SkillTextConverter
                                 }
                                 break;
                             }
-                            sections = ParseEffectSections(key);
+                            sections = ParseEffectSections(key) ?? throw new InvalidOperationException("未対応の見出しです：" + key);
                             if (body.Length > 0)
                                 foreach (EffectType section in sections) ReadSkillLine(current, section, body);
                             break;
@@ -172,7 +194,7 @@ public static partial class SkillTextConverter
                     continue;
                 }
                 line = Unbullet(line);
-                if (state != null && ReadStateText(state, line)) continue;
+                if (state != null && ReadStateText(state, line, current, sections)) continue;
                 if (line.StartsWith("*") || line.StartsWith("＊")) throw new InvalidOperationException("未対応の状態の解除条件です：" + line);
                 if (conditions.Length > 0)
                 {
@@ -211,10 +233,11 @@ public static partial class SkillTextConverter
     }
     private static EffectType[] ParseEffectSections(string key)
     {
+        if (key == "特性") key = "パッシブ効果";
         if (key == "クリティカル") key = "クリティカル効果";
         if (EffectTypesByName.TryGetValue(key, out EffectType single)) return new[] { single };
         if (!key.Contains("/") || !key.EndsWith("効果", StringComparison.Ordinal))
-            throw new InvalidOperationException("未対応の見出しです：" + key);
+            return null;
 
         var results = new System.Collections.Generic.List<EffectType>();
         foreach (string part in key.Split('/'))
@@ -222,7 +245,7 @@ public static partial class SkillTextConverter
             string label = part.EndsWith("効果", StringComparison.Ordinal) ? part : part + "効果";
             if (!EffectTypesByName.TryGetValue(label, out EffectType type) ||
                 (type != EffectType.Success && type != EffectType.Failure && type != EffectType.Critical && type != EffectType.Fumble) ||
-                results.Contains(type)) throw new InvalidOperationException("結果を併記する見出しが不正です：" + key);
+                results.Contains(type)) return null;
             results.Add(type);
         }
         return results.ToArray();

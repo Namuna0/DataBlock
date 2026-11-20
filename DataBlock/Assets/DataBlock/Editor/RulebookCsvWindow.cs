@@ -9,7 +9,11 @@ using UnityEngine;
 internal sealed class RulebookCsvWindow : EditorWindow
 {
     private readonly List<RulebookCell> cells = new List<RulebookCell>();
-    private int selected, page, successCount;
+    private int selected, page;
+    private IEnumerator<RulebookCell> import;
+    private string importError;
+    internal int SuccessCount { get; private set; }
+    internal bool CanExport => import == null && SuccessCount > 0;
     private string fileName = "";
     private Vector2 scroll;
     private string preview = "";
@@ -24,8 +28,14 @@ internal sealed class RulebookCsvWindow : EditorWindow
             string path = EditorUtility.OpenFilePanel("ルールブックCSV", "", "csv");
             if (path.Length != 0) LoadFile(path);
         }
+        if (importError != null) EditorGUILayout.HelpBox(importError, MessageType.Error);
         if (fileName.Length == 0) return;
-        EditorGUILayout.LabelField(fileName, "変換成功 " + successCount + "件 / 要確認 " + (cells.Count - successCount) + "件");
+        if (import != null)
+        {
+            EditorGUILayout.LabelField("読み込み中", cells.Count + "件処理済み");
+            if (GUILayout.Button("読み込みを中止")) { ClearImport(); return; }
+        }
+        EditorGUILayout.LabelField(fileName, "変換成功 " + SuccessCount + "件 / 要確認 " + (cells.Count - SuccessCount) + "件");
         if (cells.Count == 0) return;
         using (new EditorGUILayout.HorizontalScope())
         {
@@ -57,26 +67,70 @@ internal sealed class RulebookCsvWindow : EditorWindow
         EditorGUILayout.SelectableLabel(preview, EditorStyles.textArea, GUILayout.ExpandHeight(true),
             GUILayout.MinHeight(Mathf.Max(60, EditorStyles.textArea.CalcHeight(new GUIContent(preview), Mathf.Max(100, position.width - 24)))));
         EditorGUILayout.EndScrollView();
-        using (new EditorGUI.DisabledScope(successCount == 0))
-            if (GUILayout.Button("変換成功分 " + successCount + "件をJSON出力")) Export();
+        using (new EditorGUI.DisabledScope(!CanExport))
+            if (GUILayout.Button("変換成功分 " + SuccessCount + "件をJSON出力")) Export();
     }
 
-    private void LoadFile(string path)
+    internal void LoadFile(string path)
     {
+        ClearImport();
+        fileName = Path.GetFileName(path);
+        import = ReadFile(path).GetEnumerator();
+        EditorApplication.update += ReadNextBatch;
+    }
+
+    private static IEnumerable<RulebookCell> ReadFile(string path)
+    {
+        using (var reader = new StreamReader(path, new UTF8Encoding(false, true), true))
+            foreach (var cell in RulebookCsv.Read(reader, yieldSkippedFields: true)) yield return cell;
+    }
+
+    internal void ReadNextBatch()
+    {
+        if (import == null) return;
+        double deadline = EditorApplication.timeSinceStartup + 0.008;
         try
         {
-            List<RulebookCell> parsed;
-            using (var reader = new StreamReader(path, new UTF8Encoding(false, true), true))
-                parsed = RulebookCsv.Read(reader).ToList();
-            cells.Clear();
-            cells.AddRange(parsed);
-            successCount = cells.Count(c => c.Error == null);
-            fileName = Path.GetFileName(path);
-            page = selected = 0;
-            preview = cells.Count == 0 ? "" : cells[0].Error ?? cells[0].BuildText();
+            for (int i = 0; i < 32; i++)
+            {
+                if (!import.MoveNext()) { StopReading(); break; }
+                var cell = import.Current;
+                if (cell != null)
+                {
+                    cells.Add(cell);
+                    if (cell.Error == null) SuccessCount++;
+                    if (cells.Count == 1) preview = cell.Error ?? cell.BuildText();
+                }
+                if (EditorApplication.timeSinceStartup >= deadline) break;
+            }
         }
-        catch (Exception e) { EditorUtility.DisplayDialog("CSVの読込に失敗しました", e.Message, "閉じる"); }
+        catch (Exception e)
+        {
+            string message = fileName + " の読み込みに失敗しました。\n" + e.Message;
+            ClearImport();
+            importError = message;
+        }
+        Repaint();
     }
+
+    private void StopReading()
+    {
+        EditorApplication.update -= ReadNextBatch;
+        import?.Dispose();
+        import = null;
+    }
+
+    private void ClearImport()
+    {
+        StopReading();
+        cells.Clear();
+        SuccessCount = page = selected = 0;
+        fileName = preview = "";
+        scroll = Vector2.zero;
+        importError = null;
+    }
+
+    private void OnDisable() => ClearImport();
 
     internal static void WriteJson(TextWriter writer, IEnumerable<RulebookCell> entries)
     {

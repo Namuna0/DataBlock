@@ -94,6 +94,92 @@ internal sealed class RulebookImportTests
         Assert.That(SkillTextConverter.Normalize(text), Is.EqualTo(text));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void MixedStateContinuationRoutesEachSentenceOnce(bool skillFirst)
+    {
+        const string heal = "対象を[スキル値10]*0.5で回復する。";
+        const string exit = "パーティー全員は戦闘を離脱する。";
+        const string header = "《試験》\n【アクティブ効果】自身は《合図》状態になる。\n合図効果：";
+        var data = SkillTextConverter.Parse(header + "\n" + (skillFirst ? exit + heal : heal + exit));
+        Assert.That(data.States.Single().Effects.SelectMany(e => e.Contents).Select(c => c.Type),
+            Is.EqualTo(new[] { EffectContentType.HealPowerWithSkillValue }));
+        Assert.That(data.Skill.Effects.SelectMany(e => e.Contents).Select(c => c.Type),
+            Is.EqualTo(new[] { EffectContentType.ApplyState, EffectContentType.WholePartyExit }));
+        Assert.That(JsonUtility.ToJson(SkillTextConverter.Parse(SkillTextConverter.Build(data))), Is.EqualTo(JsonUtility.ToJson(data)));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(header + heal + exit));
+    }
+
+    [Test]
+    public void GroupedElementAttackSupportsSpikesOnlyWithAnUnambiguousAttack()
+    {
+        const string header = "《試験》\n【アクティブ効果】";
+        const string attack = "対象を(スキル値24の武器威力+12*[風属性B])*1.5の属性威力で攻撃する。";
+        const string spike = "\n【セカンドスパイク】このアクティブ効果によるスキル値は34、属性威力は22*[風属性B]に変化する。";
+        var data = SkillTextConverter.Parse(header + attack + spike);
+        Assert.That(data.Skill.Effects.Single().Contents.Single().Type, Is.EqualTo(EffectContentType.GroupedElementWeaponAttack));
+        var modifiers = data.Skill.Overrides.SelectMany(e => e.Contents).ToArray();
+        Assert.That(modifiers.Select(c => c.Type), Is.EqualTo(new[] { OverrideContentType.SetSkillValue, OverrideContentType.SetAttackComponent }));
+        Assert.That(modifiers[0].Parameters, Is.EqualTo(new[] { "34" }));
+        string built = SkillTextConverter.Build(data);
+        Assert.That(SkillTextConverter.Normalize(built), Is.EqualTo(built));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(header + attack + "\n" + attack + spike));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(header + "対象を[スキル値10]*0.5で回復する。" + spike));
+    }
+
+    [TestCase("アクティブ効果")]
+    [TestCase("カウンター効果")]
+    [TestCase("失敗効果")]
+    public void CategoryRemovalUsesOneRepresentation(string heading)
+    {
+        string prefix = "《試験》\n【" + heading + "】自身に付与されている〈フォーム〉状態";
+        var canonical = SkillTextConverter.Parse(prefix + "を全て解除する。");
+        var variant = SkillTextConverter.Parse(prefix + "は全て解除される。");
+        Assert.That(variant.Skill.Effects.Single().Contents.Single().Type, Is.EqualTo(EffectContentType.RemoveOwnStateCategories));
+        Assert.That(JsonUtility.ToJson(variant), Is.EqualTo(JsonUtility.ToJson(canonical)));
+        Assert.That(SkillTextConverter.Build(variant), Does.Contain("〈フォーム〉状態を全て解除する。"));
+    }
+
+    [Test]
+    public void CsvWindowImportsInBatchesAndDiscardsIncompleteResults()
+    {
+        string path = Path.GetTempFileName();
+        string broken = Path.GetTempFileName();
+        var window = ScriptableObject.CreateInstance<RulebookCsvWindow>();
+        const string cell = "\"《観察》\n【ロールプレイ効果】観察する。\"";
+        try
+        {
+            File.WriteAllText(path, new string(',', 32) + string.Join(",", Enumerable.Repeat(cell, 65)));
+            File.WriteAllText(broken, cell + ",\"未完");
+            window.LoadFile(path);
+            window.ReadNextBatch();
+            Assert.That(window.SuccessCount, Is.Zero);
+            for (int i = 0; i < 33 && window.SuccessCount == 0; i++) window.ReadNextBatch();
+            Assert.That(window.SuccessCount, Is.InRange(1, 32));
+            Assert.That(window.CanExport, Is.False);
+
+            window.LoadFile(broken);
+            Assert.That(window.SuccessCount, Is.Zero);
+            for (int i = 0; i < 3; i++) window.ReadNextBatch();
+            Assert.That(window.SuccessCount, Is.Zero);
+            Assert.That(window.CanExport, Is.False);
+            using (File.Open(broken, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+
+            window.LoadFile(path);
+            for (int i = 0; i <= 97 && !window.CanExport; i++) window.ReadNextBatch();
+            Assert.That(window.SuccessCount, Is.EqualTo(65));
+            Assert.That(window.CanExport, Is.True);
+            window.LoadFile(path);
+            window.ReadNextBatch();
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(window);
+            File.Delete(path);
+            File.Delete(broken);
+        }
+    }
+
     [Test]
     public void CombinedOutcomesApplyEachLineToEachResult()
     {

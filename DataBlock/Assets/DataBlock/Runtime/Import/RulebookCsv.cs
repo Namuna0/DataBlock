@@ -38,7 +38,8 @@ public static class RulebookCsv
     { "無機の身体", "砲撃マスタリー", "キャノン砲", "カルヴァリン砲", "考古学" };
 
     // Read one CSV record at a time. Embedded quotes, commas and newlines belong to the cell.
-    public static IEnumerable<RulebookCell> Read(TextReader reader)
+    // The editor requests a yield for skipped fields too, so a sparse sheet can be read in bounded batches.
+    public static IEnumerable<RulebookCell> Read(TextReader reader, bool yieldSkippedFields = false)
     {
         if (reader == null) throw new ArgumentNullException(nameof(reader));
         int row = 1, column = 1;
@@ -59,7 +60,7 @@ public static class RulebookCsv
             if (ch == ',' || ch == '\r' || ch == '\n' || ch < 0)
             {
                 var cell = ParseCell(field.ToString(), row, column);
-                if (cell != null) yield return cell;
+                if (cell != null || yieldSkippedFields) yield return cell;
                 if (ch < 0) yield break;
                 if (ch == ',') column++;
                 else

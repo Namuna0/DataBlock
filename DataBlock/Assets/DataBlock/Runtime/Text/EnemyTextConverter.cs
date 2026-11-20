@@ -242,10 +242,7 @@ public static partial class EnemyTextConverter
         int next = index + 1;
         SkipEmpty(lines, ref next);
         if (next >= lines.Length) return false;
-        string firstBodyLine = SyntaxLine(lines[next]);
-        if (Match(firstBodyLine, @"^(?:〈[^〉]+〉)+$").Success) return true;
-        return Match(firstBodyLine,
-            @"^【(?:説明|習得条件|宣言条件|消費リソース|クールタイム|発動ロール|アクティブ効果|カウンター効果|パッシブ効果|ロールプレイ効果|クリティカル|クリティカル効果|ファンブル効果|宣言効果|セカンドスパイク|サードスパイク)】").Success;
+        return SkillTextConverter.IsSkillBodyStart(SyntaxLine(lines[next]), next + 1 < lines.Length ? SyntaxLine(lines[next + 1]) : "");
     }
 
     private static List<string> ParseCategories(string text)

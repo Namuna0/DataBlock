@@ -186,6 +186,22 @@ internal sealed class EnemyTextConverterTests
         Assert.That(choiceParsed.Enemy.Skills[0].Skill.Choices.Single().Name, Is.EqualTo("飛ぶ"));
     }
 
+    [TestCase("【宝探しロール】1d6\n1～6：《記念品》×1")]
+    [TestCase("【成功効果】個数+1")]
+    [TestCase("【失敗効果】何もなし")]
+    [TestCase("【成功/クリティカル効果】個数+1")]
+    [TestCase("【消費ACT】1\n【発動】自動成功\n【成功効果】個数+1")]
+    public void CategorylessActionUsesTheSameHeadingsAsAStandaloneSkill(string body)
+    {
+        string skill = "《帰還》\n" + body;
+        string source = "《試験エネミー》\n〈一般エネミー〉\n【危険度】☆\n【行動】\n"
+            + "●あらゆる自身への〈攻撃〉に対して《帰還》を発動する。\n" + skill + "\n【ドロップロール】1d100\n- 1～100：《羽根》×1を獲得";
+        var enemy = EnemyTextConverter.Parse(source);
+        Assert.That(JsonUtility.ToJson(enemy.Enemy.Skills.Single()), Is.EqualTo(JsonUtility.ToJson(SkillTextConverter.Parse(skill))));
+        string built = EnemyTextConverter.Build(enemy);
+        Assert.That(EnemyTextConverter.Normalize(built), Is.EqualTo(built));
+    }
+
     private static string ReadFixture(string fileName)
     {
         foreach (string seed in new[] { TestContext.CurrentContext.TestDirectory, Directory.GetCurrentDirectory() })

@@ -245,16 +245,21 @@ public static partial class SkillTextConverter
         AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.AddActionResult, m.Groups[1].Value)); return true;
     }
 
-    private static bool ReadStackAndAttributeState(StateDefinition state, string s)
+    private static bool ReadCompoundStatePower(StateDefinition state, string s)
     {
-        Match m = M(s, @"^自身のあらゆる〈([^〉]+)〉の威力が×([0-9.]+)倍される。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
-        m = M(s, @"^対象の〈([^〉]+)〉の威力を×([0-9.]+)倍する。さらにその攻撃に属性Bによる威力ある場合、属性威力を×([0-9.]+)倍する。?$");
+        var m = M(s, @"^対象の〈([^〉]+)〉の威力を×([0-9.]+)倍する。さらにその攻撃に属性Bによる威力ある場合、属性威力を×([0-9.]+)倍する。?$");
         if (m.Success)
         {
             AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value));
             AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.HasAttributeBonusPower))), Change(OverrideContentType.MultiplyAttackComponent, "AttributePower", m.Groups[3].Value)); return true;
         }
+        return false;
+    }
+
+    private static bool ReadStackAndAttributeState(StateDefinition state, string s)
+    {
+        Match m = M(s, @"^自身のあらゆる〈([^〉]+)〉の威力が×([0-9.]+)倍される。?$");
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
         m = M(s, @"^自身の〈([^〉]+)〉による攻撃に属性Bによる威力がある場合、属性威力を×([0-9.]+)倍する。?$");
         if (m.Success)
         { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.HasAttributeBonusPower))), Change(OverrideContentType.MultiplyAttackComponent, "AttributePower", m.Groups[2].Value)); return true; }

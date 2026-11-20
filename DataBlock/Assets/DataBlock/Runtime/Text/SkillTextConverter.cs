@@ -96,16 +96,19 @@ public static partial class SkillTextConverter
     private static List<string> Split(string text, string delimiter)
     {
         var result = new List<string>();
+        bool sentences = delimiter == "。";
         int depth = 0, start = 0;
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
-            if ("([〈《（［".IndexOf(c) >= 0) depth++;
-            if (")]〉》）］".IndexOf(c) >= 0) depth--;
+            if ("([〈《（［".IndexOf(c) >= 0 || (sentences && c == '「')) depth++;
+            if (")]〉》）］".IndexOf(c) >= 0 || (sentences && c == '」')) depth--;
             if (depth < 0) throw new InvalidOperationException("括弧の対応が不正です：" + text);
             if (depth == 0 && i + delimiter.Length <= text.Length && string.CompareOrdinal(text, i, delimiter, 0, delimiter.Length) == 0)
             {
-                string part = text.Substring(start, i - start).Trim();
+                // A parenthetical or quoted note following a full stop belongs to the same rule.
+                if (sentences && i + 1 < text.Length && "（「".IndexOf(text[i + 1]) >= 0) continue;
+                string part = text.Substring(start, i - start + (sentences ? 1 : 0)).Trim();
                 if (part.Length > 0) result.Add(part);
                 i += delimiter.Length - 1;
                 start = i + 1;

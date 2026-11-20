@@ -12,7 +12,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.PartyActsLast, "味方チームは確定後攻となる。");
         rules.Including(EffectType.Fumble).Add(EffectContentType.RemoveSelfNamedState, "自身の《{0}》状態は解除される。", RuleNamePattern);
         rules.Including(EffectType.Fumble).Add(EffectContentType.SetTwoResourcesAndStates, "自身の{0}と{1}は{2}になり。《{3}》及び《{4}》状態になる。", RuleResourcePattern, RuleResourcePattern, @"[0-9]+", RuleNamePattern, RuleNamePattern);
-        rules.Add(EffectContentType.PurgeOwnCategoryOnFailure, "自身に付与されている〈{0}〉状態は全て解除される。", RuleNamePattern);
         rules.Add(EffectContentType.NoRollEffect, "何もなし");
     }
 
