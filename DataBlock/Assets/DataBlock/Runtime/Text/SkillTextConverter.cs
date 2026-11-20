@@ -21,6 +21,8 @@ public static partial class SkillTextConverter
         { EffectType.Roleplay, "ロールプレイ効果" },
         { EffectType.Critical, "クリティカル効果" },
         { EffectType.Fumble, "ファンブル効果" },
+        { EffectType.Success, "成功効果" },
+        { EffectType.Failure, "失敗効果" },
         { EffectType.Declaration, "宣言効果" },
         { EffectType.SecondSpike, "セカンドスパイク" },
         { EffectType.ThirdSpike, "サードスパイク" }
@@ -164,6 +166,7 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");
         // 改行＋<br>は1改行。連続した<br>による空行は残します。
         text = RegexReplace(text, @"\n?[ \t]*<br\s*/?>[ \t]*\n?", "\n", RegexOptions.IgnoreCase);
+        text = RegexReplace(text, @"(?m)^(`{3,})-[ \t]*$", "$1");
         string[] lines = text.Split('\n');
         bool fenced = lines.Any(x => OpeningFence(NormalizeFenceLine(x)).Success);
         if (!fenced)
@@ -231,7 +234,7 @@ public static partial class SkillTextConverter
         string candidate = line.Replace("\\`", "`");
         return OpeningFence(candidate).Success || M(candidate, @"^`{3,}""?\s*\|?$").Success ? candidate : line;
     }
-    private static readonly EffectType[] DisplayOrder = { EffectType.Declaration, EffectType.Active, EffectType.Counter, EffectType.Passive, EffectType.Roleplay, EffectType.Critical, EffectType.Fumble, EffectType.SecondSpike, EffectType.ThirdSpike };
+    private static readonly EffectType[] DisplayOrder = { EffectType.Declaration, EffectType.Active, EffectType.Counter, EffectType.Passive, EffectType.Roleplay, EffectType.Success, EffectType.Failure, EffectType.Critical, EffectType.Fumble, EffectType.SecondSpike, EffectType.ThirdSpike };
     private static OverrideContent Change(OverrideContentType type, params string[] p) { return new OverrideContent { Type = type, Parameters = p.ToList() }; }
     private static void AddOverride(List<OverrideDefinition> list, EffectType type, List<TriggerDefinition> triggers, params OverrideContent[] contents)
     {
@@ -246,6 +249,8 @@ public static partial class SkillTextConverter
             case EffectType.Passive:
             case EffectType.Roleplay:
             case EffectType.Critical:
+            case EffectType.Success:
+            case EffectType.Failure:
             case EffectType.Fumble:
             case EffectType.Declaration:
                 return true;

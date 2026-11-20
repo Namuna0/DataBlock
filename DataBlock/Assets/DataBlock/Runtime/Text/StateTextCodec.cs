@@ -10,7 +10,18 @@ public static partial class SkillTextConverter
     }
     private static bool ReadStateLine(StateDefinition state, string text)
     {
-        text = Unbullet(text).TrimStart('*', '＊').Trim();
+        text = RegexReplace(Unbullet(text), @"^さらに[、]?\s*", "").TrimStart('*', '＊').Trim();
+        text = RegexReplace(text, @"^再び付与者が《([^》]+)》発動する時", "再び付与者が《$1》を発動する時");
+        text = RegexReplace(text, @"^自身の(〈[^〉]+〉)かつ(〈[^〉]+〉)による威力が×", "自身は$1かつ$2による威力は×");
+        text = RegexReplace(text, @"^自身の(〈[^〉]+〉)及び(〈[^〉]+〉)による目標値は", "自身は$1と$2の目標値が");
+        text = RegexReplace(text, @"^自身の([^〈〉\[\]]+B)が([+-][0-9.]+)される。?$", "自身の$1が$2加算される。");
+        text = RegexReplace(text, @"^自身は(?=\[[^\]]+\]による行為判定の達成値が)", "");
+        text = text.Replace("自身のが与える威力は", "自身が与える威力が");
+        text = text.Replace("。。", "。").Replace("効果適用後この状態は解除される", "効果適用後この効果は解除される");
+        text = RegexReplace(text, @"^自身の(?=\[[^\]]+\]による行為判定の達成値[はが])", "");
+        text = RegexReplace(text, @"^自身の(〈[^〉]+〉)かつ(〈[^〉]+〉)による威力は", "自身は$1かつ$2による威力は");
+        text = RegexReplace(text, @"^自身の([^,]+B, [^,]+B, [^,]+Bによる達成値は)([0-9.]+)倍", "自身の$1×$2倍");
+        text = RegexReplace(text, @"^自身は(〈[^〉]+〉)を宣言する事はできない", "自身は$1を宣言する事は出来ない");
         if (ReadStateEffectStatement(state, text)) return true;
         Match m = M(text, @"^自身のターン開始時に対象を(.+?)の威力で攻撃する。?$");
         if (m.Success)

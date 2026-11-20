@@ -14,6 +14,10 @@ public static partial class SkillTextConverter
             if (M(lines[i].Trim(), @"^―{8,}$").Success) flavor = true;
             if (flavor) continue;
             lines[i] = lines[i].Replace("〈種族学スキル", "〈種族スキル");
+            lines[i] = lines[i].Replace("攻撃攻撃する", "攻撃する").Replace("によるをスキル値", "によるスキル値")
+                .Replace("発動ロールの達成値は1d", "発動ロールは1d").Replace("に変化する。。", "に変化する。")
+                .Replace("レシピ記載のアイテムを入手する事が出来ます", "レシピ記載のアイテムを入手する事が出来る")
+                .Replace("自信を除くキャラクター", "自身を除くキャラクター");
             // Remove only the dangling multiplication operator in a power replacement.
             lines[i] = RegexReplace(lines[i], @"(このアクティブ効果による威力は[^\r\n]+)\*に変化する", "$1に変化する");
             if (i + 1 < lines.Length && lines[i].Contains("によって相手を《") && lines[i].TrimEnd().EndsWith("状態にした時、", StringComparison.Ordinal))
@@ -34,16 +38,98 @@ public static partial class SkillTextConverter
             string line = lines[i];
             if (M(line.Trim(), @"^―{8,}$").Success) flavor = true;
             if (flavor) { result.Add(line); continue; }
+            line = line.Replace("自身のはあらゆる宣言", "自身はあらゆる宣言")
+                .Replace("【特性】", "【パッシブ効果】").Replace("による与ダメージは", "によるダメージは")
+                .Replace("効果適応後", "効果適用後").Replace("達成値が低い側となる", "達成値が最も低い値となる");
+            line = RegexReplace(line, @"^((?:【パッシブ効果】)?自身の\[[^\]]+B\]は)([+-][0-9.]+)される", "$1$2加算される");
+            line = RegexReplace(line, @"^自身の([^〈〉《》\[\]]+B)は([0-9.]+)加算される", "自身の$1が+$2加算される");
+            line = RegexReplace(line, @"^([A-Z]+)値最大値が([+-][0-9]+)される。?$", "$1最大値$2");
+            line = RegexReplace(line, @"^([^\s〈〉《》：。]+)：(?=この状態付与から|\[[^\]]+B\]による行為判定)", "$1効果：");
+            line = RegexReplace(line, @"^-\s*《([^》]+)》$", "選択候補の称号は《$1》。");
+            line = RegexReplace(line, @"^-\s*(?=[0-9]+スタック：|消費した〈|《[^》]+》を[0-9]+個以上)", "");
+            line = RegexReplace(line, @"^\*別の(〈[^〉]+〉へ移動するまで持続。)$", "別の$1");
+            line = RegexReplace(line, @"^\*自身が(〈[^〉]+〉)を宣言した時、この状態は解除される。$", "*この状態は自身が$1を宣言した時解除される。");
+            line = RegexReplace(line, @"^-(?: )?([火水風電冷土])属性：自身《([^》]+)》(〈[^〉]+〉)：(.+)$", "【アクティブ効果】$1属性を選んだ時、自身は《$2》状態になる。\n$2効果$3：$4");
+            line = RegexReplace(line, @"による〈([^〈〉《》]+)》スタック", "による《$1》スタック");
+            line = RegexReplace(line, @"^([^：]+効果(?:〈[^〉]+〉)?：)〈([^〉]+)〉を装備している物と同等", "$1自身は〈$2〉を装備している物と同等");
+            line = RegexReplace(line, @"^●(?=予言：|確約：)", "");
+            line = RegexReplace(line, @"(自身は《[^》]+》スタックを[0-9]+得る。)\(最大([0-9]+)スタック\)", "$1（最大$2スタック）");
+            line = line.Replace("達成値が低い側となる", "達成値が最も低い値となる");
+            if (i + 1 < lines.Count && M(line, @"(?:スキル効果による威力上昇は、|パッシブ効果による威力上昇は、|を解除、|分軽減して、|効果を宣言する場合、|状態が解除される時。|エンカウントフェーズ。)$").Success &&
+                !M(lines[i + 1].Trim(), @"^(?:[【●―]|$)").Success) line += lines[++i].Trim();
+            if (i + 1 < lines.Count && line.TrimStart().StartsWith("【発動ロール】") &&
+                line.EndsWith(",") && lines[i + 1].StartsWith("または"))
+            {
+                result.Add(line.TrimEnd(','));
+                line = "【宣言効果】" + lines[++i].Trim();
+            }
+            if (M(line, @"^エリアに〈[^〉]+〉が含まれる時、目標値は").Success) line = "【宣言効果】" + line;
+            if (M(line, @"^その後名前を《[^》]+》に変更する。$").Success) line = "【アクティブ効果】" + line;
+            line = RegexReplace(line, @"^【発動ロール】([^〈〉。]+カード)記載$", "【発動ロール】〈$1〉に記載");
+            line = RegexReplace(line, @"^・(?=[^\s〈〉《》【】。]+〈[^〉]+〉[：:])", "");
+            line = RegexReplace(line, @"^((?:【[^】]+】)?自身は)([^〈〉《》。、0-9]+)状態になる。$", "$1《$2》状態になる。");
+            line = RegexReplace(line, @"できなくなる、$", "できなくなる。");
+            line = RegexReplace(line, @"^(数例[0-9]+：)([0-9]+),([0-9]{3})ジルダ", "$1$2$3ジルダ");
+            line = RegexReplace(line, @"(数例[0-9]+：.+?,)  +", "$1 ");
+            line = RegexReplace(line, @"^(任意の数字階段[0-9]+桁：)\s+", "$1");
+            line = RegexReplace(line, @"^【(奪略ロール)】([0-9]+d[0-9]+)$", "【アクティブ効果】報酬表〈$1〉のダイスは$2。");
+            line = RegexReplace(line, @"^([0-9]+～[0-9]+)：《([^》]+)》×([0-9]+)$", "出目$1：《$2》×$3を獲得する。");
+            line = RegexReplace(line, @"^(- [0-9]+：《[^》]+》)((?:片手|両手|胴体|脚/足|頭|アクセサリー[12]?)(?:, (?:脚/足|アクセサリー2))?)$", "$1装備部位を〈$2〉に変更する。");
             var name = M(line.Trim(), @"^《([^》]+)》$");
             if (name.Success) entity = name.Groups[1].Value;
             // Only mechanical text is repaired; flavor remains byte-for-byte text.
+            line = RegexReplace(line, @"^(〈[^〉]+),,+", "$1,");
+            line = RegexReplace(line, @"^【(アクティブ効果|カウンター効果)】】", "【$1】");
+            line = RegexReplace(line, @"(このアクティブ効果による威力は[^。]+?[0-9])変化する。", "$1に変化する。");
+            if (i + 1 < lines.Count && line.EndsWith("、", StringComparison.Ordinal) &&
+                line.Contains("による発動ロールの達成値が") && lines[i + 1].TrimStart().StartsWith("自身の被ダメージは"))
+                line = line.TrimEnd('、') + "および" + lines[++i].Trim();
             line = line.Replace("【サードスパイクこのアクティブ", "【サードスパイク】このアクティブ")
                 .Replace("さらに対象をを", "さらに対象を").Replace("対象をを", "対象を")
                 .Replace("更に", "さらに").Replace("１ターン", "1ターン")
                 .Replace("自身に〈移動〉を発動した対象", "自身へ〈移動〉を発動した対象");
             line = RegexReplace(line, @"(【(?:セカンド|サード)スパイク】このアクティブ効果による)(?=[0-9])", "$1威力は");
             // A missing 効果 is accepted only for an explicit enchantment definition.
-            line = RegexReplace(line, @"^([^〈〉《》【】。]+?)(?<!効果)(〈[^〉]+〉)[：:]", "$1効果$2：");
+            line = RegexReplace(line, @"^([^\s・\-〈〉《》【】。][^〈〉《》【】。]*?)(?<!効果)(〈[^〉]+〉)[：:]", "$1効果$2：");
+            line = RegexReplace(line, @"^([^〈〉《》【】。]+効果〈[^〉]+〉)(?=対象は|自身は)", "$1：");
+            if (line.Contains("自身が以下のいずれかの種族である") && i + 1 < lines.Count)
+            {
+                var races = M(lines[i + 1].Trim(), @"^〈([^〉]+)〉,\s*《([^》]+)》$");
+                if (races.Success)
+                {
+                    line = RegexReplace(line, @"自身が以下のいずれかの種族である(?:事|こと)。?$", "自身の種族が〈" + races.Groups[1].Value + "〉のいずれか、または《" + races.Groups[2].Value + "》であること");
+                    i++;
+                }
+            }
+            if (line.TrimStart().StartsWith("【HP/SAN最大値】"))
+            {
+                string value = line.Substring(line.IndexOf('】') + 1).Trim();
+                result.Add("【HP最大値】" + value);
+                line = "【SAN最大値】" + value;
+            }
+            if (line.StartsWith("【失敗/ファンブル効果】"))
+            {
+                string effect = line.Substring(line.IndexOf('】') + 1);
+                result.Add("【失敗効果】" + effect);
+                line = "【ファンブル効果】" + effect;
+            }
+            if (i + 1 < lines.Count && lines[i + 1].Trim().Length > 0 &&
+                M(line, @"(?:を宣言する時、|を装備している時、|を発動する場合、|を装備しているなら、|状態を付与してい?ない時、|状態を付与している時、|かつ〈[^〉]+〉の場合、|装備している物と同等の扱いとなり、|ジルダと|のターン開始時|の1ターン目、|以下の時、|以外なら、|戦闘を行う場合、|ファンブルとして扱われ、|このアクティブ効果による(?:与)?ダメージは|重症ロールを行う時。)$").Success &&
+                !M(lines[i + 1].Trim(), @"^[【《●*―]").Success)
+                line += lines[++i].Trim();
+            if (i + 1 < lines.Count && (lines[i + 1].Trim().StartsWith("スキルによって上記の武器") ||
+                lines[i + 1].Trim().StartsWith("によるダイスロールで")))
+                line += lines[++i].Trim();
+            line = line.Replace("【【宣言条件】", "【宣言条件】").Replace("達成値が低い側となる", "達成値が最も低い値となる");
+            line = RegexReplace(line, @"できなくなる、$", "できなくなる。");
+            line = RegexReplace(line, @"(。自身は)([^〈〉《》。、0-9]+)状態になる。$", "$1《$2》状態になる。");
+            // A stray closing parenthesis after the unit does not change the
+            // explicitly grouped weapon-plus-element expression.
+            line = RegexReplace(line, @"(対象を\(スキル値[0-9]+の武器威力\+[0-9]+\*\[[^\]]+属性B\]\)\*[0-9.]+の属性威力)\)で攻撃する", "$1で攻撃する");
+            line = RegexReplace(line, @"^●自身が〈([^〉]+)〉を宣言した時、この状態は解除される。$", "*この状態は自身が〈$1〉を宣言した時解除される。");
+            if (line.Contains("によって選択したキャラクターと接近状態になった時、") && i + 2 < lines.Count &&
+                lines[i + 1].Trim().StartsWith("または、そのキャラクターが《") && lines[i + 2].Trim() == "この状態は解除される。")
+                line += lines[++i].Trim() + lines[++i].Trim();
             line = RegexReplace(line, @"^●(自身または対象の《[^》]+》状態が解除されたとき、)", "*$1");
             line = RegexReplace(line, @"([0-9]+ターンの間)([^《》。\r\n]+?)状態になる", "$1《$2》状態になる");
 
@@ -174,7 +260,7 @@ public static partial class SkillTextConverter
             if (M(line.Trim(), @"^―{8,}$").Success) flavor = true;
             if (flavor) { result.Add(raw); continue; }
             line = line.Replace("さらに、", "さらに");
-            line = RegexReplace(line, @"^([^〈〉《》【】。]+?)(?<!効果)(〈[^〉]+〉)[：:]", "$1効果$2：");
+            line = RegexReplace(line, @"^([^\s・\-〈〉《》【】。][^〈〉《》【】。]*?)(?<!効果)(〈[^〉]+〉)[：:]", "$1効果$2：");
             line = RegexReplace(line, @"^((?:【パッシブ効果】)?)([A-Z]+が[0-9]+以下になった時、.+?ロールを行う必要がない。)$", "$1自身は$2");
             line = RegexReplace(line, @"自身は([A-Z]+)が存在せず《([^》]+)》状態にならない。", "自身は$1が存在しない。\n自身は《$2》状態にならない。");
             line = line.Replace("自身のHPとMPを回復する事が出来なくなる。", "自身はHPを回復することができなくなる。\n自身はMPを回復することができなくなる。");
@@ -210,8 +296,28 @@ public static partial class SkillTextConverter
     }
 
 
+    // Two separately declared rolls, the second immediately followed by roleplay,
+    // describe independent uses. Keep each use's costs and conditions on its own body.
+    private static string[] SplitCombatAndRoleplayRolls(string[] source)
+    {
+        var lines = source.ToList();
+        var rules = lines.TakeWhile(line => !line.TrimStart().StartsWith("――――――――")).ToList();
+        if (rules.Any(line => line.TrimStart().StartsWith("●"))) return source;
+        var rolls = Enumerable.Range(0, rules.Count).Where(i => rules[i].TrimStart().StartsWith("【発動ロール】")).ToArray();
+        if (rolls.Length != 2 || rolls[1] + 1 >= rules.Count || !rules[rolls[1] + 1].TrimStart().StartsWith("【ロールプレイ効果】"))
+            return source;
+        int first = rules.FindIndex(line => M(line.Trim(), @"^【(?:宣言条件|消費リソース|発動ロール)】").Success);
+        int second = rules.FindLastIndex(rolls[1], line => line.TrimStart().StartsWith("【宣言条件】"));
+        if (second <= rolls[0] || !rules.Skip(rolls[0]).Take(second - rolls[0]).Any(line => line.TrimStart().StartsWith("【アクティブ効果】"))) return source;
+        lines.Insert(second, "●ロールプレイ");
+        lines.Insert(first, "●戦闘");
+        lines.Insert(first, "【説明】" + Description);
+        return lines.ToArray();
+    }
+
     private static string[] PrepareSkillLines(string[] source)
     {
+        source = SplitCombatAndRoleplayRolls(source);
         return NormalizeWrappedAppliedStateSentences(NormalizeWrappedEffectSentences(NormalizeWrappedMappings(
             NormalizeStructuralSkillLines(NormalizeCombinedResourceSentences(NormalizeCombinedStackSentences(source))))));
     }

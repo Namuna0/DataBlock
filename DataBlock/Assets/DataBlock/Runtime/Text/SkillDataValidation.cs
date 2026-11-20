@@ -107,6 +107,9 @@ public static partial class SkillTextConverter
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices))
         {
+            foreach (var change in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.SetDelayedStateSkillValue))
+                Require(data.States.Any(s => s.Name == change.Parameters[0] && s.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ReceiveDelayedEnemyTurnAttack)) &&
+                    skill.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ApplyState && c.Parameters[1] == change.Parameters[0]));
             foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.MultiplyStateAttackPower))
             {
                 var p = Args(content.Parameters, 2, "MultiplyStateAttackPower");
@@ -129,6 +132,15 @@ public static partial class SkillTextConverter
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices))
         {
+            var delayed = skill.Effects.Where(e => e.Type == EffectType.Active).SelectMany(e => e.Contents)
+                .Where(c => c.Type == EffectContentType.ApplyState).Select(c => c.Parameters[1])
+                .Where(n => data.States.Any(s => s.Name == n && s.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ReceiveDelayedEnemyTurnAttack))).Distinct().ToList();
+            if (delayed.Count == 1 && !skill.Effects.SelectMany(e => e.Contents).Any(HasRuleSkillValue))
+                foreach (var spike in skill.Overrides.Where(o => IsSpikeStage(o.Type) && o.Triggers.Count == 0).SelectMany(o => o.Contents).Where(c => c.Type == OverrideContentType.SetSkillValue))
+                {
+                    spike.Type = OverrideContentType.SetDelayedStateSkillValue;
+                    spike.Parameters.Insert(0, delayed[0]);
+                }
             var names = skill.Effects.Where(e => e.Type == EffectType.Active).SelectMany(e => e.Contents)
                 .Where(c => c.Type == EffectContentType.ApplyState && data.States.Any(s => s.Name == c.Parameters[1] && s.Effects.SelectMany(e => e.Contents).Any(x => x.Type == EffectContentType.DelayedStateAttack)))
                 .Select(c => c.Parameters[1]).ToList();

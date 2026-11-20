@@ -208,10 +208,10 @@ public static partial class SkillTextConverter
         {
             AddSkillEffect(skill, type, Content(EffectContentType.RerollActivation, "Self", m.Groups[1].Value, "TriggeringRoll")); return true;
         }
-        m = M(s, @"^HP([0-9]+)の状態で耐える。?$");
+        m = M(s, @"^(HP|SAN)([0-9]+)の状態で耐える。?$");
         if (m.Success && type == EffectType.Counter)
         {
-            AddSkillEffect(skill, type, Content(EffectContentType.SetResourceValue, "Self", "HP", m.Groups[1].Value)); return true;
+            AddSkillEffect(skill, type, Content(EffectContentType.SetResourceValue, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true;
         }
         m = M(s, @"^この時、(.+?)ロールは行わなくてもよい。?$");
         if (m.Success && type == EffectType.Counter)
@@ -255,7 +255,7 @@ public static partial class SkillTextConverter
         if (m.Success) { AddModifierRule(skill, type, m.Groups[2].Value, "ResourceMaximum", m.Groups[1].Value); return true; }
         m = M(s, @"^NPCへの〈([^〉]+)〉を除くアイテムの売値が×(.+?)倍される。?$");
         if (m.Success) { AddModifierRule(skill, type, m.Groups[2].Value, "SalePrice", m.Groups[1].Value); return true; }
-        m = M(s, @"^〈([^〉]+)〉による[、,]?\s*威力とリソースの回復量が×(.+?)倍される。?$");
+        m = M(s, @"^(?:自身の)?〈([^〉]+)〉による[、,]?\s*威力とリソースの回復量が×(.+?)倍される。?$");
         if (m.Success)
         {
             AddModifierRule(skill, type, m.Groups[2].Value, "CategoryPower", m.Groups[1].Value);
@@ -304,7 +304,7 @@ public static partial class SkillTextConverter
         if (m.Success) { ReadSkillLine(skill, type, "一日の採取回数上限が" + m.Groups[1].Value + "追加される。"); return true; }
         m = M(s, @"^自身の([A-Z]+最大値)は(-[0-9]+)減少する。?$");
         if (m.Success) { ReadSkillLine(skill, type, m.Groups[1].Value + m.Groups[2].Value); return true; }
-        m = M(s, @"^([A-Z]+)を([0-9]+)回復する。?$");
+        m = M(s, @"^(?:追加で|自身の)?([A-Z]+)を([0-9]+)回復(?:する)?。?$");
         if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.RestoreResource, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^〈([^〉]+)〉かつ〈([^〉]+)〉の発動時にHPは(-[0-9]+)される。?$");
         if (m.Success)
@@ -425,7 +425,7 @@ public static partial class SkillTextConverter
         if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.AddQuestReward, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^対象スキルを([0-9]+)ターンの間《([^》]+)》状態にする。?$");
         if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ApplySelectedSkillState, "SelectedSkill", m.Groups[2].Value, m.Groups[1].Value)); return true; }
-        m = M(s, @"^対象に(.+?)の([A-Z]+)ダメージを与える。?$");
+        m = M(s, @"^対象(?:に|へ)(.+?)の([A-Z]+)ダメージを与える。?$");
         if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ResourceDamage, "Target", m.Groups[2].Value, m.Groups[1].Value.Replace("×", "*"))); return true; }
         m = M(s, @"^与えた([A-Z]+)ダメージの値の([A-Z]+)と、([0-9.]+)倍の値の([A-Z]+)を回復する。?$");
         if (m.Success)

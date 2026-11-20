@@ -21,6 +21,13 @@ public static partial class SkillTextConverter
     private static bool ReadTimedAndCategoryStateEffects(StateDefinition state, string text)
     {
         string s = RegexReplace(text.Trim(), @"^さらに[、]?\s*", "");
+        if (s == "（対象選択と威力の算出は付与の際に行われる）" || s.TrimEnd('。') == "効果による攻撃後、この状態は解除される")
+        {
+            var attack = state.Effects.SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.DelayedStateAttack);
+            if (attack == null) return ReadSemanticRule(null, state, EffectType.Passive, s.Trim('（', '）'));
+            if (s.StartsWith("（", StringComparison.Ordinal)) attack.Parameters[4] = "SnapshotOnApply"; else attack.Parameters[5] = "RemoveAfterAttack";
+            return true;
+        }
         if (ReadSemanticRule(null, state, EffectType.Passive, s)) return true;
         var m = M(s, @"^(?:自身は)?((?:〈[^〉]+〉)(?:(?:および|及び)〈[^〉]+〉)*)(?:による効果を発動できなくなる|が使用不可能になります)。?$");
         if (m.Success)
@@ -316,13 +323,6 @@ public static partial class SkillTextConverter
         m = M(s, @"^付与されてから([0-9]+)ターン後、対象を(.+?)の威力\+(.+?)の属性威力で攻撃する。?$");
         if (m.Success)
         { AddStateEffect(state, NoTriggers(), Content(EffectContentType.DelayedStateAttack, "Target", m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value, "Unspecified", "Unspecified")); return true; }
-        if (s == "（対象選択と威力の算出は付与の際に行われる）" || s.TrimEnd('。') == "効果による攻撃後、この状態は解除される")
-        {
-            var attack = state.Effects.SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.DelayedStateAttack);
-            Require(attack != null);
-            if (s.StartsWith("（", StringComparison.Ordinal)) attack.Parameters[4] = "SnapshotOnApply"; else attack.Parameters[5] = "RemoveAfterAttack";
-            return true;
-        }
         return false;
     }
 

@@ -390,7 +390,7 @@ public static partial class SkillTextConverter
         { AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionName, m.Groups[1].Value))), Change(OverrideContentType.AddActionResult, m.Groups[2].Value)); return true; }
         m = M(s, @"^〈([^〉]+)〉スキルの達成値が([+-][0-9]+)される。?$");
         if (m.Success) { ReadSkillLine(skill, type, "〈" + m.Groups[1].Value + "〉による行為判定の達成値が" + m.Groups[2].Value + "される。"); return true; }
-        m = M(s, @"^自身の〈([^〉]+)〉による威力は×([0-9.]+)倍される。?$");
+        m = M(s, @"^自身の〈([^〉]+)〉による威力(?:は|が)×?([0-9.]+)倍される。?$");
         if (m.Success) { ReadSkillLine(skill, type, "〈" + m.Groups[1].Value + "〉の威力が×" + m.Groups[2].Value + "倍される。"); return true; }
         if (s.TrimEnd('。') == "このスキルは〈回避〉する事が出来ない")
         { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackRule, "Response", "回避", "Prohibit", "ThisSkill")); return true; }

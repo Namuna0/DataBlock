@@ -6,6 +6,48 @@ using System.Text;
 
 public static partial class SkillTextConverter
 {
+    private static string CostText(ResourceCost cost)
+    {
+        Require(cost != null && cost.Amount >= 0);
+        string n = Need(cost.Resource, "消費名");
+        Require(!M(n, @"[\r\n〈〉《》\[\]、]").Success && (!n.Contains(",") || (cost.Kind == CostKind.ItemName && n.Split(',').All(v => !string.IsNullOrWhiteSpace(v)))));
+        int a = cost.Amount;
+        Require(cost.Quantity == CostQuantity.Formula || string.IsNullOrEmpty(cost.Formula));
+        Require(cost.Quantity == CostQuantity.DistinctNameRange || cost.Maximum == 0);
+        if (cost.Quantity == CostQuantity.DistinctNameRange)
+        {
+            Require(cost.Kind == CostKind.ItemCategory && a > 0 && cost.Maximum >= a);
+            return "重複しない名前の〈" + n + "〉×" + a + "～" + cost.Maximum + "個";
+        }
+        if (cost.Quantity == CostQuantity.Formula)
+        {
+            Require(cost.Kind == CostKind.Resource && a == 0 && M(cost.Formula ?? "", @"^\([0-9]+\+\[[^\[\]。]+\]\*[0-9]+\)$").Success);
+            return n + "-" + cost.Formula;
+        }
+        if (cost.Quantity == CostQuantity.LeaveRemaining) { Require(cost.Kind == CostKind.Resource); return n + "を" + a + "残して全消費"; }
+        if (cost.Quantity == CostQuantity.All || cost.Quantity == CostQuantity.Chosen)
+        {
+            Require(a == 0);
+            if (cost.Kind == CostKind.Resource) return (cost.Quantity == CostQuantity.All ? "全ての" : "任意の") + n;
+            if (cost.Quantity == CostQuantity.Chosen) { Require(cost.Kind == CostKind.NamedStack); return "任意の数の《" + n + "》"; }
+            Require(cost.Kind == CostKind.NamedStack || cost.Kind == CostKind.CategoryStack);
+            return (cost.Kind == CostKind.NamedStack ? "《" + n + "》" : "〈" + n + "〉") + "全スタック消費";
+        }
+        Require(cost.Quantity == CostQuantity.Fixed && (cost.Kind == CostKind.Resource || a > 0));
+        switch (cost.Kind)
+        {
+            case CostKind.Resource: return n + "-" + a;
+            case CostKind.ItemName: return "《" + n + "》×" + a;
+            case CostKind.ItemCategory: return "〈" + n + "〉×" + a;
+            case CostKind.NamedStack: return "《" + n + "》スタック-" + a;
+            case CostKind.CategoryStack: return "〈" + n + "〉スタック-" + a;
+            case CostKind.SelectedItem: Require(n == "選択された所持品"); return "[" + n + "]-" + a;
+            case CostKind.SelectedCategoryItem: return "選択する〈" + n + "〉-" + a;
+            case CostKind.Currency: Require(n == "ジルダ"); return a + n;
+            default: throw new InvalidOperationException("未対応の消費種別です。");
+        }
+    }
+
     private static void WriteConditions(StringBuilder sb, string label, ConditionSet set, bool declaration)
     {
         if (!ValidConditions(set)) throw new InvalidOperationException("条件集合が不正です。");
@@ -84,31 +126,30 @@ public static partial class SkillTextConverter
             if (stats.Any(x => x == null) || stats.GroupBy(x => x.Name, StringComparer.Ordinal).Any(x => x.Count() > 1)) throw new InvalidOperationException("召喚ステータスがnullまたは重複しています。");
             foreach (FormulaStat stat in stats) sb.AppendLine("【" + Need(stat.Name, "召喚ステータス名") + "最大値】" + Need(stat.Formula, "召喚ステータス式"));
         }
+        WriteConditions(sb, "装備条件", skill.EquipmentConditions, false);
         WriteConditions(sb, "宣言条件", skill.DeclarationConditions, true);
         if (skill.Costs == null || skill.Roll == null) throw new InvalidOperationException("消費リソースまたは発動ロールがnullです。");
         if (skill.Costs.Count > 0)
         {
-            var costs = new List<string>();
-            foreach (var cost in skill.Costs)
-            {
-                if (cost == null || cost.Amount < 0) throw new InvalidOperationException("消費リソースが不正です。");
-                string name = Need(cost.Resource, "消費リソース名");
-                if (cost.Kind == CostKind.Resource) costs.Add(name + "-" + cost.Amount.ToString(CultureInfo.InvariantCulture));
-                else if (cost.Kind == CostKind.ItemCategory || cost.Kind == CostKind.ItemName)
-                {
-                    if (cost.Amount == 0) throw new InvalidOperationException("消費アイテム数は1以上です。");
-                    costs.Add((cost.Kind == CostKind.ItemCategory ? "〈" + name + "〉" : "《" + name + "》") + "×" + cost.Amount.ToString(CultureInfo.InvariantCulture));
-                }
-                else throw new InvalidOperationException("未対応の消費種別です。");
-            }
-            sb.AppendLine("【消費リソース】" + string.Join(", ", costs));
+            sb.AppendLine("【消費リソース】" + string.Join(", ", skill.Costs.Select(CostText)));
         }
         if (skill.CooldownTurns < 0 || skill.Roll.Count < 0) throw new InvalidOperationException("クールタイムと回数は0以上です。");
         if (skill.CooldownTurns > 0) sb.AppendLine("【クールタイム】" + skill.CooldownTurns + "ターン");
         bool automaticRoll = skill.Roll.Count == 1 && skill.Roll.Formula == "自動成功" && string.IsNullOrWhiteSpace(skill.Roll.Target);
+        var sources = skill.Roll.SourceItemCategories;
+        Require(sources != null && sources.Count <= 2);
+        bool itemRoll = sources.Count > 0;
+        if (itemRoll)
+        {
+            var selector = sources.Count == 1 ? ConditionType.SelectOwnedCategory : ConditionType.SelectOwnedEitherCategory;
+            Require(skill.Roll.Count == 1 && string.IsNullOrEmpty(skill.Roll.Formula) && string.IsNullOrEmpty(skill.Roll.Target) &&
+                skill.DeclarationConditions.And.Any(c => c.Type == selector && c.Parameters.Take(sources.Count).SequenceEqual(sources)));
+        }
+        Require(skill.Roll.RepresentativeCount >= 0 && (skill.Roll.RepresentativeCount == 0 || (!automaticRoll && !itemRoll && skill.Roll.Count > 0)));
+        Require(!skill.Roll.UseSummonerResult || (automaticRoll && skill is SummonedEntityDefinition && skill.Roll.FixedResult < 0));
         if (skill.Roll.FixedResult < -1 || (!automaticRoll && skill.Roll.FixedResult != -1)) throw new InvalidOperationException("固定達成値は自動成功の発動ロールに指定してください。");
         if (skill.Roll.Count == 0 && (!string.IsNullOrWhiteSpace(skill.Roll.Formula) || !string.IsNullOrWhiteSpace(skill.Roll.Target))) throw new InvalidOperationException("発動ロールが未使用なのに式・目標値が入力されています。回数を設定してください。");
-        if (skill.Roll.Count > 0 && !automaticRoll)
+        if (skill.Roll.Count > 0 && !automaticRoll && !itemRoll)
         {
             string formula = Need(skill.Roll.Formula, "式");
             Need(skill.Roll.Target, "目標値");
@@ -116,8 +157,9 @@ public static partial class SkillTextConverter
         }
         ValidateSkillEffects(skill);
         WriteEffectGroup(sb, skill, EffectType.Declaration);
-        if (automaticRoll) sb.AppendLine("【発動ロール】自動成功" + (skill.Roll.FixedResult >= 0 ? "、達成値は" + skill.Roll.FixedResult + "となる。" : ""));
-        else if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
+        if (itemRoll) sb.AppendLine("【発動ロール】" + string.Join("または", sources.Select(c => "〈" + c + "〉")) + "に記載");
+        else if (automaticRoll) sb.AppendLine("【発動ロール】自動成功" + (skill.Roll.UseSummonerResult ? "、達成値は召喚者と同値として扱われる。" : skill.Roll.FixedResult >= 0 ? "、達成値は" + skill.Roll.FixedResult + "となる。" : ""));
+        else if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.RepresentativeCount > 0 ? "代表" + skill.Roll.RepresentativeCount + "名が" : "") + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
         foreach (EffectType type in DisplayOrder.Where(x => IsOrdinary(x) && x != EffectType.Declaration)) WriteEffectGroup(sb, skill, type);
         if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
         {
@@ -180,7 +222,7 @@ public static partial class SkillTextConverter
             .Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents)
             .Where(x => x != null && (x.Type == EffectContentType.Summon || x.Type == EffectContentType.PlaceTrap)))
         {
-            string name = Args(reference.Parameters, 1, reference.Type.ToString())[0];
+            string name = SummonName(reference);
             var definition = data.Summons.SingleOrDefault(x => x.Name == name);
             string category = reference.Type == EffectContentType.PlaceTrap ? "罠" : "ペット";
             if (definition == null || !definition.Categories.Contains(category))
@@ -189,7 +231,7 @@ public static partial class SkillTextConverter
         var references = bodies.SelectMany(x => x.Effects ?? new List<EffectDefinition>())
             .Where(x => x != null && x.Contents != null).SelectMany(x => x.Contents)
             .Where(x => x != null && (x.Type == EffectContentType.Summon || x.Type == EffectContentType.PlaceTrap))
-            .Select(x => Args(x.Parameters, 1, "Summon")[0]).ToList();
+            .Select(SummonName).ToList();
         foreach (string reference in references)
             if (!names.Contains(reference)) throw new InvalidOperationException("召喚定義がありません：" + reference);
         foreach (string name in names)

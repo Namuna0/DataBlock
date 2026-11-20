@@ -6,6 +6,7 @@ public static partial class SkillTextConverter
 {
     private static void AddConditions(ConditionSet set, string text)
     {
+        text = NormalizeConditionPhrasing(text);
         if (ReadCombinedReactionConditions(set, text)) return;
         if (ReadCheckReactionConditions(set, text)) return;
         text = RegexReplace(text, @"自身が《([^》]+)》を受けた時", "自身が〈$1〉を受けた時");
@@ -18,6 +19,8 @@ public static partial class SkillTextConverter
             set.And.Add(Condition(ConditionType.AutomaticActivation, "EveryTurn", "Start", "Random", "Enemy", "1"));
             return;
         }
+        var whole = ReadConditionRule(text);
+        if (whole != null) { set.And.Add(whole); return; }
         var parts = Split(text, ",");
         bool meleeException = M(text, @"^自身が《([^》]+)》状態なら[、,]\s*接近は不要。?$").Success;
         if (parts.Count == 1 && text.IndexOf(',') < 0 && !meleeException) parts = Split(text, "、");
@@ -42,6 +45,8 @@ public static partial class SkillTextConverter
     private static ConditionEntry ReadCondition(string text)
     {
         text = text.Trim();
+        ConditionEntry rule = ReadConditionRule(text);
+        if (rule != null) return rule;
         ConditionEntry excludedSelf = ReadExcludedSelfAndTraitCondition(text);
         if (excludedSelf != null) return excludedSelf;
         ConditionEntry stateSelection = ReadStateSelectionCondition(text);
@@ -94,6 +99,7 @@ public static partial class SkillTextConverter
     }
     private static string ConditionText(ConditionEntry item)
     {
+        if (item != null && ConditionRulesByKind.TryGetValue(item.Type, out var pattern)) return pattern.Write(item.Parameters);
         string excludedSelf = ExcludedSelfAndTraitConditionText(item);
         if (excludedSelf != null) return excludedSelf;
         string areaAutomatic = AreaAndAutomaticConditionText(item);

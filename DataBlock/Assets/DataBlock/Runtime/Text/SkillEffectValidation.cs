@@ -7,8 +7,29 @@ public static partial class SkillTextConverter
 {
     private static bool IsElementalWeaponAttack(EffectContent content)
     {
-        return content != null && content.Type == EffectContentType.SkillAttack && content.Parameters != null &&
-               content.Parameters.Count >= 6 && content.Parameters[1] == "ElementalWeapon";
+        return content?.Type == EffectContentType.MeleeGroupElementWeaponAttack || content != null && content.Type == EffectContentType.SkillAttack && content.Parameters != null &&
+               content.Parameters.Count >= 4 && content.Parameters[1] == "ElementalWeapon";
+    }
+
+    private static bool HasRuleSkillValue(EffectContent content)
+    {
+        switch (content.Type)
+        {
+            case EffectContentType.RepeatAttackScaledWeapon:
+            case EffectContentType.RepeatAttackRolledCount:
+            case EffectContentType.CategoryPairWeaponAttack:
+            case EffectContentType.MeleeGroupElementWeaponAttack:
+            case EffectContentType.ScaleWeaponPower:
+            case EffectContentType.ScaledElementWeaponAttack:
+            case EffectContentType.SelectedCategoryWeaponPower:
+            case EffectContentType.RepeatedSelectedWeaponPower:
+            case EffectContentType.WeaponResourceDamage:
+            case EffectContentType.ElementWeaponResourceDamage:
+                return true;
+            case EffectContentType.SkillAttack:
+                return IsElementalWeaponAttack(content) || (content.Parameters.Count == 2 && M(content.Parameters[1], @"^スキル値[0-9]+$").Success);
+            default: return content.Type == EffectContentType.WeaponAttack;
+        }
     }
 
     private static void ValidateSkillEffects(SkillBody skill)
@@ -27,8 +48,8 @@ public static partial class SkillTextConverter
             foreach (EffectContent content in effect.Contents)
             {
                 SkillContentText(content);
-                if (effect.Type == EffectType.Active && (content.Type == EffectContentType.WeaponAttack || content.Type == EffectContentType.SkillAttack)) activeAttacks.Add(content);
-                if (effect.Type == EffectType.Active && (content.Type == EffectContentType.WeaponAttack || IsElementalWeaponAttack(content))) skillValueAttacks.Add(content);
+                if (effect.Type == EffectType.Active && (HasRuleSkillValue(content) || content.Type == EffectContentType.SkillAttack)) activeAttacks.Add(content);
+                if (effect.Type == EffectType.Active && HasRuleSkillValue(content)) skillValueAttacks.Add(content);
                 if (effect.Type == EffectType.Active && IsElementalWeaponAttack(content)) elementalAttacks.Add(content);
                 if (effect.Type == EffectType.Counter && content.Type == EffectContentType.ReduceDamage) counterReductions.Add(content);
             }
@@ -63,7 +84,7 @@ public static partial class SkillTextConverter
             {
                 OverrideText(effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && content.Type != OverrideContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && !IsRollSpike(content.Type) && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
+                if (spike && !IsRuleSpike(content.Type) && content.Type != OverrideContentType.SetRoleplayDescription && content.Type != OverrideContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && !IsRollSpike(content.Type) && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
                     throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
                 if (spike && IsRollSpike(content.Type) &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
@@ -161,10 +182,36 @@ public static partial class SkillTextConverter
         return type == OverrideContentType.SetActivationRollFormula || type == OverrideContentType.SetActivationRollTarget || type == OverrideContentType.AddTargetValue;
     }
 
+    private static void ValidateRuleSpike(SkillBody skill, OverrideContent entry)
+    {
+        var effects = skill.Effects.SelectMany(e => e.Contents);
+        var modifiers = skill.Overrides.Where(e => !IsSpikeStage(e.Type)).SelectMany(e => e.Contents);
+        switch (entry.Type)
+        {
+            case OverrideContentType.SetActivationResultFactor: Require(skill.Roll.Count > 0 && skill.Roll.Formula != "自動成功"); break;
+            case OverrideContentType.SetPartyDefenseBonus: Require(modifiers.Count(c => c.Type == OverrideContentType.AlliesFlatDefense) == 1); break;
+            case OverrideContentType.SetResourceDamageAtRank: Require(effects.Count(c => c.Type == EffectContentType.ResourceDamage && c.Parameters[1] == entry.Parameters[0]) == 1); break;
+            case OverrideContentType.SetInjuryResourceThreshold: Require(modifiers.Count(c => c.Type == OverrideContentType.InjuryRollThreshold && c.Parameters[0] == entry.Parameters[0]) == 1); break;
+            case OverrideContentType.SetAdditionalRacialSkillCount: Require(effects.Count(c => c.Type == EffectContentType.AdditionalRaceSkills) == 1); break;
+            case OverrideContentType.SetTwoResourceCosts:
+                Require(entry.Parameters[0] != entry.Parameters[2] && new[] { entry.Parameters[0], entry.Parameters[2] }.All(r => skill.Costs.Count(c => c.Kind == CostKind.Resource && c.Resource == r) == 1)); break;
+        }
+    }
+
     private static void ValidateSpikeStage(SkillBody skill, EffectType stage)
     {
         var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c }))
             .Where(x => x.Content.Type != OverrideContentType.OptionalSpikeState && x.Content.Type != OverrideContentType.SetRollRange && x.Content.Type != OverrideContentType.StateTurnRecovery && !IsStateReferenceSpike(x.Content.Type) && !IsAppliedStateSpike(x.Content.Type)).ToList();
+        var ruleEntries = entries.Where(x => IsRuleSpike(x.Content.Type)).ToList();
+        Require(ruleEntries.All(x => x.Definition.Triggers.Count == 0) && ruleEntries.Select(x => x.Content.Type).Distinct().Count() == ruleEntries.Count);
+        if (ruleEntries.Any(x => x.Content.Type == OverrideContentType.NoSpikeChange)) Require(entries.Count == 1);
+        foreach (var entry in ruleEntries) ValidateRuleSpike(skill, entry.Content);
+        entries.RemoveAll(x => IsRuleSpike(x.Content.Type));
+        if (entries.Any(x => x.Content.Type == OverrideContentType.SetRoleplayDescription))
+        {
+            Require(entries.Count == 1 && skill.Effects.Any(x => x.Type == EffectType.Roleplay));
+            return;
+        }
         if (entries.Count == 0) return;
         var rollEntries = entries.Where(x => IsRollSpike(x.Content.Type)).ToList();
         if (rollEntries.Count > 0)
@@ -245,8 +292,8 @@ public static partial class SkillTextConverter
         foreach (var effect in skill.Effects)
         foreach (var content in effect.Contents)
         {
-            var rule = SemanticTextRules.FirstOrDefault(r => !r.State && r.Content != EffectContentType.None && r.Content == content.Type);
-            if (rule != null) Require(effect.Type == rule.Section && effect.Triggers.Count == 0);
+            var rules = ContentRules[(false, content.Type)];
+            if (rules.Any()) Require(effect.Triggers.Count == 0 && rules.Any(r => r.Section == effect.Type));
             if (content.Type == EffectContentType.ApplyPermanentLinkedStates)
                 Require(skill.DeclarationConditions.And.Count(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) &&
                     c.Parameters[0] == "1" && c.Parameters[1] == "Exact") == 1);
@@ -388,7 +435,7 @@ public static partial class SkillTextConverter
             if (c.Type == EffectContentType.DrainResource || c.Type == EffectContentType.CreateMeleeGroup)
                 Require(effect.Type == EffectType.Active && effect.Triggers.Count == 0);
             if (c.Type == EffectContentType.InvalidateTriggeredEffect && c.Parameters.SequenceEqual(new[] { "Target", "Counter" }))
-                Require(effect.Type == EffectType.Counter && skill.DeclarationConditions.And.Any(x => x.Type == ConditionType.CounterToOwnActive));
+                Require(effect.Type == EffectType.Counter && skill.DeclarationConditions.And.Any(x => x.Type == ConditionType.CounterToOwnActive || x.Type == ConditionType.CounterToCategory || x.Type == ConditionType.OwnCategoryCountered));
         }
         foreach (var effect in skill.Overrides)
         foreach (var c in effect.Contents)

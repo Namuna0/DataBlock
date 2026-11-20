@@ -16,6 +16,7 @@ public class SkillBody
     public string Name = "";
     public List<string> Categories = new List<string>();
     public ConditionSet AcquisitionConditions = new ConditionSet();
+    public ConditionSet EquipmentConditions = new ConditionSet();
     public ConditionSet DeclarationConditions = new ConditionSet();
     public List<ResourceCost> Costs = new List<ResourceCost>();
     [Min(0)] public int CooldownTurns;

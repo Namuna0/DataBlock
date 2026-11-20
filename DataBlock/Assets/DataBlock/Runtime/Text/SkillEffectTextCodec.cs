@@ -5,14 +5,79 @@ using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
+    private static string SummonName(EffectContent content)
+    {
+        var p = VariableArgs(content.Parameters, 1, "召喚");
+        Require(p.Length == 1 || (content.Type == EffectContentType.Summon && p.Length == 2 && Number(p[1], 1, "召喚数") > 0));
+        return Need(p[0], "召喚名");
+    }
+
+    private static string NormalizeEffectSentence(string text)
+    {
+        text = RegexReplace(text, @"^その後、(?=自身は|対象は|対象を)", "");
+        text = RegexReplace(text, @"^対象は永続的に《([^》]+)》状態になる。?$", "対象を永続的に《$1》状態にする。");
+        text = RegexReplace(text, @"^(?:攻撃)?対象を(?:スキル値)?([0-9]+)の武器威力で攻撃する。?$", "対象をスキル値$1で武器攻撃する。");
+        text = RegexReplace(text, @"^([A-Z]+)ダメージを([^。]+)与える。?$", "対象に$2の$1ダメージを与える。");
+        text = RegexReplace(text, @"^対象へ《([^》]+)》スタックを([0-9]+)付与する、$", "対象に《$1》スタックを$2付与する。");
+        text = RegexReplace(text, @"^対象に《([^》]+)》スタック([0-9]+)を付与する。?$", "対象に《$1》スタックを$2付与する。");
+        text = RegexReplace(text, @"^対象へ《([^》]+)》スタック×([0-9]+)を付与する。?$", "対象に《$1》スタックを$2付与する。");
+        text = RegexReplace(text, @"^(自身は《[^》]+》スタックを[0-9]+得る。)（最大([0-9]+)つ）$", "$1（最大$2スタック）");
+        text = RegexReplace(text, @"^回復量×([0-9.]+)倍。?$", "回復量は×$1倍される。");
+        text = RegexReplace(text, @"^種族能力値ボーナスの([^。]+?)(-[0-9]+)%減算される。?$", "種族能力値ボーナスの$1$2%加算される。");
+        text = RegexReplace(text, @"^対象を([^。]+)の威力でする。?$", "対象を$1の威力で攻撃する。");
+        text = RegexReplace(text, @"^対象(?:へ|に)(" + ArithmeticPattern + @")(?:の)?ダメージを与える。?$", "対象は$1のダメージを受ける。");
+        text = RegexReplace(text, @"^攻撃対象を(?=スキル値)", "対象を");
+        text = RegexReplace(text, @"^選択対象を(?=スキル値)", "対象を");
+        text = RegexReplace(text, @"^(対象を[0-9]+ターンの間)、", "$1");
+        text = RegexReplace(text, @"^対象は([0-9]+)ターンの間、対象は", "対象は$1ターンの間");
+        text = RegexReplace(text, @"^《([^》]+)》ペットを召喚する。?$", "ペット《$1》を召喚する。");
+        text = RegexReplace(text, @"^《([^》]+)》スタックを([0-9]+)得る。?$", "自身に《$1》スタックを$2付与する。");
+        text = RegexReplace(text, @"^対象を\(スキル値([0-9]+)\)\*([0-9.]+)の武器威力で([0-9]+)連続攻撃する。?$", "対象を(スキル値$1)*$2の武器威力で$3回連続攻撃する。");
+        text = RegexReplace(text, @"^対象に《([^》]+)》を付与する。?$", "対象に《$1》状態を付与する。");
+        text = RegexReplace(text, @"^このカウンター効果による被ダメージは([^。]+)軽減に変化する。?$", "このカウンター効果による軽減は$1に変化する。");
+        text = RegexReplace(text, @"^このパッシブ効果による威力上昇は×", "このパッシブ効果による威力上昇は");
+        text = RegexReplace(text, @"^対象の([A-Z]+)を([+-][0-9]+)する。?$", "対象の$1を$2変化させる。");
+        text = RegexReplace(text, @"^対象の([A-Z]+)がさらに(-[0-9]+)減少する。?$", "対象の$1を$2変化させる。");
+        text = RegexReplace(text, @"^対象は([A-Z]+)を([0-9]+)失う。?$", "対象の$1を-$2変化させる。");
+        text = RegexReplace(text, @"^自身の([A-Z]+)([+-][0-9]+)$", "自身の$1を$2変化させる。");
+        text = RegexReplace(text, @"^対象を\(スキル値([0-9]+)\)\*([0-9.]+)で回復する。?$", "対象を[スキル値$1]*$2で回復する。");
+        text = RegexReplace(text, @"^その後(?=\[スキル値)", "対象を");
+        text = RegexReplace(text, @"^対象をスキル値([0-9]+)の武器威力×([0-9.]+)で攻撃する。?$", "対象を(スキル値$1の武器威力*$2)で攻撃する。");
+        text = RegexReplace(text, @"^(対象をスキル値[0-9]+)の武器攻撃\+", "$1の武器威力+");
+        text = RegexReplace(text, @"^自身が(〈[^〉]+〉)を宣言するたびに、([A-Z]+)が-([0-9]+)減少する", "自身は$1を宣言するたびに、$2が$3減少する");
+        text = RegexReplace(text, @"^続けて対象をスキル値([0-9]+)で([0-9]+)回攻撃連続武器攻撃する", "対象を$2回連続でスキル値$1で武器攻撃する");
+        text = RegexReplace(text, @"^自身の次のターン開始時、(《[^》]+》状態になる)", "自身は次のターン開始時$1");
+        text = RegexReplace(text, @"^対象の([A-Z]+)を([0-9]+)回復する、。?$", "対象の$1を+$2変化させる。");
+        text = RegexReplace(text, @"^([A-Z]+)(?:は|を)([0-9]+)(?:得る|回復する)。(?!.)", "$1を$2回復する。");
+        text = RegexReplace(text, @"^自身に付与されている状態(〈[^〉]+〉)を解除する", "自身に付与されている$1状態を全て解除する");
+        text = RegexReplace(text, @"^《([^》]+)》スタックを([0-9]+)付与する。?$", "対象に《$1》スタックを$2付与する。");
+        return text;
+    }
+
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
-        if (ReadSkillStatement(skill, type, Unbullet(text))) return;
-        foreach (string part in Split(Unbullet(text), "・"))
+        string statement = Unbullet(text);
+        if (type != EffectType.Roleplay) statement = NormalizeEffectSentence(statement);
+        if (type == EffectType.Passive && M(statement, @"^[A-Z]+最大値[+-][0-9]+,\s*自身は").Success)
+        {
+            foreach (string clause in Split(statement, ",")) ReadSkillLine(skill, type, clause);
+            return;
+        }
+        if (ReadSkillStatement(skill, type, statement)) return;
+        if (type != EffectType.Roleplay && statement.TrimEnd('。').Contains("。") &&
+            !statement.Contains("。（") && !statement.Contains("。「"))
+        {
+            foreach (string sentence in Split(statement.TrimEnd('。'), "。")) ReadSkillLine(skill, type, sentence + "。");
+            return;
+        }
+        foreach (string part in Split(statement, "・"))
         {
             string body = RegexReplace(part.Trim(), @"^さらに\s*", "");
             if (type == EffectType.SecondSpike || type == EffectType.ThirdSpike)
             {
+                body = RegexReplace(body, @"^対象をスキル値([^。]+)で武器攻撃する。?$", "このアクティブ効果によるスキル値は$1に変化する。");
+                body = RegexReplace(body, @"^このアクティブ効果に(?:よる)?武器威力は(?:スキル値)?([^。]+?)力?に変化する。?$", "このアクティブ効果によるスキル値は$1に変化する。");
+                body = RegexReplace(body, @"(によるスキル値は[0-9]+)変化する。?$", "$1に変化する。");
                 if (TryReadPassiveSpike(skill, type, body)) continue;
                 Match combinedSpike = M(body, @"^このアクティブ効果によるスキル値(?:は)?([^、]+)、属性威力(?:は)?(.+?)に変化する。?$");
                 if (!combinedSpike.Success) combinedSpike = M(body, @"^このアクティブ効果によるスキル値(?:は)?(.+?)の武器威力\+(.+?)に変化する。?$");
@@ -51,6 +116,12 @@ public static partial class SkillTextConverter
                 if (spike.Success)
                 {
                     AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollFormula, spike.Groups[1].Value));
+                    continue;
+                }
+                if (skill.Effects.Any(e => e.Type == EffectType.Roleplay) &&
+                    M(body, @"(?:にまで及ぶ(?:こともある|かもしれない)|(?:知識|洞察)を得る|分析を行う|深い造詣を持つ|並ぶものは居ない)。$").Success)
+                {
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetRoleplayDescription, body));
                     continue;
                 }
                 throw new InvalidOperationException("スパイクはスキル値・属性威力・被ダメージ軽減値・発動ロールの変更に対応します。");
@@ -97,8 +168,10 @@ public static partial class SkillTextConverter
                 triggers.Add(Trigger(TriggerTiming.AfterSkillResolution, Condition(ConditionType.BattleEffectLimit, risk.Groups[1].Value), Condition(ConditionType.SkillDealtNoDamage, "Target")));
                 body = risk.Groups[2].Value;
             }
-            foreach (string atom in Split(body, ","))
+            var atoms = Split(body, ",");
+            foreach (string atom in atoms)
             {
+                if (atoms.Count > 1 && triggers.Count == 0 && ReadSkillStatement(skill, type, atom)) continue;
                 if (M(atom, @"^対象1体を").Success && !skill.DeclarationConditions.And.Any(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) && c.Parameters.SequenceEqual(new[] { "1", "Exact", "Default" })))
                     throw new InvalidOperationException("対象1体の攻撃には、ちょうど1体を選択する宣言条件を指定してください。");
                 var effect = new EffectDefinition { Type = type, Triggers = triggers };
@@ -199,7 +272,7 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.RestoreResource, "Self", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^自身を除くすべての敵キャラクターは\s*(?:([0-9]+)ターンの間)?《([^》]+)》状態(?:になる|となる)。?$");
         if (m.Success) return m.Groups[1].Success ? Content(EffectContentType.ApplyState, "AllEnemiesExceptSelf", m.Groups[2].Value, m.Groups[1].Value) : Content(EffectContentType.ApplyState, "AllEnemiesExceptSelf", m.Groups[2].Value);
-        m = M(s, @"^(自身|対象|付与者)へ(?:([0-9]+)ターンの間)?《([^》]+)》状態を付与する。?$");
+        m = M(s, @"^(自身|対象|付与者)(?:へ|に|を)(?:([0-9]+)ターンの間)?《([^》]+)》(?>状態を付与する|状態にする|にする)。?$");
         if (m.Success) return m.Groups[2].Success ? Content(EffectContentType.ApplyState, ActorKey(m.Groups[1].Value), m.Groups[3].Value, m.Groups[2].Value) : Content(EffectContentType.ApplyState, ActorKey(m.Groups[1].Value), m.Groups[3].Value);
         m = M(s, @"^(自身|対象|付与者)は\s*(?:([0-9]+)ターンの間)?《([^》]+)》状態(?:になる|となる)。?$");
         if (m.Success) return m.Groups[2].Success ? Content(EffectContentType.ApplyState, ActorKey(m.Groups[1].Value), m.Groups[3].Value, m.Groups[2].Value) : Content(EffectContentType.ApplyState, ActorKey(m.Groups[1].Value), m.Groups[3].Value);
@@ -211,12 +284,12 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.JoinMeleeGroup, new[] { "Self", "Target" }.Concat(AllMatches(m.Groups[1].Value, @"《([^》]+)》").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
         m = M(s, @"^(自身|対象|付与者)は同じ接近グループの《([^》]+)》状態になる。?$");
         if (m.Success) return Content(EffectContentType.ApplyStateInMeleeGroup, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
-        m = M(s, @"^(対象|《([^》]+)》状態の全ての対象)をスキル値(.+?)の武器威力\+(.+?)の(.+?)属性威力で攻撃する。?$");
+        m = M(s, @"^(対象|《([^》]+)》状態の全ての対象)をスキル値(.+?)の武器威力\+(.+?)の(.*?)属性威力で攻撃する。?$");
         if (m.Success)
         {
             string target = m.Groups[2].Success ? StateTarget(m.Groups[2].Value) : "Target";
             string[] elements = Split(m.Groups[5].Value, "かつ").ToArray();
-            if (elements.Length < 2) throw new InvalidOperationException("複合属性攻撃には2つ以上の属性を指定してください。");
+            // No explicit element means the text only specifies an attribute formula.
             return Content(EffectContentType.SkillAttack, new[] { target, "ElementalWeapon", m.Groups[3].Value, m.Groups[4].Value }.Concat(elements).ToArray());
         }
         m = M(s, @"^(自身|対象|付与者)(?:1体)?を(?:([0-9]+)回連続で)?(?:スキル値)?(.+?)で武器攻撃する。?(?:防御点はそれぞれに適用される。?)?$");
@@ -231,7 +304,7 @@ public static partial class SkillTextConverter
             }
             return Content(EffectContentType.WeaponAttack, p.ToArray());
         }
-        m = M(s, @"^(自身|対象|付与者)(?:1体)?を(.+?)の威力で攻撃する。?$");
+        m = M(s, @"^(自身|対象|付与者)(?:1体)?(?:を|へ)(.+?)の威力で攻撃する。?$");
         if (m.Success) return Content(EffectContentType.SkillAttack, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^自身に付与されている〈([^〉]+)〉の効果を無視して、(対象|自身|付与者)を(.+?)の威力で攻撃する。?$");
         if (m.Success) return Content(EffectContentType.SkillAttack, ActorKey(m.Groups[2].Value), "IgnoreOwnStateCategory", m.Groups[1].Value, m.Groups[3].Value);
@@ -243,8 +316,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.RollDice, "", m.Groups[1].Value);
         m = M(s, @"^追加ロール([0-9]+)として(.+?)のダイスロールを行う。?$");
         if (m.Success) return Content(EffectContentType.RollDice, m.Groups[1].Value, m.Groups[2].Value);
-        m = M(s, @"^ペット《([^》]+)》を召喚する。?$");
-        if (m.Success) return Content(EffectContentType.Summon, m.Groups[1].Value);
+        m = M(s, @"^ペット《([^》]+)》を(?:([1-9][0-9]*)体)?召喚する。?$");
+        if (m.Success) return m.Groups[2].Success ? Content(EffectContentType.Summon, m.Groups[1].Value, m.Groups[2].Value) : Content(EffectContentType.Summon, m.Groups[1].Value);
         m = M(s, @"^(自身|対象|付与者)の([A-Z]+)を([+-].+?)(?:減少|変化)させる。?$");
         if (m.Success) return Content(EffectContentType.ModifyResource, ActorKey(m.Groups[1].Value), m.Groups[2].Value, Signed(m.Groups[3].Value));
         m = M(s, @"^(自身|対象|付与者)の((?:〈[^〉]+〉)(?:(?:及び|または)〈[^〉]+〉)*)を無効にする。?$");
@@ -330,7 +403,7 @@ public static partial class SkillTextConverter
                 if (p.Length == 2) return TargetText(p[0]) + "を" + p[1] + "の威力で攻撃する。";
                 if (p.Length == 4 && p[1] == "IgnoreOwnStateCategory")
                     return "自身に付与されている〈" + p[2] + "〉の効果を無視して、" + Actor(p[0]) + "を" + p[3] + "の威力で攻撃する。";
-                if (p.Length >= 6 && p[1] == "ElementalWeapon")
+                if (p.Length >= 4 && p[1] == "ElementalWeapon")
                     return TargetText(p[0]) + "をスキル値" + p[2] + "の武器威力+" + p[3] + "の" + string.Join("かつ", p.Skip(4)) + "属性威力で攻撃する。";
                 throw new InvalidOperationException("SkillAttackは対象・威力、または対象・ElementalWeapon・スキル値・属性威力式・2属性以上です。");
             case EffectContentType.ModifyResource:
@@ -358,7 +431,7 @@ public static partial class SkillTextConverter
                 p = Args(content.Parameters, 2, "RollDice"); Number(p[0], 1, "追加ロール番号");
                 return "追加ロール" + p[0] + "として" + p[1] + "のダイスロールを行う。";
             case EffectContentType.Summon:
-                p = Args(content.Parameters, 1, "Summon"); return "ペット《" + p[0] + "》を召喚する。";
+                return "ペット《" + SummonName(content) + "》を" + (content.Parameters.Count == 2 ? content.Parameters[1] + "体" : "") + "召喚する。";
             case EffectContentType.AddAreaGathering:
                 p = Args(content.Parameters, 1, "AddAreaGathering");
                 return "このエリアの採取を" + Number(p[0], 1, "追加採取回数") + "回追加で行うことができる。";
@@ -401,6 +474,11 @@ public static partial class SkillTextConverter
     }
     private static string OverrideText(OverrideDefinition effect, OverrideContent content)
     {
+        if (content?.Type == OverrideContentType.SetRoleplayDescription)
+        {
+            Require(IsSpikeStage(effect.Type) && effect.Triggers != null && effect.Triggers.Count == 0);
+            return Need(Args(content.Parameters, 1, "ロールプレイ効果")[0], "ロールプレイ効果");
+        }
         string actionResult = ActionResultModifierText(effect, content);
         if (actionResult != null) return actionResult;
         string damageRecovery = DamageRecoveryModifierText(effect, content);

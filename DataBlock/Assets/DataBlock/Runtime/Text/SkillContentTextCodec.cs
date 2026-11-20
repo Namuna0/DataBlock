@@ -38,7 +38,7 @@ public static partial class SkillTextConverter
 
     private static EffectContent ReadBasicEffectContent(string s)
     {
-        Match m = M(s, @"^(自身|対象)(?:に|は)《([^》]+)》スタックを(.+?)(?:付与する|獲得する)。?$");
+        Match m = M(s, @"^(自身|対象)(?:に|へ|は)《([^》]+)》スタックを(.+?)(?:付与する|獲得する|得る)。?$");
         if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, StackAmount(m.Groups[3].Value));
         m = M(s, @"^対象を(.+?)の威力\+(.+?)の属性威力で攻撃する。?$");
         if (m.Success) return Content(EffectContentType.SkillAttack, "Target", "PowerAndAttribute", m.Groups[1].Value, m.Groups[2].Value);
@@ -83,6 +83,9 @@ public static partial class SkillTextConverter
         value = Need(value, "スタック数").Replace("×", "*");
         if (M(value, @"^[0-9]+$").Success) { Number(value, 1, "スタック数"); return value; }
         Match formula = M(value, @"^\[スキル値([0-9]+)の武器威力\](?:\*([0-9]+(?:\.[0-9]+)?))?$");
+        if (M(value, @"^(?:[1-9][0-9]*\+)?(?:[1-9][0-9]*d[1-9][0-9]*|[1-9][0-9]*)\*\[[^\[\]。*]+B\]$").Success ||
+            M(value, @"^\[スキル値[1-9][0-9]*\]\*(?:[1-9][0-9]*(?:\.[0-9]+)?|0\.[0-9]*[1-9][0-9]*)$").Success ||
+            value == "[選択対象数]分" || value == "与えたダメージの分") return value;
         if (!formula.Success) throw new InvalidOperationException("スタック数は正の整数、または[スキル値Nの武器威力]*倍率で指定してください。");
         Number(formula.Groups[1].Value, 1, "スキル値");
         if (formula.Groups[2].Success) PositiveModifierFactor(formula.Groups[2].Value);
@@ -99,8 +102,8 @@ public static partial class SkillTextConverter
                 p = Args(content.Parameters, 3, "RerollActivation"); Require(p[0] == "Self" && p[2] == "TriggeringRoll");
                 return "能力値ボーナスを" + p[1] + "に置きかえて発動ロールをやり直す。";
             case EffectContentType.SetResourceValue:
-                p = Args(content.Parameters, 3, "SetResourceValue"); Require(p[0] == "Self" && p[1] == "HP"); Number(p[2], 1, "耐えるHP");
-                return "HP" + p[2] + "の状態で耐える。";
+                p = Args(content.Parameters, 3, "SetResourceValue"); Require(p[0] == "Self" && (p[1] == "HP" || p[1] == "SAN")); Number(p[2], 1, "耐えた時の値");
+                return p[1] + p[2] + "の状態で耐える。";
             case EffectContentType.SkipRoll:
                 p = Args(content.Parameters, 4, "SkipRoll"); Require(p[0] == "Self" && p[2] == "Optional" && p[3] == "ThisResolution");
                 return "この時、" + p[1] + "ロールは行わなくてもよい。";
