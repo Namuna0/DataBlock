@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>装備の価値を通貨額で示すか、取引不可とするかを表す。</summary>
 public enum EquipmentValueKind
 {
+    /// <summary>装備の価値を金額と通貨名で表す。</summary>
     Currency = 0,
+    /// <summary>取引できない装備として扱う。</summary>
     Untradeable = 1
 }
 
@@ -16,8 +19,10 @@ public sealed class EquipmentValueDefinition
     public string Currency = "";
 }
 
+/// <summary>キャラクターが装備を身に着けるために満たす条件の種類を表す。</summary>
 public enum EquipmentRequirementType
 {
+    /// <summary>装備者のレベルが指定値以上であることを要求する。</summary>
     MinimumLevel = 0
 }
 
@@ -28,19 +33,26 @@ public sealed class EquipmentRequirementDefinition
     public List<string> Parameters = new List<string>();
 }
 
+/// <summary>装備による能力値の変化、行為の補正、使用許可、状態付与などの効果を表す。</summary>
 public enum EquipmentEffectType
 {
     // actor, stat, Add|Multiply, value
+    /// <summary>装備者の指定能力値に数値を加算するか、倍率を掛ける。</summary>
     ModifyStat = 0,
     // action category, result factor, power factor
+    /// <summary>この武器を選んで行う指定カテゴリーの行為の達成値と威力に、それぞれ倍率を掛ける。</summary>
     ModifySelectedWeaponAction = 1,
     // actor, action category, factor
+    /// <summary>指定カテゴリーの行為によって装備者が受けるダメージに倍率を掛ける。</summary>
     MultiplyIncomingDamage = 2,
     // actor, encounter phase, item category
+    /// <summary>指定エンカウントフェーズに指定カテゴリーのアイテムの使用を宣言できる。</summary>
     AllowItemUse = 3,
     // actor, action category, factor
+    /// <summary>装備者が行う指定カテゴリーの行為の威力に倍率を掛ける。</summary>
     MultiplyActionPower = 4,
     // actor, action category, state, amount
+    /// <summary>装備者が指定カテゴリーの行為を発動した時に、指定状態のスタックを得る。</summary>
     GainStateStacksOnAction = 5
 }
 

@@ -72,7 +72,7 @@ internal sealed class RulebookImportTests
         Assert.That(cells[0].Column, Is.EqualTo(3));
         using (var output = new StringWriter())
         {
-            RulebookCsvWindow.WriteJson(output, cells);
+            new DataBlockJsonExport().WriteCsv(output, TextWriter.Null, TextWriter.Null, cells);
             Assert.That(output.ToString(), Does.Contain("\"column\":3").And.Contain("\"kind\":\"skill\""));
         }
     }

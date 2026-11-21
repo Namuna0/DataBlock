@@ -553,7 +553,8 @@ internal sealed class SkillArchitectureTests
             Assert.That((string)text.GetValue(editor), Is.EqualTo(normalized));
             run.Invoke(editor, new object[] { 3 });
             Assert.That(messageType.GetValue(editor), Is.EqualTo(UnityEditor.MessageType.Info), (string)message.GetValue(editor));
-            var copy = UnityEngine.JsonUtility.FromJson<SkillTextData>((string)text.GetValue(editor));
+            Assert.That((string)text.GetValue(editor), Is.EqualTo(normalized));
+            var copy = DataBlockJsonExportTests.ReadSkill(((DataBlockEditor)editor).JsonPreview);
             Assert.That(UnityEngine.JsonUtility.ToJson(copy), Is.EqualTo(before));
             Assert.That(SkillTextConverter.Build(copy), Is.EqualTo(normalized));
             Assert.That(copy.States.Count, Is.EqualTo(SkillTextConverter.Parse(source).States.Count));

@@ -80,7 +80,7 @@ public static partial class SkillTextConverter
                 }
                 if (line.StartsWith("●"))
                 {
-                    if (state != null && line.Contains("：") && ReadSemanticRule(null, state, EffectType.Passive, line.Substring(1).Trim())) continue;
+                    if (state != null && ReadStateLine(state, line.Substring(1).Trim())) continue;
                     if (!description && current == data.Skill && current.Effects.Count == 0 && current.Roll.Count == 0 &&
                         i + 1 <= end && StartsChoiceFields(lines[i + 1].Trim())) description = true;
                     if (!description) throw new InvalidOperationException("子スキルの前に選択式の【説明】が必要です。");

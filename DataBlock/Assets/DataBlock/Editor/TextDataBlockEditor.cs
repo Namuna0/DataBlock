@@ -27,28 +27,31 @@ public abstract class TextDataBlockEditor<TData> : Editor where TData : class
     protected MessageType _messageType;
     private Vector2 _scroll;
     private GUIStyle _style;
+    internal DataBlockJsonPreview JsonPreview { get; private set; }
 
     public sealed override void OnInspectorGUI()
     {
         serializedObject.Update();
         DrawPropertiesExcluding(serializedObject, "m_Script");
-        serializedObject.ApplyModifiedProperties();
+        if (serializedObject.ApplyModifiedProperties()) JsonPreview = null;
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("入力 / 出力テキスト", EditorStyles.boldLabel);
         if (_style == null) _style = new GUIStyle(EditorStyles.textArea) { wordWrap = true };
         _scroll = EditorGUILayout.BeginScrollView(_scroll, GUILayout.Height(300));
         string edited = EditorGUILayout.TextArea(_text, _style, GUILayout.MinHeight(280), GUILayout.ExpandHeight(true));
-        if (edited != _text) { _text = edited; _message = ""; }
+        if (edited != _text) { _text = edited; _message = ""; JsonPreview = null; }
         EditorGUILayout.EndScrollView();
         if (GUILayout.Button("構文統一")) Run(Operation.Normalize);
         if (GUILayout.Button("テキストからシリアライズセット")) Run(Operation.Deserialize);
         if (GUILayout.Button(RebuildLabel)) Run(Operation.Rebuild);
         if (GUILayout.Button("JSON出力")) Run(Operation.Json);
+        JsonPreview?.Draw();
         if (_message.Length > 0) EditorGUILayout.HelpBox(_message, _messageType);
     }
 
     protected void Run(Operation operation)
     {
+        JsonPreview = null;
         try
         {
             switch (operation)
@@ -72,8 +75,8 @@ public abstract class TextDataBlockEditor<TData> : Editor where TData : class
                     break;
                 case Operation.Json:
                     if (Data == null) throw new InvalidOperationException("出力するシリアライズデータがありません。");
-                    _text = JsonUtility.ToJson(Data, true);
-                    _message = "シリアライズデータをJSONとして出力しました。";
+                    JsonPreview = new DataBlockJsonPreview(Data);
+                    _message = "本体・サモン・状態のJSONを出力しました。";
                     break;
                 default:
                     throw new InvalidOperationException("未対応の操作です。");
@@ -101,6 +104,39 @@ public abstract class TextDataBlockEditor<TData> : Editor where TData : class
             GUI.FocusControl(null);
             Repaint();
         }
+    }
+}
+internal sealed class DataBlockJsonPreview
+{
+    internal readonly string Main, Summons, States;
+    private Vector2 mainScroll, summonsScroll, statesScroll;
+
+    internal DataBlockJsonPreview(object data)
+    {
+        var export = new DataBlockJsonExport();
+        Main = DataBlockJsonExport.Format(export.Main(data), true);
+        Summons = DataBlockJsonExport.Format(export.Summons.ToArray(), true);
+        States = DataBlockJsonExport.Format(export.States.ToArray(), true);
+    }
+
+    internal void Draw()
+    {
+        DrawField("本体 JSON", Main, ref mainScroll);
+        DrawField("サモン JSON", Summons, ref summonsScroll);
+        DrawField("状態 JSON", States, ref statesScroll);
+    }
+
+    private static void DrawField(string label, string json, ref Vector2 scroll)
+    {
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
+            if (GUILayout.Button("コピー", GUILayout.Width(60))) EditorGUIUtility.systemCopyBuffer = json;
+        }
+        float height = EditorStyles.textArea.CalcHeight(new GUIContent(json), Mathf.Max(80, EditorGUIUtility.currentViewWidth - 48));
+        scroll = EditorGUILayout.BeginScrollView(scroll, GUILayout.Height(Mathf.Clamp(height + 8, 38, 150)));
+        EditorGUILayout.SelectableLabel(json, EditorStyles.textArea, GUILayout.Height(Mathf.Max(24, height)));
+        EditorGUILayout.EndScrollView();
     }
 }
 #endif
