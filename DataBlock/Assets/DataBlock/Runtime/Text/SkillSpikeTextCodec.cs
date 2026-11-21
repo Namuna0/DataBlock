@@ -18,11 +18,18 @@ public static partial class SkillTextConverter
         AddOverride(skill.Overrides, type, NoTriggers(), content);
     }
 
+    private static readonly string[] ResultMultiplierRules = { "ActionStats", "WeaponActivation" };
+
+    private static IEnumerable<string[]> ModifierSpikeTargets(SkillBody skill, params string[] kinds)
+    {
+        return skill.Overrides.Where(e => e?.Contents != null && (e.Type == EffectType.Passive || e.Type == EffectType.Active))
+            .SelectMany(e => e.Contents.Select(c => ModifierRuleSelector(e, c)))
+            .Where(r => r != null && kinds.Contains(r[0]));
+    }
+
     private static void ReplaceModifierSpike(SkillBody skill, EffectType type, string value, params string[] kinds)
     {
-        var rules = skill.Overrides.Where(e => e.Type == EffectType.Passive || e.Type == EffectType.Active)
-            .SelectMany(e => e.Contents.Select(c => ModifierRuleSelector(e, c)))
-            .Where(r => r != null && kinds.Contains(r[0])).ToList();
+        var rules = ModifierSpikeTargets(skill, kinds).Take(2).ToList();
         if (rules.Count != 1) throw new InvalidOperationException("変更対象の基本補正を一意に特定できません：" + string.Join(" / ", kinds));
         AddModifierSpike(skill, type, value, rules[0]);
     }
@@ -32,7 +39,7 @@ public static partial class SkillTextConverter
         Match m = M(s, @"^この(?:パッシブ|アクティブ)効果の補正を「(.+)」に変更する。?$");
         if (m.Success)
         {
-            // Canonical text names the whole selector, so multiple modifiers remain unambiguous.
+            // 明示形は同種の基本補正が複数ある場合にも変更先を特定できる。
             var temporary = new SkillBody();
             EffectType baseType = s.StartsWith("このアクティブ", StringComparison.Ordinal) ? EffectType.Active : EffectType.Passive;
             ReadSkillLine(temporary, baseType, m.Groups[1].Value);
@@ -61,15 +68,12 @@ public static partial class SkillTextConverter
             ReplaceModifierSpike(skill, type, m.Groups[2].Value, "EarlyBattleDamage"); return true;
         }
         m = M(s, @"^このパッシブ効果による達成値上昇は×(.+?)倍に変化する。?$");
-        if (m.Success) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, "ActionStats", "WeaponActivation"); return true; }
+        if (m.Success) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, ResultMultiplierRules); return true; }
         m = M(s, @"^この(パッシブ|アクティブ)効果による達成値(?:の)?上昇は([+-].+?)に変化する。?$");
         if (m.Success)
         {
             // Both 上昇 and 増加 describe the same single-stat increase.
-            var candidates = skill.Overrides.Where(e => e.Type == EffectType.Passive || e.Type == EffectType.Active)
-                .SelectMany(e => e.Contents.Select(c => ModifierRuleSelector(e, c))).Where(r => r != null &&
-                    new[] { "EnvironmentCheck", "CategoryCheck", "TimedWeaponActivation", "EarlyBattleActivation" }.Contains(r[0])).ToList();
-            if (candidates.Count == 0 && m.Groups[1].Value == "パッシブ")
+            if (m.Groups[1].Value == "パッシブ" && !ModifierSpikeTargets(skill, "EnvironmentCheck", "CategoryCheck", "TimedWeaponActivation", "EarlyBattleActivation").Any())
                 return TryReadPassiveSpike(skill, type, "このパッシブ効果による達成値増加は" + m.Groups[2].Value + "に変化する。");
             ReplaceModifierSpike(skill, type, m.Groups[2].Value, m.Groups[1].Value == "アクティブ" ? new[] { "TimedWeaponActivation" } : new[] { "EnvironmentCheck", "CategoryCheck", "EarlyBattleActivation" }); return true;
         }

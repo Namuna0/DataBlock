@@ -102,7 +102,7 @@ public static partial class SkillTextConverter
             texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
         IEnumerable<OverrideDefinition> overrides = skill.Overrides.Where(x => x.Type == type);
         if (type == EffectType.SecondSpike || type == EffectType.ThirdSpike) overrides = overrides.OrderBy(x => x.Triggers.Count == 0 ? 0 : 1);
-        foreach (var effect in overrides) texts.AddRange(effect.Contents.Select(c => OverrideText(effect, c)));
+        foreach (var effect in overrides) texts.AddRange(effect.Contents.Select(c => OverrideText(skill, effect, c)));
         foreach (var effect in deferred)
             texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
         if (texts.Count == 0)

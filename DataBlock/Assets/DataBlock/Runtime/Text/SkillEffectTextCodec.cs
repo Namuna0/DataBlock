@@ -476,7 +476,7 @@ public static partial class SkillTextConverter
         }
         throw new InvalidOperationException("今回の文型に対応しないスキル効果トリガーです。");
     }
-    private static string OverrideText(OverrideDefinition effect, OverrideContent content)
+    private static string OverrideText(SkillBody skill, OverrideDefinition effect, OverrideContent content)
     {
         if (content?.Type == OverrideContentType.SetRoleplayDescription)
         {
@@ -495,7 +495,7 @@ public static partial class SkillTextConverter
         if (stateReference != null) return stateReference;
         string stackCategory = StackAndCategoryModifierText(effect, content);
         if (stackCategory != null) return stackCategory;
-        string modifierRule = ModifierRuleOverrideText(effect, content);
+        string modifierRule = ModifierRuleOverrideText(skill, effect, content);
         if (modifierRule != null) return modifierRule;
         string basic = BasicModifierText(effect, content);
         if (basic != null) return basic;

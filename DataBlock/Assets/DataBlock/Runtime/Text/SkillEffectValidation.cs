@@ -72,7 +72,7 @@ public static partial class SkillTextConverter
             if (effect == null || effect.Type == EffectType.None || !DisplayOrder.Contains(effect.Type) || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("上書き効果の種別と内容を指定してください。");
             foreach (OverrideContent content in effect.Contents)
             {
-                OverrideText(effect, content);
+                OverrideText(skill, effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
                 if (spike && !IsRuleSpike(content.Type) && content.Type != OverrideContentType.SetRoleplayDescription && content.Type != OverrideContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && !IsRollSpike(content.Type) && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
                     throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
@@ -385,8 +385,7 @@ public static partial class SkillTextConverter
             return true;
         }
         CreateModifierRule(rule, p.Last());
-        int count = skill.Overrides.Where(e => e.Type == EffectType.Passive || e.Type == EffectType.Active)
-            .Sum(e => e.Contents.Count(c => { string[] candidate = ModifierRuleSelector(e, c); return candidate != null && candidate.SequenceEqual(rule); }));
+        int count = ModifierSpikeTargets(skill, rule[0]).Count(candidate => candidate.SequenceEqual(rule));
         if (count != 1) throw new InvalidOperationException("スパイクの対象となる基本補正を1件指定してください：" + string.Join(" / ", rule));
         return true;
     }

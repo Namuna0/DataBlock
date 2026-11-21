@@ -322,7 +322,7 @@ public static partial class SkillTextConverter
         skill.Overrides.Add(effect);
     }
 
-    private static string ModifierRuleOverrideText(OverrideDefinition effect, OverrideContent content)
+    private static string ModifierRuleOverrideText(SkillBody skill, OverrideDefinition effect, OverrideContent content)
     {
         if (content == null || effect == null) return null;
         if (content.Type == OverrideContentType.SetActivationRollTarget)
@@ -341,6 +341,8 @@ public static partial class SkillTextConverter
                 return "このカウンター効果による[" + rule[1] + "]の達成値は" + p.Last() + "倍される。";
             }
             var original = CreateModifierRule(rule, p.Last());
+            if (ResultMultiplierRules.Contains(rule[0]) && ModifierSpikeTargets(skill, ResultMultiplierRules).Take(2).Count() == 1)
+                return "このパッシブ効果による達成値上昇は×" + p.Last() + "倍に変化する。";
             return "この" + (original.Type == EffectType.Active ? "アクティブ" : "パッシブ") + "効果の補正を「" + ModifierRuleText(rule, p.Last()) + "」に変更する。";
         }
         string[] scope = ModifierRuleSelector(effect, content);

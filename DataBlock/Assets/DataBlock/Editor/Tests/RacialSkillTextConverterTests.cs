@@ -9,6 +9,38 @@ using UnityEngine;
 
 internal sealed class RacialSkillTextConverterTests
 {
+    [TestCase("スキルによって〈近接武器〉で武器攻撃を行う時、発動ロール達成値が×1.15倍される。")]
+    [TestCase("[知力B]および[魔力B]による行為判定を行う際、達成値が×1.15倍される。")]
+    public void ResultMultiplierSpikes_RoundTripWithOnlyTheNewFactor(string passive)
+    {
+        const string second = "【セカンドスパイク】このパッシブ効果による達成値上昇は×1.2倍に変化する。";
+        const string third = "【サードスパイク】このパッシブ効果による達成値上昇は×1.25倍に変化する。";
+        string source = "《倍率試験》\n〈種族スキル〉\n【パッシブ効果】" + passive + "\n" + second + "\n" + third;
+        var data = SkillTextConverter.Parse(source);
+
+        string rebuilt = SkillTextConverter.Build(data);
+        StringAssert.Contains(second + "\n" + third, rebuilt);
+        Assert.That(JsonUtility.ToJson(SkillTextConverter.Parse(rebuilt)), Is.EqualTo(JsonUtility.ToJson(data)));
+        string explicitSecond = "【セカンドスパイク】このパッシブ効果の補正を「" + passive.Replace("1.15", "1.2") + "」に変更する。";
+        Assert.That(SkillTextConverter.Normalize(source.Replace(second, explicitSecond)), Is.EqualTo(rebuilt));
+    }
+
+    [Test]
+    public void ResultMultiplierSpikes_KeepTheTargetWhenTwoMultipliersMatch()
+    {
+        const string weapon = "スキルによって〈近接武器〉で武器攻撃を行う時、発動ロール達成値が×1.15倍される。";
+        const string stat = "[知力B]による行為判定を行う際、達成値が×1.1倍される。";
+        const string header = "《複数倍率試験》\n〈種族スキル〉\n【パッシブ効果】\n" + weapon + "\n" + stat + "\n【セカンドスパイク】";
+        string change = "このパッシブ効果の補正を「" + weapon.Replace("1.15", "1.2") + "」に変更する。";
+        var data = SkillTextConverter.Parse(header + change);
+        string rebuilt = SkillTextConverter.Build(data);
+
+        StringAssert.Contains("【セカンドスパイク】" + change, rebuilt);
+        Assert.That(SkillTextConverter.Parse(rebuilt).Skill.Overrides.Single(e => e.Type == EffectType.SecondSpike)
+            .Contents.Single().Parameters, Is.EqualTo(new[] { "Rule", "WeaponActivation", "近接武器", "1.2" }));
+        Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(header + "このパッシブ効果による達成値上昇は×1.2倍に変化する。"));
+    }
+
     [Test]
     public void RacialSkills_AllFiveNormalizeAndRoundTrip()
     {
