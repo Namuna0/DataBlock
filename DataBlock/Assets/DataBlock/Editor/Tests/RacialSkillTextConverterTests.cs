@@ -41,6 +41,31 @@ internal sealed class RacialSkillTextConverterTests
         Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Parse(header + "このパッシブ効果による達成値上昇は×1.2倍に変化する。"));
     }
 
+    [TestCase("パッシブ", "環境による行為判定を行う際、達成値が+10される。", "達成値上昇", "+10", "+15")]
+    [TestCase("パッシブ", "〈錬金術〉による行為判定の達成値が+10される。", "達成値上昇", "+10", "+15")]
+    [TestCase("アクティブ", "このターン中、〈弓〉の武器威力を参照する〈攻撃〉の発動ロールの達成値が+10される。", "達成値上昇", "+10", "+15")]
+    [TestCase("パッシブ", "戦闘開始から2ターンの間、[敏捷B]による発動ロールの達成値が+5される。", "達成値上昇", "+5", "+7")]
+    [TestCase("パッシブ", "戦闘開始から2ターンの間、自身の被ダメージは×0.8倍される。", "被ダメージ", "×0.8倍", "×0.75倍")]
+    [TestCase("パッシブ", "〈弓, 忍具〉の装備を制作するとき、目標値が-10される。", "目標値の減少", "-10", "-15")]
+    [TestCase("パッシブ", "スキル習得に必要な消費決意が-5される。", "消費決意", "-5", "-7")]
+    [TestCase("パッシブ", "クラス《ナイト》の習得決意が×0.9倍される。", "消費決意", "×0.9倍", "×0.85倍")]
+    [TestCase("パッシブ", "一日の採取回数上限が+1追加される。", "採取回数上限", "+1", "+3")]
+    [TestCase("パッシブ", "SP最大値が×1.2倍される。", "SP最大値", "×1.2倍", "×1.25倍")]
+    [TestCase("パッシブ", "NPCへの〈貨幣〉を除くアイテムの売値が×1.1倍される。", "売値増加", "×1.1倍", "×1.15倍")]
+    [TestCase("パッシブ", "〈神聖術〉の威力が×1.2倍される。", "威力", "×1.2倍", "×1.25倍")]
+    [TestCase("パッシブ", "〈神聖術〉によるリソースの回復量が×1.2倍される。", "リソースの回復量", "×1.2倍", "×1.25倍")]
+    public void ModifierSpikes_ShortenQuotedChangesAndPreserveData(string section, string basis, string subject, string oldAmount, string newAmount)
+    {
+        string header = "《補正試験》\n〈種族スキル〉\n【" + section + "効果】" + basis + "\n【セカンドスパイク】";
+        string change = "この" + section + "効果の補正を「" + basis.Replace(oldAmount, newAmount) + "」に変更する。";
+        string shortChange = "この" + section + "効果による" + subject + "は" + newAmount + "に変化する。";
+        var data = SkillTextConverter.Parse(header + change);
+        string rebuilt = SkillTextConverter.Build(data);
+        StringAssert.Contains("【セカンドスパイク】" + shortChange, rebuilt);
+        Assert.That(SkillTextConverter.Normalize(header + shortChange), Is.EqualTo(rebuilt));
+        Assert.That(JsonUtility.ToJson(SkillTextConverter.Parse(rebuilt)), Is.EqualTo(JsonUtility.ToJson(data)));
+    }
+
     [Test]
     public void RacialSkills_AllFiveNormalizeAndRoundTrip()
     {

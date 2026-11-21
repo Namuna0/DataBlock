@@ -341,9 +341,14 @@ public static partial class SkillTextConverter
                 return "このカウンター効果による[" + rule[1] + "]の達成値は" + p.Last() + "倍される。";
             }
             var original = CreateModifierRule(rule, p.Last());
-            if (ResultMultiplierRules.Contains(rule[0]) && ModifierSpikeTargets(skill, ResultMultiplierRules).Take(2).Count() == 1)
-                return "このパッシブ効果による達成値上昇は×" + p.Last() + "倍に変化する。";
-            return "この" + (original.Type == EffectType.Active ? "アクティブ" : "パッシブ") + "効果の補正を「" + ModifierRuleText(rule, p.Last()) + "」に変更する。";
+            string heading = "この" + EffectNames[original.Type];
+            var field = ModifierSpikeField(rule);
+            if (MatchingSpikeTargets(skill, original.Type, field).Count() == 1)
+            {
+                string amount = field.Multiplier ? "×" + p.Last() + "倍" : p.Last();
+                return heading + "による" + field.Subject + "は" + amount + "に変化する。";
+            }
+            return heading + "の補正を「" + ModifierRuleText(rule, p.Last()) + "」に変更する。";
         }
         string[] scope = ModifierRuleSelector(effect, content);
         return scope == null ? null : ModifierRuleText(scope, content.Parameters.Last());
@@ -367,8 +372,6 @@ public static partial class SkillTextConverter
         m = M(s, @"^(?:このパッシブ効果による)?(ファンブル|クリティカル)のダイス(?:は|を)([0-9]+)～([0-9]+)(?:に変化する|にする)。?$");
         if (m.Success && (spike || type == EffectType.Passive))
         { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetRollRange, "Action", m.Groups[1].Value == "ファンブル" ? "Fumble" : "Critical", m.Groups[2].Value, m.Groups[3].Value)); return true; }
-        m = M(s, @"^このパッシブ効果による威力上昇は([0-9.]+)(?:倍)?に変化する。?$");
-        if (m.Success && spike) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, "CategoryPower"); return true; }
         m = M(s, @"^(.+?)状態の時、自身はターン開始時に([A-Z]+)を([0-9]+)得る。?$");
         if (m.Success && spike) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.StateTurnRecovery, m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value, "AnyTurn")); return true; }
         m = M(s, @"^被ダメージの軽減量を×([0-9.]+)倍する。?$");

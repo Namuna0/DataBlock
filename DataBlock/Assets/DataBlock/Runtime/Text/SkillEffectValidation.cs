@@ -384,8 +384,8 @@ public static partial class SkillTextConverter
                 .Count(c => c.Type == EffectContentType.RerollActivation && c.Parameters.SequenceEqual(new[] { "Self", rule[1], "TriggeringRoll" })) == 1);
             return true;
         }
-        CreateModifierRule(rule, p.Last());
-        int count = ModifierSpikeTargets(skill, rule[0]).Count(candidate => candidate.SequenceEqual(rule));
+        var original = CreateModifierRule(rule, p.Last());
+        int count = ModifierSpikeTargets(skill, original.Type).Count(candidate => candidate.SequenceEqual(rule));
         if (count != 1) throw new InvalidOperationException("スパイクの対象となる基本補正を1件指定してください：" + string.Join(" / ", rule));
         return true;
     }

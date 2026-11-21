@@ -18,19 +18,44 @@ public static partial class SkillTextConverter
         AddOverride(skill.Overrides, type, NoTriggers(), content);
     }
 
-    private static readonly string[] ResultMultiplierRules = { "ActionStats", "WeaponActivation" };
-
-    private static IEnumerable<string[]> ModifierSpikeTargets(SkillBody skill, params string[] kinds)
+    private static IEnumerable<string[]> ModifierSpikeTargets(SkillBody skill, EffectType baseType)
     {
-        return skill.Overrides.Where(e => e?.Contents != null && (e.Type == EffectType.Passive || e.Type == EffectType.Active))
+        return skill.Overrides.Where(e => e?.Type == baseType && e.Contents != null)
             .SelectMany(e => e.Contents.Select(c => ModifierRuleSelector(e, c)))
-            .Where(r => r != null && kinds.Contains(r[0]));
+            .Where(r => r != null);
     }
 
-    private static void ReplaceModifierSpike(SkillBody skill, EffectType type, string value, params string[] kinds)
+    private static (string Subject, bool Multiplier) ModifierSpikeField(string[] rule)
     {
-        var rules = ModifierSpikeTargets(skill, kinds).Take(2).ToList();
-        if (rules.Count != 1) throw new InvalidOperationException("変更対象の基本補正を一意に特定できません：" + string.Join(" / ", kinds));
+        switch (rule[0])
+        {
+            case "ActionStats":
+            case "WeaponActivation": return ("達成値上昇", true);
+            case "EnvironmentCheck":
+            case "CategoryCheck":
+            case "TimedWeaponActivation":
+            case "EarlyBattleActivation": return ("達成値上昇", false);
+            case "CraftCategories": return ("目標値の減少", false);
+            case "AcquisitionCost": return ("消費決意", rule[1] == "Multiply");
+            case "DailyGathering": return ("採取回数上限", false);
+            case "EarlyBattleDamage": return ("被ダメージ", true);
+            case "ResourceMaximum": return (rule[1] + "最大値", true);
+            case "SalePrice": return ("売値増加", true);
+            case "CategoryPower": return ("威力", true);
+            case "CategoryHealing": return ("リソースの回復量", true);
+            default: throw new InvalidOperationException("未対応の補正対象です：" + rule[0]);
+        }
+    }
+
+    private static IEnumerable<string[]> MatchingSpikeTargets(SkillBody skill, EffectType baseType, (string Subject, bool Multiplier) field)
+    {
+        return ModifierSpikeTargets(skill, baseType).Where(rule => ModifierSpikeField(rule) == field).Take(2);
+    }
+
+    private static void ReplaceModifierSpike(SkillBody skill, EffectType type, string value, string kind)
+    {
+        var rules = ModifierSpikeTargets(skill, EffectType.Passive).Where(rule => rule[0] == kind).Take(2).ToList();
+        if (rules.Count != 1) throw new InvalidOperationException("変更対象の基本補正を一意に特定できません：" + kind);
         AddModifierSpike(skill, type, value, rules[0]);
     }
 
@@ -67,36 +92,25 @@ public static partial class SkillTextConverter
             ReplaceModifierSpike(skill, type, m.Groups[1].Value, "EarlyBattleActivation");
             ReplaceModifierSpike(skill, type, m.Groups[2].Value, "EarlyBattleDamage"); return true;
         }
-        m = M(s, @"^このパッシブ効果による達成値上昇は×(.+?)倍に変化する。?$");
-        if (m.Success) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, ResultMultiplierRules); return true; }
-        m = M(s, @"^この(パッシブ|アクティブ)効果による達成値(?:の)?上昇は([+-].+?)に変化する。?$");
-        if (m.Success)
-        {
-            // Both 上昇 and 増加 describe the same single-stat increase.
-            if (m.Groups[1].Value == "パッシブ" && !ModifierSpikeTargets(skill, "EnvironmentCheck", "CategoryCheck", "TimedWeaponActivation", "EarlyBattleActivation").Any())
-                return TryReadPassiveSpike(skill, type, "このパッシブ効果による達成値増加は" + m.Groups[2].Value + "に変化する。");
-            ReplaceModifierSpike(skill, type, m.Groups[2].Value, m.Groups[1].Value == "アクティブ" ? new[] { "TimedWeaponActivation" } : new[] { "EnvironmentCheck", "CategoryCheck", "EarlyBattleActivation" }); return true;
-        }
-        m = M(s, @"^このパッシブ効果による目標値の減少は([+-].+?)に変化する。?$");
-        if (m.Success) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, "CraftCategories"); return true; }
-        m = M(s, @"^この(?:パッシブ|カウンター)効果による消費決意は([+-].+?)に変化する。?$");
-        if (m.Success)
-        {
-            // A counter heading here is accepted only when its unique target is the passive acquisition-cost modifier.
-            ReplaceModifierSpike(skill, type, m.Groups[1].Value, "AcquisitionCost"); return true;
-        }
-        m = M(s, @"^このパッシブ効果による採取回数上限は([+-].+?)に変化する。?$");
-        if (m.Success) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, "DailyGathering"); return true; }
-        m = M(s, @"^このパッシブ効果による([A-Z]+)最大値は×?(.+?)倍に変化する。?$");
-        if (m.Success) { AddModifierSpike(skill, type, m.Groups[2].Value, "ResourceMaximum", m.Groups[1].Value); return true; }
-        m = M(s, @"^このパッシブ効果による売値増加は×(.+?)倍に変化する。?$");
-        if (m.Success) { ReplaceModifierSpike(skill, type, m.Groups[1].Value, "SalePrice"); return true; }
         m = M(s, @"^このパッシブ効果による威力とリソースの回復量上昇は×?(.+?)倍に変化する。?$");
         if (m.Success)
         {
             ReplaceModifierSpike(skill, type, m.Groups[1].Value, "CategoryPower");
             ReplaceModifierSpike(skill, type, m.Groups[1].Value, "CategoryHealing"); return true;
         }
+        m = M(s, @"^この(パッシブ|アクティブ|カウンター)効果による(.+?)は(×?)([^、,。]+?)(倍?)に変化する。?$");
+        if (!m.Success) return false;
+        string heading = m.Groups[1].Value, subject = m.Groups[2].Value, value = m.Groups[4].Value;
+        if (heading == "カウンター" && subject != "消費決意") return false;
+        EffectType scope = heading == "アクティブ" ? EffectType.Active : EffectType.Passive;
+        bool multiplier = m.Groups[3].Length != 0 || m.Groups[5].Length != 0;
+        if (subject == "達成値の上昇") subject = "達成値上昇";
+        if (subject == "威力上昇") { subject = "威力"; multiplier = true; }
+        var targets = MatchingSpikeTargets(skill, scope, (subject, multiplier)).ToList();
+        if (targets.Count > 1) throw new InvalidOperationException("変更対象の基本補正を一意に特定できません：" + subject);
+        if (targets.Count == 1) { AddModifierSpike(skill, type, value, targets[0]); return true; }
+        if (scope == EffectType.Passive && subject == "達成値上昇" && !multiplier && (value.StartsWith("+") || value.StartsWith("-")))
+            return TryReadPassiveSpike(skill, type, "このパッシブ効果による達成値増加は" + value + "に変化する。");
         return false;
     }
 
