@@ -57,17 +57,13 @@ public static partial class SkillTextConverter
         if (declaration && TryMeleeStateException(set, out meleeSelection, out exceptionState))
         {
             var exceptionTexts = set.And.Select(x => x == meleeSelection ? "自身と同じ接近グループの" + ConditionText(x) : ConditionText(x)).ToList();
-            string exceptionResult = string.Join(", ", exceptionTexts);
-            const string distinct = "（重複不可）";
-            exceptionResult = exceptionResult.EndsWith(distinct) ? exceptionResult.Substring(0, exceptionResult.Length - distinct.Length) + "して宣言可能。" + distinct : exceptionResult + "して宣言可能。";
-            sb.AppendLine("【" + label + "】" + exceptionResult);
+            sb.AppendLine("【" + label + "】" + string.Join(", ", exceptionTexts));
             sb.AppendLine("自身が《" + exceptionState + "》状態なら、接近は不要。");
             return;
         }
         var texts = set.And.Select(ConditionText).ToList();
         if (set.Or.Count > 0) texts.Add("（" + string.Join(" または ", set.Or.Select(ConditionText)) + "）");
         if (texts.Count == 0) return;
-        string result = string.Join(", ", texts);
         if (declaration)
         {
             ConditionType last = set.And.Count == 0 ? ConditionType.None : set.And.Last().Type;
@@ -75,14 +71,8 @@ public static partial class SkillTextConverter
             {
                 if (set.Or.Count != 0 || set.And.Count != 1) throw new InvalidOperationException("自動発動条件は他の宣言条件と併用できません。");
             }
-            else if (set.Or.Count == 0 && (last == ConditionType.SelectCharactersExceptSelf || last == ConditionType.SelectRaceWithTrait || last == ConditionType.SelectCharactersWithState || last == ConditionType.SelectCharacterSkill || last == ConditionType.ExcludeTargetRaces || last == ConditionType.TargetStackMinimum || last == ConditionType.SelectCharacters || last == ConditionType.SelectMeleeCharacters || last == ConditionType.SelectEquippedWeapon || last == ConditionType.SelectEquippedWeaponFromCategories || last == ConditionType.SelectConsumedItem || last == ConditionType.SelectOwnState))
-            {
-                result = M(result, @"（重複(?:不可|可能)）$").Success
-                    ? RegexReplace(result, @"（(重複(?:不可|可能))）$", "して宣言可能。（$1）") : result + "して宣言可能。";
-            }
-            else if (set.Or.Count > 0 || last != ConditionType.SelectedItemConditionsMet) result += "宣言可能。";
         }
-        sb.AppendLine("【" + label + "】" + result);
+        sb.AppendLine("【" + label + "】" + string.Join(", ", texts));
     }
     private static void WriteEffectGroup(StringBuilder sb, SkillBody skill, EffectType type)
     {
@@ -107,7 +97,7 @@ public static partial class SkillTextConverter
             texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
         if (texts.Count == 0)
         {
-            if (type == EffectType.Passive && skill.Overrides.SelectMany(x => x.Contents).Any(x => x.Type == OverrideContentType.OptionalSpikeState)) sb.AppendLine("【パッシブ効果】無し。");
+            if (type == EffectType.Passive && skill.Overrides.SelectMany(x => x.Contents).Any(x => x.Type == OverrideContentType.OptionalSpikeState)) sb.AppendLine("【パッシブ効果】無し");
             return;
         }
         string effectName;

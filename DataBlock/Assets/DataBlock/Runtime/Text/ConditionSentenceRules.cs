@@ -46,7 +46,7 @@ public static partial class SkillTextConverter
         new SkillTextRule(ConditionType.SelectMeleeAttackTargetUnspecified, "自身と同じ接近グループの攻撃対象キャラクターを選択"),
         new SkillTextRule(ConditionType.EquipByClassDescription, "《{0}》クラス記載", RuleNamePattern),
         new SkillTextRule(ConditionType.AutomaticAcquisition, "自動習得"),
-        new SkillTextRule(ConditionType.SpendBeyondCurrent, "自身の宣言したスキルの消費{0}が現在の{1}を上回っている時に", RuleResourcePattern, RuleResourcePattern),
+        new SkillTextRule(ConditionType.SpendBeyondCurrent, "自身の宣言したスキルの消費{0}が現在の{1}を上回っている時", RuleResourcePattern, RuleResourcePattern),
         new SkillTextRule(ConditionType.CategoryCostBeyondCurrent, "自身の宣言した〈{0}〉の消費{1}が現在の{2}を上回っている時", RuleNamePattern, RuleResourcePattern, RuleResourcePattern),
         new SkillTextRule(ConditionType.TargetedByMeleeCharacter, "自身と同じ接近グループのキャラクターから選択対象になった時"),
         new SkillTextRule(ConditionType.EquippedNamedItem, "《{0}》の装備", RuleNamePattern),
@@ -93,8 +93,8 @@ public static partial class SkillTextConverter
         new SkillTextRule(ConditionType.HasTitle, "称号《{0}》の習得", RuleNamePattern),
         new SkillTextRule(ConditionType.PossessesItem, "《{0}》を所有している事", RuleNamePattern),
         new SkillTextRule(ConditionType.PossessesCategory, "〈{0}〉を所持している事", RuleNamePattern),
-        new SkillTextRule(ConditionType.SelectOwnedCategory, "所持している任意の〈{0}〉アイテムを{1}つ指定して", RuleNamePattern, RulePositivePattern),
-        new SkillTextRule(ConditionType.SelectOwnedEitherCategory, "所持している任意の〈{0}〉または〈{1}〉アイテムを{2}つ指定して", RuleNamePattern, RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectOwnedCategory, "所持している任意の〈{0}〉アイテムを{1}つ指定", RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectOwnedEitherCategory, "所持している任意の〈{0}〉または〈{1}〉アイテムを{2}つ指定", RuleNamePattern, RuleNamePattern, RulePositivePattern),
         new SkillTextRule(ConditionType.SelectNamedEquipment, "装備している《{0}》を{1}つ選択", RuleNamePattern, RulePositivePattern),
         new SkillTextRule(ConditionType.EquippedCount, "〈{0}〉を{1}つ装備", RuleNamePattern, RulePositivePattern),
         new SkillTextRule(ConditionType.EquippedAnyCategories, "〈{0}〉のいずれかを装備", RuleNamePattern),
@@ -127,7 +127,7 @@ public static partial class SkillTextConverter
         new SkillTextRule(ConditionType.PastStackSpend, "戦闘中《{0}》スタックを{1}以上消費している場合", RuleNamePattern, RulePositivePattern),
         new SkillTextRule(ConditionType.OwnSkillActivated, "自身が《{0}》を発動した時", RuleNamePattern),
         new SkillTextRule(ConditionType.AfterOwnCategoryDeclared, "自身が〈{0}〉を宣言した直後", RuleNamePattern),
-        new SkillTextRule(ConditionType.CounterToCategory, "自身の〈{0}〉に対してカウンターを発動された時に", RuleNamePattern),
+        new SkillTextRule(ConditionType.CounterToCategory, "自身の〈{0}〉に対してカウンターを発動された時", RuleNamePattern),
         new SkillTextRule(ConditionType.CounterCategoryToCategory, "自身の〈{0}〉に対して〈{1}〉を発動された時", RuleNamePattern, RuleNamePattern),
         new SkillTextRule(ConditionType.OwnActionInvalidated, "自身の〈{0}〉が対象の〈{1}〉によって無効化された時", RuleNamePattern, RuleNamePattern),
         new SkillTextRule(ConditionType.OwnRollTiming, "自身が{0}ロールを行う時", RuleNamePattern),
@@ -146,7 +146,7 @@ public static partial class SkillTextConverter
         new SkillTextRule(ConditionType.SpendChosenResource, "{0}を任意の分消費して", RuleResourcePattern),
         new SkillTextRule(ConditionType.SpendChosenStacks, "《{0}》スタックを任意の分消費して", RuleNamePattern),
         new SkillTextRule(ConditionType.CostByLearnedCategoryCount, "決意[習得済の〈{0}〉の数+{1}]×{2}消費", RuleNamePattern, @"[0-9]+", RulePositivePattern),
-        new SkillTextRule(ConditionType.SelectedPetSkillReaction, "自身が〈{0}〉及び所持している〈{1}〉のスキル宣言時に", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.SelectedPetSkillReaction, "自身が〈{0}〉及び所持している〈{1}〉のスキル宣言時", RuleNamePattern, RuleNamePattern),
         new SkillTextRule(ConditionType.MinimumHelpingMembers, "{0}人以上のパーティーメンバーにRPとして作業を手伝って貰う必要がある", RulePositivePattern),
         new SkillTextRule(ConditionType.SourceEvent, "{0}{1}より", RuleNamePattern, @"[0-9]{4}"),
         new SkillTextRule(ConditionType.SelectInventoryCategory, "所持している〈{0}〉を指定", RuleNamePattern),
@@ -161,7 +161,7 @@ public static partial class SkillTextConverter
         new SkillTextRule(ConditionType.SelectActionAndStateUser, "〈{0}〉及びバフ付与を受けた対象に対して", RuleNamePattern),
         new SkillTextRule(ConditionType.SelectOwnedCategoryAnyAndWeapon, "所持している任意の数の〈{0}〉及び〈{1}〉を選択", RuleNamePattern, RuleNamePattern),
         new SkillTextRule(ConditionType.KnownSkillAndOtherCategory, "《{0}》とそれ以外の《{1}》を{2}つ習得している事", RuleNamePattern, RuleNamePattern, RulePositivePattern),
-        new SkillTextRule(ConditionType.SelectTargetAndElement, "任意の対象{0}体と属性B指定して", RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectTargetAndElement, "任意の対象{0}体と属性B指定", RulePositivePattern),
         new SkillTextRule(ConditionType.AlliedActionTarget, "〈{0}〉の選択対象になった味方キャラクターに対して", RuleNamePattern),
         new SkillTextRule(ConditionType.IsStateCategoryTarget, "〈{0}〉状態のキャラクターに対して", RuleNamePattern),
         new SkillTextRule(ConditionType.RandomEnemyWithRepeats, "敵キャラクターからランダムに{0}体まで選択（重複する）", RulePositivePattern),
@@ -183,7 +183,11 @@ public static partial class SkillTextConverter
 
     private static string NormalizeConditionPhrasing(string text)
     {
-        text = RegexReplace(text, @"所持している〈([^〉]+)〉を([0-9]+)つ選択(?:して)?", "所持している任意の〈$1〉アイテムを$2つ指定して");
+        text = RegexReplace(text.Trim(), @"[,、]?\s*宣言可能。?\s*(?=$|[（(,、]|または)", "");
+        text = RegexReplace(text, @"(選択|指定)して(?=$|[。、,（(）)]|または| または )", "$1");
+        text = RegexReplace(text, @"時に(?=$|[。、,）)]| または )", "時");
+        text = RegexReplace(text, @"選択。\s*(?=[（(]重複)", "選択");
+        text = RegexReplace(text, @"所持している〈([^〉]+)〉を([0-9]+)つ選択(?:して)?", "所持している任意の〈$1〉アイテムを$2つ指定");
         text = text.Replace("（戦闘中同じ武器を選択し続ける必要がある。）", "戦闘中同じ武器を選択し続ける必要がある");
         text = text.Trim().Replace("宣言する事、対象を", "宣言する事, キャラクターを")
             .Replace("宣言する事, 対象を", "宣言する事, キャラクターを")
@@ -196,14 +200,12 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"〈([^〉]+)〉を装備している事。?$", "〈$1〉を装備");
         text = RegexReplace(text, @"(^|, )自身が〈([^〉]+)〉である(?:こと|事)。?(?=$|[,、])", "$1自身の種族が〈$2〉であること");
         text = RegexReplace(text, @"^同じ接近グループの", "自身と同じ接近グループの");
-        text = RegexReplace(text, @"([0-9]+体(?:まで)?選択)して発動可能。?", "$1して宣言可能。");
+        text = RegexReplace(text, @"([0-9]+体(?:まで)?選択)して発動可能。?", "$1");
         text = RegexReplace(text, @"1日([0-9]+)回(?:まで)?。?(?=$|[,、])", "1日$1回まで");
-        text = RegexReplace(text, @"所持している任意の〈([^〉]+)〉アイテムを([0-9]+)つ指定(?=$|[,、])", "所持している任意の〈$1〉アイテムを$2つ指定して");
         text = RegexReplace(text, @"戦闘中([0-9]+)度だけ[。、](?=\s*(?:キャラクター|自身|$))", "戦闘中$1度だけ, ");
         text = RegexReplace(text, @"〈([^〉]+)〉と〈([^〉]+)〉を1つ選択", "〈$1〉と〈$2〉を選択");
         text = RegexReplace(text, @"1日([0-9]+)度まで", "1日$1回まで");
-        text = RegexReplace(text, @"宣言可能[。]?(?=（重複可能）)", "宣言可能。");
-        text = text.Replace("時、宣言可能", "時宣言可能").Replace("味方全体を対象に", "味方キャラクターを全体を選択");
+        text = text.Replace("味方全体を対象に", "味方キャラクターを全体を選択");
         text = RegexReplace(text, @"種族が《([^《》、]+(?:》、《[^《》、]+)+)》のいずれか。?", "自身の種族が《$1》のいずれかであること");
         text = text.Replace("》、《", ", ");
         var namedSkills = M(text, @"((?:《[^《》]+》,\s*)+《[^《》]+》)の内いずれかを習得");
@@ -221,7 +223,7 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"決意消費([0-9]+)", "決意$1消費");
         text = RegexReplace(text, @"ライフパス《([^》]+)》を習得。?", "ライフパス《$1》の習得");
         text = RegexReplace(text, @"《([^》]+)》を習得している事。?", "《$1》の習得");
-        text = RegexReplace(text, @"スタンバイフェーズ(?:時|に)(?=\s*[,、。]|宣言可能|$)", "スタンバイフェーズ");
-        return text.Replace("である事。", "であること").Replace("片手が素手。", "片手が素手");
+        text = RegexReplace(text, @"スタンバイフェーズ(?:時|に)(?=\s*[,、。]|$)", "スタンバイフェーズ");
+        return text.Replace("である事。", "であること").Replace("片手が素手。", "片手が素手").TrimEnd('。');
     }
 }

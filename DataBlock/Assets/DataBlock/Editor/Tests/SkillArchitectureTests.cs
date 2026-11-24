@@ -26,6 +26,29 @@ internal sealed class SkillArchitectureTests
         return data.Skill.Effects.SelectMany(x => x.Contents);
     }
 
+    [TestCase("キャラクターを4体まで選択して宣言可能。（重複不可）", "キャラクターを4体まで選択（重複不可）")]
+    [TestCase("自身が〈攻撃〉を受けた時、宣言可能。", "自身が〈攻撃〉を受けた時")]
+    [TestCase("1ターンに2回まで, 敵または味方のターンの終了時に宣言可能。", "1ターンに2回まで, 敵または味方のターンの終了時")]
+    [TestCase("所持している武器を1つ選択して宣言可能。または素手を選択。", "所持している武器を1つ選択、または素手を選択")]
+    [TestCase("自身が〈任意状態〉かつ〈攻撃〉を受けた時、その対象へ宣言可能。", "自身が《任意》状態の時, 自身が〈攻撃〉を受けた時、その対象へ")]
+    public void DeclarationConditions_AcceptBothFormsAndWriteOnlyTheCondition(string original, string compact)
+    {
+        const string header = "【宣言条件】";
+        string built = SkillTextConverter.Build(RoundTrip(Source(header + original)));
+        Assert.That(built.Split('\n'), Does.Contain(header + compact));
+        Assert.That(SkillTextConverter.Normalize(Source(header + compact)), Is.EqualTo(built));
+    }
+
+    [Test]
+    public void DeclarationCondition_ContinuesAcrossCostsWithoutASuffix()
+    {
+        var data = RoundTrip(Source("【宣言条件】装備している〈槍〉を1つ選択,",
+            "【消費リソース】ACT-4", "自身と同じ接近グループのキャラクターを1体選択"));
+        Assert.That(data.Skill.DeclarationConditions.And.Select(c => c.Type),
+            Is.EqualTo(new[] { ConditionType.SelectEquippedWeapon, ConditionType.SelectMeleeCharacters }));
+        Assert.That(data.Skill.Costs.Single().Amount, Is.EqualTo(4));
+    }
+
     private static IEnumerable<OverrideContent> Overrides(SkillTextData data, EffectType stage)
     {
         return data.Skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents);

@@ -603,31 +603,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DataBlock
   Data:
     Skill:
-      Name: "\u95C7\u9ED2\u304B\u3089\u306E\u63D0\u6848"
+      Name: "\u63A2\u6C42\u5FC3"
       Categories:
-      - "\u79D8\u4F1D\u30B9\u30AD\u30EB"
-      - "\u653B\u6483"
-      - "\u30AA\u30FC\u30E9"
-      - "\u8D85\u7D1A"
+      - "\u7A2E\u65CF\u7279\u6027"
       AcquisitionConditions:
         And:
-        - Type: 6
-          Parameters:
-          - "\u6C7A\u610F"
-          - 90
+        - Type: 1
+          Parameters: []
         Or: []
       EquipmentConditions:
         And: []
         Or: []
       DeclarationConditions:
-        And:
-        - Type: 193
-          Parameters:
-          - 1
-          - 2
+        And: []
         Or: []
       Costs: []
-      CooldownTurns: 2
+      CooldownTurns: 0
       Roll:
         Count: 0
         Formula: 
@@ -636,18 +627,43 @@ MonoBehaviour:
         UseSummonerResult: 0
         SourceItemCategories: []
         RepresentativeCount: 0
-      Effects:
-      - Type: 1
+      Effects: []
+      Overrides:
+      - Type: 3
         Triggers: []
         Contents:
-        - Type: 310
+        - Type: 27
           Parameters:
-          - "2d100*[\u95C7\u5C5E\u6027B]*1.5"
-          - "\u95C7"
-          - SAN
-      Overrides: []
+          - Self
+          - "\u6C7A\u610F"
+          - Add
+          - AllSkills
+          - All
+          - -5
+      - Type: 8
+        Triggers: []
+        Contents:
+        - Type: 21
+          Parameters:
+          - Rule
+          - AcquisitionCost
+          - Add
+          - AllSkills
+          - All
+          - -7
+      - Type: 9
+        Triggers: []
+        Contents:
+        - Type: 21
+          Parameters:
+          - Rule
+          - AcquisitionCost
+          - Add
+          - AllSkills
+          - All
+          - -10
       Choices: []
-      Flavor: "\u305D\u306E\u56C1\u304D\u306B\u97F3\u306F\u9CF4\u304F\u3001\u3057\u304B\u3057\u6642\u306B\u4E0D\u601D\u8B70\u306A\u56E0\u679C\u3092\u3082\u305F\u3089\u3059\u3060\u308D\u3046\u3002"
+      Flavor: "\u3042\u306A\u305F\u306F\u69D8\u3005\u306A\u77E5\u8B58\u306B\u95A2\u5FC3\u3092\u6301\u3061\u5438\u53CE\u3059\u308B\u624D\u80FD\u3092\u6301\u3063\u3066\u3044\u308B\u3002"
     Summons: []
     States: []
 --- !u!4 &1782748332

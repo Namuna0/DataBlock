@@ -23,6 +23,7 @@ internal sealed class EnemyTextConverterTests
         EnemyTextData parsed = EnemyTextConverter.Parse(source);
 
         StringAssert.StartsWith("```\n", normalized);
+        Assert.That(normalized.Split('\n'), Does.Contain("【宣言条件】自身が〈攻撃〉を受けた時"));
         Assert.That(EnemyTextConverter.Build(parsed), Is.EqualTo(normalized));
         Assert.That(EnemyTextConverter.Normalize(normalized), Is.EqualTo(normalized));
 

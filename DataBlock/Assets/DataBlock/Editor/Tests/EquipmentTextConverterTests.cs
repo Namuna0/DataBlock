@@ -44,6 +44,7 @@ internal sealed class EquipmentTextConverterTests
         StringAssert.DoesNotContain("```swift", normalized);
         StringAssert.DoesNotContain("```none", normalized);
         StringAssert.DoesNotContain("```diff", normalized);
+        Assert.That(normalized.Split('\n'), Does.Contain("【宣言条件】装備から1日以上経過している事, 1日1回まで"));
         StringAssert.Contains("無限の霜星効果〈スタック〉：", normalized);
 
         for (int i = 0; i < ExpectedNames.Length; i++)

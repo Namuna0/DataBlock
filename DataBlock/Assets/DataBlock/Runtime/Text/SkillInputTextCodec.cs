@@ -252,7 +252,6 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"環境〈([^〉]+)〉および〈([^〉]+)〉による環境効果を受けない。", "環境《$1》および《$2》による環境効果を受けない。");
             line = RegexReplace(line, @"自身は自身のターン開始時([0-9]+)ダメージを受ける。", "自身は自身のターン開始時に$1のダメージを受ける。");
             line = RegexReplace(line, @"自身の\s*((?:\[[^\]]+\])(?:及び\[[^\]]+\])*)による達成値が([0-9.]+)倍される。", "$1による行為判定の達成値が×$2倍される。");
-            line = RegexReplace(line, @"(【宣言条件】)自身が《([^》]+)》を受けた時、その対象へ発動。?$", "$1自身が〈$2〉を受けた時、その対象へ宣言可能。");
             line = RegexReplace(line, @"自身への〈([^〉]+)〉を全て無効にする。", "自身への〈$1〉を無効にする。");
             // These two penalties have the same OR selector, but remain separate data.
             line = RegexReplace(line, @"自身は〈([^〉]+)〉および〈([^〉]+)〉を受けた時、被ダメージが×([0-9.]+)倍され、さらに([0-9]+)ターンの間《([^》]+)》状態となる。",

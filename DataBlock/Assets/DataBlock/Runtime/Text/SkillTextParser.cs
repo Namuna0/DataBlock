@@ -196,15 +196,11 @@ public static partial class SkillTextConverter
                 line = Unbullet(line);
                 if (state != null && ReadStateText(state, line, current, sections)) continue;
                 if (line.StartsWith("*") || line.StartsWith("＊")) throw new InvalidOperationException("未対応の状態の解除条件です：" + line);
-                if (conditions.Length > 0)
+                // 見出しをまたいで続く宣言条件も、条件の文型で読み取る。
+                if (conditions.Length > 0 || sections.Length == 0)
                 {
                     AddConditions(conditions == "習得条件" ? current.AcquisitionConditions : conditions == "装備条件" ? current.EquipmentConditions : current.DeclarationConditions, line); continue;
                 }
-                if (sections.Length == 0 && line.TrimEnd().EndsWith("宣言可能。", StringComparison.Ordinal))
-                {
-                    AddConditions(current.DeclarationConditions, line); continue;
-                }
-                if (sections.Length == 0) throw new InvalidOperationException("効果の見出しがありません。");
                 foreach (EffectType section in sections) ReadSkillLine(current, section, line);
             }
             catch (InvalidOperationException e) { throw new InvalidOperationException((i + 1) + "行目：" + e.Message + "\n原文：" + lines[i], e); }
@@ -256,10 +252,6 @@ public static partial class SkillTextConverter
         body = RegexReplace(body, @"(?<=\d)\s+(?=[A-Z]+-)", ", ").Replace('、', ',');
         foreach (string part in Split(body, ","))
         {
-            if (part.Contains("選択") && (part.Contains("宣言可能") || part.StartsWith("装備している")))
-            {
-                AddConditions(skill.DeclarationConditions, part); continue;
-            }
             var cost = new ResourceCost();
             Match m = M(part, @"^(全ての|任意の)([A-Z]+)$");
             if (m.Success) { cost.Resource = m.Groups[2].Value; cost.Quantity = m.Groups[1].Value == "全ての" ? CostQuantity.All : CostQuantity.Chosen; }
@@ -297,6 +289,7 @@ public static partial class SkillTextConverter
             { cost.Kind = CostKind.SelectedItem; cost.Resource = m.Groups[1].Value; cost.Amount = Number(m.Groups[2].Value, 1, "アイテム数"); }
             else if ((m = M(part, @"^([^\s\-〈〉《》\[\]]+)-([0-9]+)$")).Success)
             { cost.Resource = m.Groups[1].Value; cost.Amount = Number(m.Groups[2].Value, 0, "消費量"); }
+            else if (part.Contains("選択")) { AddConditions(skill.DeclarationConditions, part); continue; }
             else throw new InvalidOperationException("未対応の消費リソースです：" + part);
             skill.Costs.Add(cost);
         }

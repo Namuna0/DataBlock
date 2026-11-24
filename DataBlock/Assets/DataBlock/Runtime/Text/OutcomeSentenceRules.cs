@@ -57,7 +57,7 @@ public static partial class SkillTextConverter
         rules.Add(OverrideContentType.SetActiveResourceRecovery, "このアクティブ効果による{0}回復は{1}に変化する。", RuleResourcePattern, RulePositivePattern);
         rules.Add(OverrideContentType.SetNamedStateDamage, "《{0}》によるダメージは{1}に変化する。", RuleNamePattern, ArithmeticPattern);
         rules.Add(OverrideContentType.SetDefenseIgnoredAtRank, "このパッシブ効果による防御点の無視は{0}に変化する。", RulePositivePattern);
-        rules.Add(OverrideContentType.NoSpikeChange, "無し。");
+        rules.Add(OverrideContentType.NoSpikeChange, "無し");
         rules.Add(OverrideContentType.IncreaseRacialBonusByPosition, "種族能力値ボーナスの内{0}番の物が{1}%加算される。", RulePositivePattern, RuleSignedPattern);
         rules.Add(OverrideContentType.LearnNamedSkillAtRank, "スキル《{0}》を習得する。", RuleNamePattern);
         rules.Add(OverrideContentType.SetAdditionalRacialSkillCount, "このパッシブ効果によって追加習得する種族スキルは{0}つに変化する。", RulePositivePattern);
