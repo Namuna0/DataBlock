@@ -36,7 +36,7 @@ internal sealed class DataBlockJsonExportTests
         skill.States.Add(new StateDefinition { Name = "守護" });
         var equipment = new EquipmentTextData();
         equipment.Equipment.Skills.Add(skill);
-        equipment.Equipment.States.Add(new EquipmentStateDefinition { Name = "霜星" });
+        equipment.Equipment.States.Add(new StateDefinition { Name = "霜星" });
         var enemy = new EnemyTextData();
         enemy.Enemy.Skills.Add(skill);
         foreach (object data in new object[] { equipment, enemy, new CharacterProfileData { Definition = skill }, new SiegeWeaponData { Action = skill } })

@@ -44,7 +44,7 @@
 
 ## Runtime/Model変更一覧
 
-既存のenum番号は変更していない。JSONのルートはSkill／Summons／Statesを維持する。
+スキル本体、召喚、状態はそれぞれ別のJSONに出力する。
 
 ### ConditionModels.cs
 
@@ -78,16 +78,16 @@
 
 状態内のSelfは状態保持者、Applierは付与者。DelayedStateAttackのTargetは状態付与時に選択した対象を保持する。選択スキルの封印も、付与時のスキルの識別情報を状態インスタンスへ保持する。
 
-| OverrideContentType | Parameters |
+| EffectContentType | Parameters |
 |---|---|
-| AttributeWeaknessDamage = 35 | Self, HighestDisadvantageAttributeBonus |
-| PreventCounterTarget = 36 | ThisEffect |
-| SetStateControlLimit = 37 | 状態名, Turn, 上限 |
-| ConditionalStatePower = 38 | 行動カテゴリー, 自身の状態, 対象の状態, 相互接近状態, 倍率 |
-| ConditionalStateCost = 39 | 上と同じ4条件, リソース, 補正前消費下限, 加減量 |
-| SetConditionalStatePower = 40 | 上記威力補正の置換倍率 |
-| IgnoreDefenseForCategories = 41 | Self, カテゴリー1, カテゴリー2（両方） |
-| MultiplyStateAttackPower = 42 | 状態名, 倍率 |
+| AttributeWeaknessDamage = 615 | Self, HighestDisadvantageAttributeBonus |
+| PreventCounterTarget = 616 | ThisEffect |
+| SetStateControlLimit = 617 | 状態名, Turn, 上限 |
+| ConditionalStatePower = 618 | 行動カテゴリー, 自身の状態, 対象の状態, 相互接近状態, 倍率 |
+| ConditionalStateCost = 619 | 上と同じ4条件, リソース, 補正前消費下限, 加減量 |
+| SetConditionalStatePower = 620 | 上記威力補正の置換倍率 |
+| IgnoreDefenseForCategories = 621 | Self, カテゴリー1, カテゴリー2（両方） |
+| MultiplyStateAttackPower = 622 | 状態名, 倍率 |
 
 既存SetRollRangeに`Activation, Critical, 下限, 上限, 行動カテゴリー`の形式を追加。既存SetCooldown・SetStackAmountをスパイクでも利用する。
 

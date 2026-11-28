@@ -11,7 +11,7 @@ public static partial class SkillTextConverter
             .Where(x => x.Content.Type == EffectContentType.GainMappedStateStacks).ToList();
         var costs = skill.Overrides.Where(x => x.Type == EffectType.Passive)
             .SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c }))
-            .Where(x => x.Content.Type == OverrideContentType.ReduceResourceCostPerMappedStacks).ToList();
+            .Where(x => x.Content.Type == EffectContentType.ReduceResourceCostPerMappedStacks).ToList();
         var restores = skill.Effects.Where(x => IsMappedStackRestore(x, null)).ToList();
         if (gains.Count + costs.Count + restores.Count == 0) return;
 
@@ -49,13 +49,13 @@ public static partial class SkillTextConverter
         }
     }
 
-    private static string SetModifierKey(OverrideContent content)
+    private static string SetModifierKey(EffectContent content)
     {
         string[] p = VariableArgs(content.Parameters, 3, "SetModifier");
         return string.Join("\u001f", p.Take(p.Length - 1));
     }
 
-    private static void ValidateSetModifierTarget(SkillBody skill, OverrideContent content)
+    private static void ValidateSetModifierTarget(SkillBody skill, EffectContent content)
     {
         if (ValidateModifierRuleTarget(skill, content)) return;
         string[] p = VariableArgs(content.Parameters, 4, "SetModifier");
@@ -63,13 +63,11 @@ public static partial class SkillTextConverter
         switch (p[0])
         {
             case PowerModifier:
-                if (p.Length != 4 || p[1] != "ActionCategory") throw new InvalidOperationException("MultiplyPower置換の指定が不正です。");
-                count = skill.Overrides.Where(x =>
-                    {
-                        string category;
-                        return x.Type == EffectType.Passive && TryGetCategoryTrigger(x.Triggers, TriggerTiming.AttackPower, out category) && category == p[2];
-                    })
-                    .Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.MultiplyPower));
+                if (p.Length != 4 || p[1] != "ActionCategory") throw new InvalidOperationException("MultiplyActionPower置換の指定が不正です。");
+                count = skill.Overrides.Where(x => x.Type == EffectType.Passive && x.Triggers.Count == 0)
+                    .SelectMany(x => x.Contents)
+                    .Count(c => c.Type == EffectContentType.MultiplyActionPower && c.Parameters?.Count == 3 &&
+                        c.Parameters[0] == "Self" && c.Parameters[1] == p[2]);
                 break;
             case ResourceCostModifier:
                 if (p.Length != 5 || p[1] != "ActionCategory") throw new InvalidOperationException("MultiplyResourceCost置換の指定が不正です。");
@@ -78,13 +76,13 @@ public static partial class SkillTextConverter
                         string category;
                         return x.Type == EffectType.Passive && TryGetCategoryTrigger(x.Triggers, TriggerTiming.ResourceCost, out category) && category == p[2];
                     })
-                    .Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.MultiplyResourceCost &&
+                    .Sum(x => x.Contents.Count(c => c.Type == EffectContentType.MultiplyResourceCost &&
                         c.Parameters != null && c.Parameters.Count == 3 && c.Parameters[0] == "Self" && c.Parameters[1] == p[3]));
                 break;
             case StatModifier:
                 if (p.Length != 5) throw new InvalidOperationException("ModifyStat置換の指定が不正です。");
                 count = skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
-                    .Count(x => x.Type == OverrideContentType.ModifyStat && x.Parameters != null && x.Parameters.Count == 4 && x.Parameters.Take(3).SequenceEqual(p.Skip(1).Take(3)));
+                    .Count(x => x.Type == EffectContentType.ModifyStat && x.Parameters != null && x.Parameters.Count == 4 && x.Parameters.Take(3).SequenceEqual(p.Skip(1).Take(3)));
                 break;
             case ActionResultModifier:
                 if (p.Length != 4 || p[1] != "ActionStat") throw new InvalidOperationException("AddActionResult置換の指定が不正です。");
@@ -93,7 +91,7 @@ public static partial class SkillTextConverter
                         string stat;
                         return x.Type == EffectType.Passive && TryGetActionStatTrigger(x.Triggers, out stat) && stat == p[2];
                     })
-                    .Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.AddActionResult));
+                    .Sum(x => x.Contents.Count(c => c.Type == EffectContentType.AddActionResult));
                 break;
             default:
                 throw new InvalidOperationException("未対応の補正置換対象です：" + p[0]);

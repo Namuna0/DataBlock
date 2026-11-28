@@ -83,7 +83,7 @@ public static partial class SkillTextConverter
     }
     private static string StateTarget(string stateName) { return AllWithStatePrefix + Need(stateName, "対象状態名"); }
     private static ConditionEntry Condition(ConditionType type, params string[] p) { return new ConditionEntry { Type = type, Parameters = p.ToList() }; }
-    private static EffectContent Content(EffectContentType type, params string[] p) { return new EffectContent { Type = type, Parameters = p.ToList() }; }
+    private static EffectContent Content(EffectContentType type, params string[] p) => CommonEffectTextCodec.Effect(type, p);
     private static TriggerDefinition Trigger(TriggerTiming timing, params ConditionEntry[] conditions)
     {
         return new TriggerDefinition { Timing = timing, Conditions = new ConditionSet { And = conditions.ToList() } };
@@ -185,10 +185,10 @@ public static partial class SkillTextConverter
     }
 
     private static readonly EffectType[] DisplayOrder = { EffectType.Declaration, EffectType.Active, EffectType.Counter, EffectType.Passive, EffectType.Roleplay, EffectType.Success, EffectType.Failure, EffectType.Critical, EffectType.Fumble, EffectType.SecondSpike, EffectType.ThirdSpike };
-    private static OverrideContent Change(OverrideContentType type, params string[] p) { return new OverrideContent { Type = type, Parameters = p.ToList() }; }
-    private static void AddOverride(List<OverrideDefinition> list, EffectType type, List<TriggerDefinition> triggers, params OverrideContent[] contents)
+    private static EffectContent Change(EffectContentType type, params string[] p) => Content(type, p);
+    private static void AddOverride(List<EffectDefinition> list, EffectType type, List<TriggerDefinition> triggers, params EffectContent[] contents)
     {
-        list.Add(new OverrideDefinition { Type = type, Triggers = triggers, Contents = contents.ToList() });
+        list.Add(new EffectDefinition { Type = type, Triggers = triggers, Contents = contents.ToList() });
     }
     private static bool IsOrdinary(EffectType type)
     {

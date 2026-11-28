@@ -6,14 +6,14 @@ using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
-    private static bool IsAppliedStateSpike(OverrideContentType type)
+    private static bool IsAppliedStateSpike(EffectContentType type)
     {
-        return type == OverrideContentType.SetAppliedStateDuration || type == OverrideContentType.SetStateDamageMultiplier || type == OverrideContentType.SetOnAppliedStateRecovery;
+        return type == EffectContentType.SetAppliedStateDuration || type == EffectContentType.SetStateDamageMultiplier || type == EffectContentType.SetOnAppliedStateRecovery;
     }
 
     private static void AddModifierSpike(SkillBody skill, EffectType type, string value, params string[] rule)
     {
-        var content = Change(OverrideContentType.SetModifier, new[] { "Rule" }.Concat(rule).Concat(new[] { value }).ToArray());
+        var content = Change(EffectContentType.SetModifier, new[] { "Rule" }.Concat(rule).Concat(new[] { value }).ToArray());
         ValidateModifierRuleTarget(skill, content);
         AddOverride(skill.Overrides, type, NoTriggers(), content);
     }
@@ -77,12 +77,12 @@ public static partial class SkillTextConverter
         m = M(s, @"^この発動ロールによる目標値は(.+?)に変化する。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollTarget, m.Groups[1].Value)); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetActivationRollTarget, m.Groups[1].Value)); return true;
         }
         m = M(s, @"^このアクティブ効果による目標値は([+-][0-9]+)される。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.AddTargetValue, m.Groups[1].Value)); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.AddTargetValue, m.Groups[1].Value)); return true;
         }
         m = M(s, @"^このカウンター効果による\[([^\]]+)\]の達成値は×?(.+?)倍される。?$");
         if (m.Success) { AddModifierSpike(skill, type, m.Groups[2].Value, "RerollResult", m.Groups[1].Value); return true; }
@@ -116,10 +116,10 @@ public static partial class SkillTextConverter
 
     private static bool IsSpikeStage(EffectType type) { return type == EffectType.SecondSpike || type == EffectType.ThirdSpike; }
 
-    private static bool IsStateReferenceSpike(OverrideContentType type)
+    private static bool IsStateReferenceSpike(EffectContentType type)
     {
-        return type == OverrideContentType.SetCooldown || type == OverrideContentType.SetStackAmount ||
-            type == OverrideContentType.SetStateControlLimit || type == OverrideContentType.SetConditionalStatePower;
+        return type == EffectContentType.SetCooldown || type == EffectContentType.SetStackAmount ||
+            type == EffectContentType.SetStateControlLimit || type == EffectContentType.SetConditionalStatePower;
     }
 
 }

@@ -28,6 +28,7 @@ public sealed class RulebookCell
         if (Data is SkillTextData skill) return SkillTextConverter.Build(skill);
         if (Data is CharacterProfileData profile) return SkillTextConverter.BuildProfile(profile);
         if (Data is SiegeWeaponData siege) return SkillTextConverter.BuildSiegeWeapon(siege);
+        if (Data is EquipmentTextData equipment) return EquipmentTextConverter.Build(equipment);
         throw new InvalidOperationException(Error);
     }
 }
@@ -81,28 +82,39 @@ public static class RulebookCsv
     private static RulebookCell ParseCell(string source, int row, int column)
     {
         if (string.IsNullOrWhiteSpace(source)) return null;
+        if (source.IndexOf('\n') < 0 && source.IndexOf('\r') < 0 && source.Contains("【レアリティ】"))
+            source = EquipmentTextConverter.PrepareInput(source);
         var lines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
             .Select(s => s.Trim()).SkipWhile(s => s.Length == 0 || s.StartsWith("```", StringComparison.Ordinal))
             .TakeWhile(s => !s.StartsWith("――――――――", StringComparison.Ordinal)).ToArray();
-        if (lines.Length == 0 || !lines[0].StartsWith("《") || !lines[0].EndsWith("》")) return null;
-        string name = lines[0].Substring(1, lines[0].Length - 2);
+        if (lines.Length == 0 || !lines[0].StartsWith("《", StringComparison.Ordinal)) return null;
+        var title = DataBlockText.GetRegex(@"^《([^《》]+)》(☆[1-9][0-9]*)?$").Match(lines[0]);
+        if (!title.Success) return null;
+        string name = title.Groups[1].Value;
         if ((source.Contains("秘匿") || source.Contains("兵器")) && !IncludedNames.Contains(name)) return null;
         bool profile = lines.Any(s => s.StartsWith("【種族能力値ボーナス】") || s.StartsWith("【クラス能力値】")) ||
                        lines.Skip(1).Take(1).Any(s => s == "〈種族〉" || s.StartsWith("〈種族,"));
         bool siege = lines.Skip(1).Take(1).Any(s => s == "〈兵器〉" || s.StartsWith("〈兵器,"));
-        if (!profile && !siege && !lines.Any(s => s.StartsWith("【") && (s.IndexOf("効果】", StringComparison.Ordinal) >= 0 || s.StartsWith("【説明】")))) return null;
-        // An unfinished row may have a title and valid headings. A missing target,
-        // an empty element branch or a dangling conditional still makes it a draft.
-        if (lines.Any(s => s == "この" || (s.StartsWith("【発動ロール】") && s.EndsWith("目標値")) ||
-            (s.StartsWith("- ") && s.TrimEnd('：', ':').Length == 3 && "火水風電冷土光闇".Contains(s.Substring(2, 1))))) return null;
-        if (lines.Any(s => s == "【説明】下記の効果を一つ選んで実行する。") && !lines.Any(s => s.StartsWith("●"))) return null;
-        string last = lines.LastOrDefault(s => s.Length > 0 && !s.StartsWith("```"));
-        if (last != null && (last.EndsWith("を受けた時") || last.EndsWith("を受けた時、"))) return null;
+        bool equipment = !siege && !profile && lines.Skip(1).FirstOrDefault()?.StartsWith("〈", StringComparison.Ordinal) == true
+            && (lines.Any(line => line.StartsWith("【装備部位】") || line.StartsWith("【装備効果】")) ||
+                (lines.Any(line => line.StartsWith("【レアリティ】")) && lines.Any(line => line.StartsWith("【サイズ】"))));
+        if (!equipment && title.Groups[2].Success) return null;
+        if (!equipment && IsSkillDraft(lines, profile || siege)) return null;
         try
         {
             object data;
             if (profile) data = SkillTextConverter.ParseProfile(source);
             else if (siege) data = SkillTextConverter.ParseSiegeWeapon(source);
+            else if (equipment)
+            {
+                if (lines.Any(DataBlockText.GetRegex(@"^(?:【[^】]+】\s*)?[?？]{3,}[。.]?$").IsMatch)) return null;
+                var item = EquipmentTextConverter.Parse(source, csvCell: true);
+                var definition = item.Equipment;
+                if (string.IsNullOrWhiteSpace(definition.Flavor) && string.IsNullOrEmpty(definition.WeaponPowerFormula) &&
+                    definition.WeaponModes.Count == 0 && definition.EffectGroups.Count == 0 && definition.Skills.Count == 0 &&
+                    definition.States.Count == 0 && definition.GradeAdjustments.Count == 0) return null;
+                data = item;
+            }
             else data = SkillTextConverter.Parse(source);
             return new RulebookCell(row, column, name, data, null);
         }
@@ -110,5 +122,18 @@ public static class RulebookCsv
         {
             return new RulebookCell(row, column, name, null, e.Message);
         }
+    }
+
+    private static bool IsSkillDraft(string[] lines, bool hasDefinition)
+    {
+        if (!hasDefinition && !lines.Any(s => s.StartsWith("【") && (s.IndexOf("効果】", StringComparison.Ordinal) >= 0 || s.StartsWith("【説明】")))) return true;
+        // An unfinished row may have a title and valid headings. A missing target,
+        // an empty element branch or a dangling conditional still makes it a draft.
+        if (lines.Any(s => s == "この" || (s.StartsWith("【発動ロール】") && s.EndsWith("目標値")) ||
+            (s.StartsWith("- ") && s.TrimEnd('：', ':').Length == 3 && "火水風電冷土光闇".Contains(s.Substring(2, 1))))) return true;
+        if (lines.Any(s => s == "【説明】下記の効果を一つ選んで実行する。") && !lines.Any(s => s.StartsWith("●"))) return true;
+        string last = lines.LastOrDefault(s => s.Length > 0 && !s.StartsWith("```"));
+        if (last != null && (last.EndsWith("を受けた時") || last.EndsWith("を受けた時、"))) return true;
+        return false;
     }
 }

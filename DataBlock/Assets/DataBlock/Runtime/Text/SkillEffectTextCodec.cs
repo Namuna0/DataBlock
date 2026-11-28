@@ -52,6 +52,8 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"^(?:さらに[、]?\s*)?自身に付与されている(〈[^〉]+〉)状態は全て解除される。?$", "自身に付与されている$1状態を全て解除する。");
         text = RegexReplace(text, @"^自身に付与されている状態(〈[^〉]+〉)を解除する", "自身に付与されている$1状態を全て解除する");
         text = RegexReplace(text, @"^《([^》]+)》スタックを([0-9]+)付与する。?$", "対象に《$1》スタックを$2付与する。");
+        text = text.Replace("このエリアを移動するまでの間", "このエリアを移動するまで");
+        text = RegexReplace(text, @"^自身は自身に《([^》]+)》スタックを(.+?)得る。?$", "自身に《$1》スタックを$2付与する。");
         return text;
     }
 
@@ -64,9 +66,27 @@ public static partial class SkillTextConverter
             foreach (string clause in Split(statement, ",")) ReadSkillLine(skill, type, clause);
             return;
         }
+        if (IsSpikeStage(type))
+        {
+            Match cost = M(statement, @"^このスキルによる消費リソースは-([0-9]+)に変化する。?$");
+            if (cost.Success)
+            {
+                if (skill.Costs.Count != 1 || skill.Costs[0].Kind != CostKind.Resource)
+                    throw new InvalidOperationException("消費リソースを省略できるのは通常リソースのコストが1つだけの時です。");
+                statement = skill.Costs[0].Resource + "の消費が" + cost.Groups[1].Value + "になる。";
+            }
+        }
+        // Some full rule sentences begin with さらに; read those before interpreting it as a conjunction.
+        if (statement.StartsWith("さらに", StringComparison.Ordinal) && IsOrdinary(type) &&
+            CommonEffectTextCodec.TryReadRuleSentence(statement, out var wholeRule))
+        {
+            AddSkillEffect(skill, type, wholeRule);
+            return;
+        }
         if (ReadSkillStatement(skill, type, statement)) return;
         if (type != EffectType.Roleplay && statement.TrimEnd('。').Contains("。"))
         {
+            if (IsOrdinary(type) && ReadSharedEffect(skill, type, statement, NoTriggers())) return;
             var sentences = Split(statement, "。");
             if (sentences.Count > 1)
             {
@@ -88,44 +108,44 @@ public static partial class SkillTextConverter
                 if (combinedSpike.Success)
                 {
                     AddOverride(skill.Overrides, type, NoTriggers(),
-                        Change(OverrideContentType.SetSkillValue, combinedSpike.Groups[1].Value),
-                        Change(OverrideContentType.SetAttackComponent, "AttributePower", combinedSpike.Groups[2].Value));
+                        Change(EffectContentType.SetSkillValue, combinedSpike.Groups[1].Value),
+                        Change(EffectContentType.SetAttackComponent, "AttributePower", combinedSpike.Groups[2].Value));
                     continue;
                 }
                 Match spike = M(body, @"^このアクティブ効果によるスキル値は(.+?)に変化する。?$");
                 if (spike.Success)
                 {
-                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetSkillValue, spike.Groups[1].Value));
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetSkillValue, spike.Groups[1].Value));
                     continue;
                 }
                 spike = M(body, @"^自身が《([^》]+)》状態の時[、,]\s*(?:(?:このアクティブ効果による)?スキル値は)?(.+?)に変化する。?$");
                 if (spike.Success)
                 {
-                    AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.SkillValue, Condition(ConditionType.OwnState, spike.Groups[1].Value))), Change(OverrideContentType.SetSkillValue, spike.Groups[2].Value));
+                    AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.SkillValue, Condition(ConditionType.OwnState, spike.Groups[1].Value))), Change(EffectContentType.SetSkillValue, spike.Groups[2].Value));
                     continue;
                 }
                 spike = M(body, @"^この(?:アクティブ|カウンター)効果による軽減は(.+?)に変化する。?$");
                 if (spike.Success)
                 {
-                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetDamageReduction, spike.Groups[1].Value));
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetDamageReduction, spike.Groups[1].Value));
                     continue;
                 }
                 spike = M(body, @"^このアクティブ効果による属性威力は(.+?)に変化する。?$");
                 if (spike.Success)
                 {
-                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackComponent, "AttributePower", spike.Groups[1].Value));
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetAttackComponent, "AttributePower", spike.Groups[1].Value));
                     continue;
                 }
                 spike = M(body, @"^この発動ロールは(.+?)に変化する。?$");
                 if (spike.Success)
                 {
-                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetActivationRollFormula, spike.Groups[1].Value));
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetActivationRollFormula, spike.Groups[1].Value));
                     continue;
                 }
                 if (skill.Effects.Any(e => e.Type == EffectType.Roleplay) &&
                     M(body, @"(?:にまで及ぶ(?:こともある|かもしれない)|(?:知識|洞察)を得る|分析を行う|深い造詣を持つ|並ぶものは居ない)。$").Success)
                 {
-                    AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetRoleplayDescription, body));
+                    AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetRoleplayDescription, body));
                     continue;
                 }
                 throw new InvalidOperationException("スパイクはスキル値・属性威力・被ダメージ軽減値・発動ロールの変更に対応します。");
@@ -173,13 +193,15 @@ public static partial class SkillTextConverter
                 body = risk.Groups[2].Value;
             }
             var atoms = Split(body, ",");
+            var direct = atoms.Count == 1 ? ReadDirectEffectContent(body) : null;
+            if (direct == null && ReadSharedEffect(skill, type, body, triggers)) continue;
             foreach (string atom in atoms)
             {
                 if (atoms.Count > 1 && triggers.Count == 0 && ReadSkillStatement(skill, type, atom)) continue;
                 if (M(atom, @"^対象1体を").Success && !skill.DeclarationConditions.And.Any(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) && c.Parameters.SequenceEqual(new[] { "1", "Exact", "Default" })))
                     throw new InvalidOperationException("対象1体の攻撃には、ちょうど1体を選択する宣言条件を指定してください。");
                 var effect = new EffectDefinition { Type = type, Triggers = triggers };
-                EffectContent content = ReadContent(atom);
+                EffectContent content = direct ?? ReadContent(atom);
                 if (content.Type == EffectContentType.RollDice && content.Parameters.Count == 2 && content.Parameters[0].Length == 0)
                 {
                     var usedIds = new HashSet<string>(skill.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.RollDice && x.Parameters.Count == 2).Select(x => x.Parameters[0]), StringComparer.Ordinal);
@@ -191,6 +213,16 @@ public static partial class SkillTextConverter
             }
         }
     }
+    private static bool ReadSharedEffect(SkillBody skill, EffectType type, string body, List<TriggerDefinition> triggers)
+    {
+        if (!CommonEffectTextCodec.TryReadRuleContents(body, out var contents)) return false;
+        if (type == EffectType.Passive && triggers.Count == 0 && contents.All(c => c.Type == EffectContentType.ModifyStat))
+            AddOverride(skill.Overrides, type, triggers, contents.ToArray());
+        else
+            skill.Effects.Add(new EffectDefinition { Type = type, Triggers = triggers, Contents = contents });
+        return true;
+    }
+
     private static List<TriggerDefinition> MasteryTriggers(string equipped, string weapon, string action)
     {
         return new List<TriggerDefinition>
@@ -214,58 +246,63 @@ public static partial class SkillTextConverter
     private static bool ReadSkillOverride(SkillBody skill, EffectType type, string body)
     {
         Match m = M(body, @"^属性威力(?:は|が)?×?(.+?)倍(?:される)?。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.MultiplyAttackComponent, "AttributePower", m.Groups[1].Value)); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.MultiplyAttackComponent, "AttributePower", m.Groups[1].Value)); return true; }
         m = M(body, @"^対象のHPが最大値の半分以下なら属性威力(?:は|が)×?(.+?)倍される。?$");
         if (m.Success)
         {
             AddOverride(skill.Overrides, type,
                 On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ResourceRatio, "Target", "HP", "AtMost", "0.5"))),
-                Change(OverrideContentType.MultiplyAttackComponent, "AttributePower", m.Groups[1].Value)); return true;
+                Change(EffectContentType.MultiplyAttackComponent, "AttributePower", m.Groups[1].Value)); return true;
         }
         if (body.TrimEnd('。') == "この攻撃は対象の防御点の影響を受けない")
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackRule, "Defense", "Ignore")); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetAttackRule, "Defense", "Ignore")); return true;
         }
         m = M(body, @"^このスキルを対象に〈([^〉]+)〉を宣言する事は出来ない。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackRule, "Response", m.Groups[1].Value, "Prohibit")); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetAttackRule, "Response", m.Groups[1].Value, "Prohibit")); return true;
         }
         m = M(body, @"^威力(?:は|が)?×?(.+?)倍(?:される)?。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.MultiplyPower, m.Groups[1].Value)); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.MultiplyPower, m.Groups[1].Value)); return true; }
         m = M(body, @"^自身が《([^》]+)》状態の時[、,]\s*(?:この(?:アクティブ効果による)?)?スキル値は(.+?)に変化する。?$");
         if (m.Success)
         {
             if (type != EffectType.Active) throw new InvalidOperationException("条件付きスキル値変更はアクティブ効果に指定してください。");
-            AddOverride(skill.Overrides, type, SkillValueWhenOwnState(m.Groups[1].Value), Change(OverrideContentType.SetSkillValue, m.Groups[2].Value)); return true;
+            AddOverride(skill.Overrides, type, SkillValueWhenOwnState(m.Groups[1].Value), Change(EffectContentType.SetSkillValue, m.Groups[2].Value)); return true;
         }
         m = M(body, @"^([A-Z]+)の消費(?:が|は)(.+?)になる。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetResourceCost, m.Groups[1].Value, m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetResourceCost, m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(body, @"^クールタイム(?:が|は)(.+?)になる。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetCooldown, m.Groups[1].Value)); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetCooldown, m.Groups[1].Value)); return true; }
         if (body.TrimEnd('。') == "この攻撃の発動ロールに成功した時、確定でクリティカル扱いとなる" || body.TrimEnd('。') == "この攻撃の発動ロールに成功した時、クリティカルとして扱う")
         {
-            AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.AfterActivationRoll, Condition(ConditionType.RollSucceeded))), Change(OverrideContentType.SetCritical, "True")); return true;
+            AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.AfterActivationRoll, Condition(ConditionType.RollSucceeded))), Change(EffectContentType.SetCritical, "True")); return true;
         }
         m = M(body, @"^(?:選択した)?状態の持続ターン(?:を|は)([+-]?.+?)(?:加算する|される)。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.AddStateDuration, "SelectedState", Signed(m.Groups[1].Value))); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.AddStateDuration, "SelectedState", Signed(m.Groups[1].Value))); return true; }
         m = M(body, @"^自身の消費([A-Z]+)(?:を|は)([+-].+?)(?:する事が出来る|される。?[（(]任意[）)])。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ResourceCost)), Change(OverrideContentType.AddResourceCost, "Self", m.Groups[1].Value, Signed(m.Groups[2].Value), "Optional")); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ResourceCost)), Change(EffectContentType.AddResourceCost, "Self", m.Groups[1].Value, Signed(m.Groups[2].Value), "Optional")); return true; }
         m = M(body, @"^消費([A-Z]+)([+-].+?)。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.AddResourceCost, "Self", m.Groups[1].Value, Signed(m.Groups[2].Value), "Automatic")); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.AddResourceCost, "Self", m.Groups[1].Value, Signed(m.Groups[2].Value), "Automatic")); return true; }
         m = M(body, @"^この攻撃は〈([^〉]+)〉によるカウンター効果で(自身|対象|付与者)にダメージを与えることはできない。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.PreventCounterDamage, ActorKey(m.Groups[2].Value), m.Groups[1].Value)); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.PreventCounterDamage, ActorKey(m.Groups[2].Value), m.Groups[1].Value)); return true; }
         m = M(body, @"^スキルによって〈([^〉]+)〉で武器攻撃を行う時[、,]\s*威力(?:が|は)×?(.+?)倍される。?$");
-        if (m.Success) { AddOverride(skill.Overrides, type, SkillWeaponPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(skill.Overrides, type, SkillWeaponPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPower, m.Groups[2].Value)); return true; }
         m = M(body, @"^自身(?:が|は)〈([^〉]+)〉を装備している場合[、,]\s*〈([^〉]+)〉による武器攻撃(?:、?及び|または)〈([^〉]+)〉(?:による)?目標値(?:が|は)([+-].+?)される。?$");
         if (!m.Success) m = M(body, @"^自身(?:が|は)〈([^〉]+)〉を装備している場合[、,]\s*〈([^〉]+)〉による武器攻撃または〈([^〉]+)〉の目標値(?:が|は)([+-].+?)される。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, MasteryTriggers(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value), Change(OverrideContentType.AddTargetValue, Signed(m.Groups[4].Value))); return true;
+            AddOverride(skill.Overrides, type, MasteryTriggers(m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value), Change(EffectContentType.AddTargetValue, Signed(m.Groups[4].Value))); return true;
         }
         return false;
     }
     private static EffectContent ReadContent(string text)
+    {
+        return ReadDirectEffectContent(text) ?? throw new InvalidOperationException("未対応の効果です：" + text);
+    }
+
+    internal static EffectContent ReadDirectEffectContent(string text)
     {
         string s = RegexReplace(Unbullet(text), @"^さらに\s*", "").Trim();
         Match m = M(s, @"^味方キャラクター全員の([A-Z]+)を(.+?)回復する。?$");
@@ -338,13 +375,13 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.ApplyConsumedItemActive, m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^(自身|対象|付与者)は《([^》]+)》スタックを(.+?)得る。?[（(]最大([0-9]+)スタック[）)]。?$");
         if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value, m.Groups[4].Value);
-        m = M(s, @"^(自身|対象|付与者)は(.+?)(?:の)?ダメージを受ける。?$");
+        m = M(s, @"^(自身|対象|付与者)は(?!.*ターン開始時)(.+?)(?:の)?ダメージを受ける。?$");
         if (m.Success) return Content(EffectContentType.Damage, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^(対象|自身|付与者)に([0-9]+)のダメージを与える。?$");
         if (m.Success) return Content(EffectContentType.Damage, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^(自身|対象|付与者)への((?:〈[^〉]+〉)(?:(?:及び|または)〈[^〉]+〉)*)を無効にする。?$");
         if (m.Success) return Content(EffectContentType.InvalidateIncomingAction, new[] { ActorKey(m.Groups[1].Value) }.Concat(AllMatches(m.Groups[2].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
-        throw new InvalidOperationException("未対応のスキル効果です：" + s);
+        return null;
     }
     private static bool ValidConditions(ConditionSet c)
     {
@@ -362,9 +399,32 @@ public static partial class SkillTextConverter
     }
     private static string SkillContentText(EffectContent content)
     {
+        return WriteCommonSkillEffect(content) ?? CommonEffectTextCodec.WriteRuleContent(content)
+            ?? throw new InvalidOperationException("通常効果には使用できない種別です：" + content.Type);
+    }
+
+    // Direct operations carry their target and arguments. Stage-dependent
+    // replacements and triggers are interpreted by the owning block.
+    internal static bool TryReadCommonSkillEffect(string text, out List<EffectContent> contents)
+    {
+        string statement = NormalizeEffectSentence(Unbullet(text));
+        EffectContent content = ReadCommonSentenceRule(statement) ?? ReadDirectItemEffect(statement) ??
+            ReadDirectResourceEffect(statement) ?? ReadBasicEffectContent(statement) ?? ReadDirectEffectContent(statement);
+        if (content == null || content.Type == EffectContentType.RemoveSummon ||
+            (content.Type == EffectContentType.RollDice && string.IsNullOrEmpty(content.Parameters[0])))
+        {
+            contents = null;
+            return false;
+        }
+        contents = new List<EffectContent> { content };
+        return true;
+    }
+
+    internal static string WriteCommonSkillEffect(EffectContent content)
+    {
         string raceRecovery = RaceAndRecoveryContentText(content);
         if (raceRecovery != null) return raceRecovery;
-        string semantic = SemanticRuleContentText(content, false);
+        string semantic = SemanticRuleContentText(content, false) ?? SemanticRuleContentText(content, true);
         if (semantic != null) return semantic;
         string equipmentItem = EquipmentAndItemContentText(content);
         if (equipmentItem != null) return equipmentItem;
@@ -439,7 +499,7 @@ public static partial class SkillTextConverter
             case EffectContentType.AddAreaGathering:
                 p = Args(content.Parameters, 1, "AddAreaGathering");
                 return "このエリアの採取を" + Number(p[0], 1, "追加採取回数") + "回追加で行うことができる。";
-            default: throw new InvalidOperationException("通常のスキル効果には使用できない種別です：" + content.Type);
+            default: return null;
         }
     }
     private static string SkillTriggerText(EffectType type, List<TriggerDefinition> triggers)
@@ -476,9 +536,9 @@ public static partial class SkillTextConverter
         }
         throw new InvalidOperationException("今回の文型に対応しないスキル効果トリガーです。");
     }
-    private static string OverrideText(SkillBody skill, OverrideDefinition effect, OverrideContent content)
+    private static string OverrideText(SkillBody skill, EffectDefinition effect, EffectContent content)
     {
-        if (content?.Type == OverrideContentType.SetRoleplayDescription)
+        if (content?.Type == EffectContentType.SetRoleplayDescription)
         {
             Require(IsSpikeStage(effect.Type) && effect.Triggers != null && effect.Triggers.Count == 0);
             return Need(Args(content.Parameters, 1, "ロールプレイ効果")[0], "ロールプレイ効果");
@@ -505,7 +565,7 @@ public static partial class SkillTextConverter
         var triggers = effect.Triggers; string[] p;
         switch (content.Type)
         {
-            case OverrideContentType.SetSkillValue:
+            case EffectContentType.SetSkillValue:
                 p = Args(content.Parameters, 1, "SetSkillValue");
                 if ((effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike) && triggers.Count == 0)
                     return "このアクティブ効果によるスキル値は" + p[0] + "に変化する。";
@@ -516,7 +576,7 @@ public static partial class SkillTextConverter
                     return "自身が《" + state + "》状態の時、" + (effect.Type == EffectType.Active ? "この" : "このアクティブ効果による") + "スキル値は" + p[0] + "に変化する。";
                 }
                 break;
-            case OverrideContentType.MultiplyPower:
+            case EffectContentType.MultiplyPower:
                 p = Args(content.Parameters, 1, "MultiplyPower");
                 if (triggers.Count == 0) return "威力は×" + p[0] + "倍される。";
                 if (effect.Type == EffectType.Passive && triggers.Count == 1)
@@ -530,24 +590,24 @@ public static partial class SkillTextConverter
                     }
                 }
                 break;
-            case OverrideContentType.SetResourceCost:
+            case EffectContentType.SetResourceCost:
                 p = Args(content.Parameters, 2, "SetResourceCost"); if (triggers.Count != 0) break; return p[0] + "の消費は" + p[1] + "になる。";
-            case OverrideContentType.SetCooldown:
+            case EffectContentType.SetCooldown:
                 p = Args(content.Parameters, 1, "SetCooldown"); if (triggers.Count != 0) break; return "クールタイムは" + p[0] + "になる。";
-            case OverrideContentType.SetCritical:
+            case EffectContentType.SetCritical:
                 p = Args(content.Parameters, 1, "SetCritical");
                 if (p[0] != "True" || !Matches(triggers, Trigger(TriggerTiming.AfterActivationRoll, Condition(ConditionType.RollSucceeded)))) break;
                 return "この攻撃の発動ロールに成功した時、クリティカルとして扱う。";
-            case OverrideContentType.AddStateDuration:
+            case EffectContentType.AddStateDuration:
                 p = Args(content.Parameters, 2, "AddStateDuration"); if (p[0] != "SelectedState" || triggers.Count != 0) break;
                 return "選択した状態の持続ターンは" + Signed(p[1]) + "される。";
-            case OverrideContentType.AddResourceCost:
+            case EffectContentType.AddResourceCost:
                 p = Args(content.Parameters, 4, "AddResourceCost");
                 if (p[0] != "Self") break;
                 if (p[3] == "Optional" && Matches(triggers, Trigger(TriggerTiming.ResourceCost))) return "自身の消費" + p[1] + "は" + Signed(p[2]) + "される。（任意）";
                 if (p[3] == "Automatic" && triggers.Count == 0) return "消費" + p[1] + Signed(p[2]) + "。";
                 break;
-            case OverrideContentType.AddTargetValue:
+            case EffectContentType.AddTargetValue:
                 p = Args(content.Parameters, 1, "AddTargetValue");
                 if (IsSpikeStage(effect.Type) && triggers.Count == 0 && M(p[0], @"^[+-][0-9]+$").Success)
                     return "このアクティブ効果による目標値は" + p[0] + "される。";
@@ -562,33 +622,33 @@ public static partial class SkillTextConverter
                 string a = Args(action.Conditions.And.First(c => c.Type == ConditionType.ActionCategory).Parameters, 1, "ActionCategory")[0];
                 if (e[0] != "Self" || !Matches(triggers, MasteryTriggers(e[1], w, a).ToArray())) break;
                 return "自身は〈" + e[1] + "〉を装備している場合、〈" + w + "〉による武器攻撃または〈" + a + "〉の目標値は" + Signed(p[0]) + "される。";
-            case OverrideContentType.PreventCounterDamage:
+            case EffectContentType.PreventCounterDamage:
                 p = Args(content.Parameters, 2, "PreventCounterDamage");
                 if (effect.Type != EffectType.Active || triggers.Count != 0) break;
                 return "この攻撃は〈" + p[1] + "〉によるカウンター効果で" + Actor(p[0]) + "にダメージを与えることはできない。";
-            case OverrideContentType.SetDamageReduction:
+            case EffectContentType.SetDamageReduction:
                 p = Args(content.Parameters, 1, "SetDamageReduction");
                 if ((effect.Type != EffectType.SecondSpike && effect.Type != EffectType.ThirdSpike) || triggers.Count != 0) break;
                 return "このカウンター効果による軽減は" + p[0] + "に変化する。";
-            case OverrideContentType.SetAttackComponent:
+            case EffectContentType.SetAttackComponent:
                 p = Args(content.Parameters, 2, "SetAttackComponent");
                 if (p[0] == "AttributePower" && (effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike) && triggers.Count == 0)
                     return "このアクティブ効果による属性威力は" + p[1] + "に変化する。";
                 break;
-            case OverrideContentType.SetActivationRollFormula:
+            case EffectContentType.SetActivationRollFormula:
                 p = Args(content.Parameters, 1, "SetActivationRollFormula");
                 if ((effect.Type != EffectType.SecondSpike && effect.Type != EffectType.ThirdSpike) || triggers.Count != 0) break;
                 string formula = Need(p[0], "発動ロール式");
                 if (M(formula, @"\s+目標値").Success) throw new InvalidOperationException("スパイクの発動ロール式に空白＋「目標値」は使用できません。");
                 return "この発動ロールは" + formula + "に変化する。";
-            case OverrideContentType.MultiplyAttackComponent:
+            case EffectContentType.MultiplyAttackComponent:
                 p = Args(content.Parameters, 2, "MultiplyAttackComponent");
                 if (p[0] != "AttributePower") break;
                 if (triggers.Count == 0) return "属性威力は×" + p[1] + "倍される。";
                 if (effect.Type == EffectType.Active && Matches(triggers, Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ResourceRatio, "Target", "HP", "AtMost", "0.5"))))
                     return "対象のHPが最大値の半分以下なら属性威力は×" + p[1] + "倍される。";
                 break;
-            case OverrideContentType.SetAttackRule:
+            case EffectContentType.SetAttackRule:
                 p = VariableArgs(content.Parameters, 2, "SetAttackRule");
                 if (effect.Type != EffectType.Active || triggers.Count != 0) break;
                 if (p.Length == 2 && p[0] == "Defense" && p[1] == "Ignore") return "この攻撃は対象の防御点の影響を受けない。";

@@ -74,6 +74,25 @@ public static partial class SkillTextConverter
         }
         sb.AppendLine("【" + label + "】" + string.Join(", ", texts));
     }
+    private static string WriteCommonGroup(List<EffectContent> contents, bool unconditional, HashSet<string> referencedStates = null)
+    {
+        if (contents.Count > 0 && contents[0]?.Type == EffectContentType.RollTable)
+        {
+            if (!unconditional) throw new InvalidOperationException("ロール表の発動条件は表自体に指定してください。");
+            return CommonEffectRollTable.Write(contents, referencedStates);
+        }
+        return CommonEffectTextCodec.WriteGroup(contents);
+    }
+
+    private static IEnumerable<string> WriteEffectContents(EffectDefinition effect)
+    {
+        string group = WriteCommonGroup(effect.Contents, effect.Triggers.Count == 0);
+        string trigger = SkillTriggerText(effect.Type, effect.Triggers);
+        if (group != null) yield return AppendPassiveEffectNotes(effect, trigger + group);
+        else foreach (var content in effect.Contents)
+            yield return AppendPassiveEffectNotes(effect, trigger + SkillContentText(content));
+    }
+
     private static void WriteEffectGroup(StringBuilder sb, SkillBody skill, EffectType type)
     {
         var texts = new List<string>();
@@ -82,22 +101,22 @@ public static partial class SkillTextConverter
         if (deferred.Count > 1)
         {
             var ruleOrder = skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
-                .Where(x => x.Type == OverrideContentType.ReduceResourceCostPerMappedStacks)
+                .Where(x => x.Type == EffectContentType.ReduceResourceCostPerMappedStacks)
                 .Select((x, i) => new { Rule = Args(x.Parameters, 6, "ReduceResourceCostPerMappedStacks")[2], Index = i })
                 .ToDictionary(x => x.Rule, x => x.Index, StringComparer.Ordinal);
             deferred = deferred.OrderBy(x => ruleOrder[Args(
                 x.Triggers[0].Conditions.And[0].Parameters, 4, "MappedStateStackInterval")[1]]).ToList();
         }
         foreach (var effect in effects.Except(deferred))
-            texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
-        IEnumerable<OverrideDefinition> overrides = skill.Overrides.Where(x => x.Type == type);
+            texts.AddRange(WriteEffectContents(effect));
+        IEnumerable<EffectDefinition> overrides = skill.Overrides.Where(x => x.Type == type);
         if (type == EffectType.SecondSpike || type == EffectType.ThirdSpike) overrides = overrides.OrderBy(x => x.Triggers.Count == 0 ? 0 : 1);
         foreach (var effect in overrides) texts.AddRange(effect.Contents.Select(c => OverrideText(skill, effect, c)));
         foreach (var effect in deferred)
-            texts.AddRange(effect.Contents.Select(c => AppendPassiveEffectNotes(effect, SkillTriggerText(effect.Type, effect.Triggers) + SkillContentText(c))));
+            texts.AddRange(WriteEffectContents(effect));
         if (texts.Count == 0)
         {
-            if (type == EffectType.Passive && skill.Overrides.SelectMany(x => x.Contents).Any(x => x.Type == OverrideContentType.OptionalSpikeState)) sb.AppendLine("【パッシブ効果】無し");
+            if (type == EffectType.Passive && skill.Overrides.SelectMany(x => x.Contents).Any(x => x.Type == EffectContentType.OptionalSpikeState)) sb.AppendLine("【パッシブ効果】無し");
             return;
         }
         string effectName;

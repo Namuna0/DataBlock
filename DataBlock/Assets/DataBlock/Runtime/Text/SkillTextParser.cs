@@ -28,6 +28,21 @@ public static partial class SkillTextConverter
         return SkillFields.ContainsKey(key) || ParseEffectSections(key) != null || RewardTableHeader(line, nextLine).Success;
     }
 
+    private static void ReadSkillEffectLines(SkillBody skill, EffectType[] sections, string text,
+        string[] lines, ref int index, int end)
+    {
+        bool consumed = false;
+        foreach (var section in sections)
+        {
+            int count = skill.Effects.Count;
+            ReadSkillLine(skill, section, text);
+            if (index < end && skill.Effects.Count > count &&
+                CommonEffectTextCodec.TryReadContinuation(skill.Effects.Last().Contents, Unbullet(lines[index + 1])))
+                consumed = true;
+        }
+        if (consumed) index++;
+    }
+
     private static SkillTextData ParseOne(string source)
     {
         string[] lines = PrepareSkillLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'));
@@ -43,6 +58,7 @@ public static partial class SkillTextConverter
         SkillBody current = data.Skill;
         EffectType[] sections = Array.Empty<EffectType>();
         StateDefinition state = null;
+        bool inlineStateBody = false;
         string conditions = "";
         bool named = false, description = false;
         var stateOwners = new System.Collections.Generic.Dictionary<StateDefinition, SkillBody>();
@@ -92,17 +108,14 @@ public static partial class SkillTextConverter
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
                     current.Categories = Categories(line); continue;
                 }
-                Match stateHeader = M(Unbullet(line), @"^([^・⚫【].*?)効果((?:〈[^〉]+〉)*)[：:](.*)$");
-                if (stateHeader.Success)
+                if (TryStateHeader(line, out var definedState, out string stateBody))
                 {
-                    state = new StateDefinition { Name = Need(stateHeader.Groups[1].Value, "状態名"), Categories = stateHeader.Groups[2].Value.Length == 0 ? new System.Collections.Generic.List<string>() : Categories(stateHeader.Groups[2].Value) };
-                    if (data.States.Any(x => x.Name == state.Name &&
-                        (stateOwners[x] == current || !data.Skill.Choices.Contains(current) || !data.Skill.Choices.Contains(stateOwners[x]))))
-                        throw new InvalidOperationException("状態定義が重複しています：" + state.Name);
-                    stateOwners.Add(state, current);
-                    data.States.Add(state); conditions = "";
-                    string body = stateHeader.Groups[3].Value.Trim();
-                    if (body.Length > 0 && !ReadStateText(state, body)) throw new InvalidOperationException("未対応の状態効果です：" + body);
+                    RegisterState(definedState);
+                    state = definedState;
+                    conditions = "";
+                    inlineStateBody = stateBody.Length > 0;
+                    if (inlineStateBody && !ReadTable(stateBody, ref i, state) && !ReadStateText(state, stateBody))
+                        throw new InvalidOperationException("未対応の状態効果です：" + stateBody);
                     continue;
                 }
                 Match header = FieldHeader(line);
@@ -187,21 +200,23 @@ public static partial class SkillTextConverter
                                 break;
                             }
                             sections = ParseEffectSections(key) ?? throw new InvalidOperationException("未対応の見出しです：" + key);
-                            if (body.Length > 0)
-                                foreach (EffectType section in sections) ReadSkillLine(current, section, body);
+                            if (body.Length > 0 && !ReadTable(body, ref i, null))
+                                ReadSkillEffectLines(current, sections, body, lines, ref i, end);
                             break;
                     }
                     continue;
                 }
                 line = Unbullet(line);
-                if (state != null && ReadStateText(state, line, current, sections)) continue;
+                bool stateNote = line.StartsWith("*") || line.StartsWith("＊");
+                if (ReadTable(line, ref i, state)) continue;
+                if (state != null && ReadStateText(state, line, current, sections, sections.Length == 0 || !inlineStateBody || stateNote)) continue;
                 if (line.StartsWith("*") || line.StartsWith("＊")) throw new InvalidOperationException("未対応の状態の解除条件です：" + line);
                 // 見出しをまたいで続く宣言条件も、条件の文型で読み取る。
                 if (conditions.Length > 0 || sections.Length == 0)
                 {
                     AddConditions(conditions == "習得条件" ? current.AcquisitionConditions : conditions == "装備条件" ? current.EquipmentConditions : current.DeclarationConditions, line); continue;
                 }
-                foreach (EffectType section in sections) ReadSkillLine(current, section, line);
+                ReadSkillEffectLines(current, sections, line, lines, ref i, end);
             }
             catch (InvalidOperationException e) { throw new InvalidOperationException((i + 1) + "行目：" + e.Message + "\n原文：" + lines[i], e); }
         }
@@ -214,21 +229,37 @@ public static partial class SkillTextConverter
         if (description && data.Skill.Choices.Count == 0) throw new InvalidOperationException("説明に対応する子スキルがありません。");
         // Preserve the established common-trigger representation for a state
         // containing only a damage/power modifier. Mixed states use local triggers.
-        foreach (StateDefinition parsedState in data.States)
-        {
-            if (parsedState.Effects.Count != 0 || parsedState.Overrides.Count != 1 ||
-                parsedState.Trigger.Timing != TriggerTiming.Always || !Empty(parsedState.Trigger.Conditions)) continue;
-            OverrideDefinition modifier = parsedState.Overrides[0];
-            if (modifier.Triggers.Count != 1) continue;
-            TriggerDefinition trigger = modifier.Triggers[0];
-            if (trigger.Timing != TriggerTiming.IncomingDamage && trigger.Timing != TriggerTiming.AttackPower) continue;
-            parsedState.Trigger = trigger;
-            modifier.Triggers.Clear();
-        }
+        foreach (StateDefinition parsedState in data.States) NormalizeStateTrigger(parsedState);
         return data;
+
+        void RegisterState(StateDefinition definition)
+        {
+            if (data.States.Any(x => x.Name == definition.Name &&
+                (stateOwners[x] == current || !data.Skill.Choices.Contains(current) || !data.Skill.Choices.Contains(stateOwners[x]))))
+                throw new InvalidOperationException("状態定義が重複しています：" + definition.Name);
+            data.States.Add(definition);
+            stateOwners.Add(definition, current);
+        }
+
+        bool ReadInlineState(string definition)
+        {
+            if (!TryStateHeader(definition, out var nested, out var body, allowShorthand: true) || !ReadStateText(nested, body)) return false;
+            RegisterState(nested);
+            return true;
+        }
+
+        bool ReadTable(string header, ref int index, StateDefinition owner)
+        {
+            if (owner == null && (sections.Length == 0 || !sections.All(IsOrdinary))) return false;
+            if (!CommonEffectRollTable.TryRead(header, lines, ref index, end, ReadInlineState, out var contents)) return false;
+            if (owner != null) AddStateEffect(owner, NoTriggers(), contents.ToArray());
+            else foreach (var section in sections) current.Effects.Add(new EffectDefinition { Type = section, Contents = new List<EffectContent>(contents) });
+            return true;
+        }
     }
     private static EffectType[] ParseEffectSections(string key)
     {
+        if (key.EndsWith("効果効果", StringComparison.Ordinal)) key = key.Substring(0, key.Length - 2);
         if (key == "特性") key = "パッシブ効果";
         if (key == "クリティカル") key = "クリティカル効果";
         if (EffectTypesByName.TryGetValue(key, out EffectType single)) return new[] { single };

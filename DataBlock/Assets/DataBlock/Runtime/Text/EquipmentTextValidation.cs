@@ -1,3 +1,4 @@
+using static CommonEffectTextCodec;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -11,15 +12,24 @@ public static partial class EquipmentTextConverter
             throw new InvalidOperationException("装備データがnullです。");
 
         EquipmentDefinition equipment = data.Equipment;
-        EquipmentToken(equipment.Name, "装備名", "《》");
+        Token(equipment.Name, "装備名", "《》");
         Need(equipment.Rarity, "レアリティ");
         Need(equipment.Size, "サイズ");
-        if (equipment.Grade < 1 || equipment.Grade > MaximumEquipmentGrade)
+        if (equipment.Grade < 0 || equipment.Grade > MaximumEquipmentGrade)
             throw new InvalidOperationException("グレードは1～" + MaximumEquipmentGrade + "にしてください。");
+        if (!string.IsNullOrEmpty(equipment.SpecialGrade) &&
+            (equipment.Grade != 0 || !M(equipment.SpecialGrade, @"^★+☆*$").Success || equipment.SpecialGrade.Length > MaximumEquipmentGrade))
+            throw new InvalidOperationException("特殊グレードの星表記が不正です。");
+        if (equipment.RequiredSpace < 0) throw new InvalidOperationException("必要敷地は0以上にしてください。");
         if (equipment.VariantGrade < 0 || equipment.VariantGrade > MaximumEquipmentGrade)
             throw new InvalidOperationException("装備名のグレードは0～" +
                 MaximumEquipmentGrade + "にしてください。");
-        if (equipment.MaxDurability < 1) throw new InvalidOperationException("耐久最大値は1以上にしてください。");
+        if (equipment.MaxDurability < -1) throw new InvalidOperationException("耐久最大値は正の整数、∞、または未指定にしてください。");
+        if (!string.IsNullOrEmpty(equipment.WeaponPowerName))
+        {
+            Token(equipment.WeaponPowerName, "武器威力名", "《》：:");
+            Need(equipment.WeaponPowerFormula, "名前付き武器威力の式");
+        }
         if (!string.IsNullOrEmpty(equipment.WeaponPowerFormula)) Need(equipment.WeaponPowerFormula, "武器威力");
         if (!string.IsNullOrEmpty(equipment.Flavor) &&
             equipment.Flavor.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n')
@@ -44,7 +54,20 @@ public static partial class EquipmentTextConverter
         ValidateEquipmentRequirements(equipment.EquipRequirements);
         ValidateEquipmentGradeAdjustments(equipment);
         HashSet<string> referencedStates = ValidateEquipmentEffectGroups(equipment.EffectGroups);
-        ValidateEquipmentStates(equipment.States, referencedStates);
+        if (equipment.WeaponModes == null || equipment.WeaponModes.Count == 1)
+            throw new InvalidOperationException("武器の選択肢を使用する場合は2つ以上指定してください。");
+        var modes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var mode in equipment.WeaponModes)
+        {
+            if (mode == null || mode.EffectGroups == null || !modes.Add(Token(mode.Name, "武器の選択肢", "●【】")))
+                throw new InvalidOperationException("武器の選択肢が重複または未設定です。");
+            Need(mode.WeaponPowerFormula, "選択した武器の威力");
+            referencedStates.UnionWith(ValidateEquipmentEffectGroups(mode.EffectGroups));
+        }
+        var ruleStates = equipment.EffectGroups.Concat(equipment.WeaponModes.SelectMany(m => m.EffectGroups))
+            .SelectMany(g => g.Effects).Concat(equipment.States.SelectMany(state => state.Effects.Concat(state.Overrides)).SelectMany(e => e.Contents))
+            .SelectMany(StateReferences);
+        ValidateEquipmentStates(equipment.States, referencedStates, ruleStates);
         ValidateEquipmentSkills(equipment.Skills);
         return equipment;
     }
@@ -56,20 +79,19 @@ public static partial class EquipmentTextConverter
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (string category in categories)
         {
-            string value = EquipmentToken(category, "カテゴリー", "〈〉,、");
+            string value = Token(category, "カテゴリー", "〈〉,、");
             if (!seen.Add(value)) throw new InvalidOperationException("カテゴリーが重複しています：" + value);
         }
-        if (!seen.Contains(EquipmentCategory))
-            throw new InvalidOperationException("装備には〈" + EquipmentCategory + "〉カテゴリーが必要です。");
+        if (!seen.Overlaps(ItemCategories)) throw new InvalidOperationException("アイテムカテゴリーが必要です。");
     }
 
     private static void ValidateEquipmentSlots(List<string> slots)
     {
-        if (slots == null || slots.Count == 0) throw new InvalidOperationException("装備部位がありません。");
+        if (slots == null) throw new InvalidOperationException("装備部位がありません。");
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (string slot in slots)
         {
-            string value = EquipmentToken(slot, "装備部位", ",、");
+            string value = Token(slot, "装備部位", ",、");
             if (!seen.Add(value)) throw new InvalidOperationException("装備部位が重複しています：" + value);
         }
     }
@@ -81,10 +103,14 @@ public static partial class EquipmentTextConverter
         {
             case EquipmentValueKind.Currency:
                 if (value.Amount < 0) throw new InvalidOperationException("価値は0以上にしてください。");
-                EquipmentToken(value.Currency, "通貨名", "【】,、");
+                if (value.Quantity < 1) throw new InvalidOperationException("取引数量は1以上にしてください。");
+                if (!string.IsNullOrEmpty(value.Currency) &&
+                    !M(value.Currency, @"^[^0-9\s,、【】]+$").Success)
+                    throw new InvalidOperationException("通貨名が不正です。");
                 return;
             case EquipmentValueKind.Untradeable:
-                if (value.Amount != 0 || !string.IsNullOrEmpty(value.Currency))
+            case EquipmentValueKind.Unspecified:
+                if (value.Quantity != 1 || value.Amount != 0 || !string.IsNullOrEmpty(value.Currency))
                     throw new InvalidOperationException("取引不可の装備には金額と通貨を指定できません。");
                 return;
             default:
@@ -94,19 +120,31 @@ public static partial class EquipmentTextConverter
 
     private static void ValidateEquipmentRequirements(List<EquipmentRequirementDefinition> requirements)
     {
-        var seen = new HashSet<EquipmentRequirementType>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (EquipmentRequirementDefinition requirement in requirements)
         {
-            if (!seen.Add(requirement.Type))
-                throw new InvalidOperationException("装備条件が重複しています：" + requirement.Type);
+            string key = requirement.Type.ToString();
             switch (requirement.Type)
             {
                 case EquipmentRequirementType.MinimumLevel:
                     Number(Args(requirement.Parameters, 1, "MinimumLevel")[0], 1, "必要レベル");
                     break;
+                case EquipmentRequirementType.MinimumStat:
+                case EquipmentRequirementType.MaximumStat:
+                    string[] stat = Args(requirement.Parameters, 2, "装備条件の能力値");
+                    if (!M(stat[0], @"^[一-龯ぁ-んァ-ヶA-Za-z]+$").Success)
+                        throw new InvalidOperationException("装備条件の能力値名が不正です。");
+                    Number(stat[1], 0, "能力値の閾値");
+                    key += ":" + stat[0];
+                    break;
+                case EquipmentRequirementType.LearnedTitle:
+                case EquipmentRequirementType.LearnedSkill:
+                    key += ":" + Token(Args(requirement.Parameters, 1, "習得条件")[0], "習得名", "《》");
+                    break;
                 default:
                     throw new InvalidOperationException("未対応の装備条件です：" + requirement.Type);
             }
+            if (!seen.Add(key)) throw new InvalidOperationException("装備条件が重複しています：" + key);
         }
     }
 
@@ -118,9 +156,6 @@ public static partial class EquipmentTextConverter
             if (adjustment.Grade < 1 || adjustment.Grade > MaximumEquipmentGrade)
                 throw new InvalidOperationException("補正対象グレードは1～" +
                     MaximumEquipmentGrade + "にしてください。");
-            if (adjustment.Grade == equipment.Grade)
-                throw new InvalidOperationException("基準グレードにはグレード補正を指定できません：☆" +
-                    adjustment.Grade);
             if (!grades.Add(adjustment.Grade))
                 throw new InvalidOperationException("グレード補正が重複しています：☆" + adjustment.Grade);
             if (adjustment.Modifiers == null)
@@ -128,23 +163,39 @@ public static partial class EquipmentTextConverter
                     adjustment.Grade);
             if (adjustment.Modifiers.Any(x => x == null))
                 throw new InvalidOperationException("グレード補正にnullがあります：☆" + adjustment.Grade);
-            if (adjustment.MaxDurabilityDelta == 0 && adjustment.Modifiers.Count == 0)
+            if (adjustment.Replacements == null) throw new InvalidOperationException("グレードの置換値を初期化してください。");
+            if (adjustment.MaxDurabilityDelta == 0 && adjustment.WeaponPowerDelta == 0 && adjustment.Modifiers.Count == 0 && adjustment.Replacements.Count == 0)
                 throw new InvalidOperationException("グレード補正が空です：☆" + adjustment.Grade);
 
+            if (equipment.Grade == 0 || (adjustment.MaxDurabilityDelta != 0 && equipment.MaxDurability < 1))
+                throw new InvalidOperationException("グレード補正に必要な基準グレードまたは耐久最大値がありません。");
             long effectiveDurability = (long)equipment.MaxDurability + adjustment.MaxDurabilityDelta;
-            if (effectiveDurability < 1 || effectiveDurability > int.MaxValue)
+            if (adjustment.MaxDurabilityDelta != 0 && (effectiveDurability < 1 || effectiveDurability > int.MaxValue))
                 throw new InvalidOperationException("グレード補正後の耐久最大値は1以上の整数にしてください：☆" +
                     adjustment.Grade);
 
-            var stats = new HashSet<string>(StringComparer.Ordinal);
-            foreach (EquipmentEffectDefinition modifier in adjustment.Modifiers)
+            var changedRules = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var change in adjustment.Replacements)
             {
-                if (modifier.Type != EquipmentEffectType.ModifyStat)
-                    throw new InvalidOperationException("グレード補正には能力値加算だけを指定できます：☆" +
-                        adjustment.Grade);
+                if (change == null || change.Amount < 0 ||
+                    (change.Rule != "ExtraDamageToTargetCategories" && change.Rule != "CategoryIgnoreDefense") || !changedRules.Add(change.Rule))
+                    throw new InvalidOperationException("グレード補正の置換対象または値が不正です。");
+                EquipmentGradeResolver.ReplacementTarget(equipment, change.Rule);
+            }
+
+            var stats = new HashSet<string>(StringComparer.Ordinal);
+            foreach (EffectContent modifier in adjustment.Modifiers)
+            {
+                if (modifier.Type == EffectContentType.RuleModifier || modifier.Type == EffectContentType.CheckByAbilityFactor)
+                {
+                    ValidateEquipmentEffect(modifier, new HashSet<string>());
+                    continue;
+                }
+                if (modifier.Type != EffectContentType.ModifyStat)
+                    throw new InvalidOperationException("グレード補正の効果種別が不正です：☆" + adjustment.Grade);
                 string[] p = Args(modifier.Parameters, 4, "グレード補正のModifyStat");
                 RequireSelf(p[0], "グレード補正のModifyStat");
-                string stat = EquipmentToken(p[1], "グレード補正の能力値名", "[],、+-");
+                string stat = Token(p[1], "グレード補正の能力値名", "[],、+-");
                 if (stat == "耐久最大値")
                     throw new InvalidOperationException("耐久最大値はMaxDurabilityDeltaへ指定してください：☆" +
                         adjustment.Grade);
@@ -165,111 +216,61 @@ public static partial class EquipmentTextConverter
         var referencedStates = new HashSet<string>(StringComparer.Ordinal);
         foreach (EquipmentEffectGroup group in groups)
         {
+            if (!Enum.IsDefined(typeof(EquipmentEffectSection), group.Section))
+                throw new InvalidOperationException("効果の適用区分が不正です。");
             if (!string.IsNullOrEmpty(group.Name))
             {
-                string name = EquipmentToken(group.Name, "装備効果名", "《》：:");
+                string name = Token(group.Name, "装備効果名", "《》：:");
                 if (!names.Add(name)) throw new InvalidOperationException("装備効果名が重複しています：" + name);
             }
             if (group.Effects == null || group.Effects.Count == 0)
                 throw new InvalidOperationException("装備効果グループの効果が空です：" + group.Name);
             if (group.Effects.Any(x => x == null))
                 throw new InvalidOperationException("装備効果にnullがあります：" + group.Name);
-            if (group.Effects.Count > 1 && group.Effects.Any(x => x.Type != EquipmentEffectType.ModifyStat))
-                throw new InvalidOperationException("能力値変更以外の装備効果は1グループ1件です：" + group.Name);
-            foreach (EquipmentEffectDefinition effect in group.Effects)
+            if (group.Effects[0].Type == EffectContentType.RollTable)
+            {
+                CommonEffectRollTable.Write(group.Effects, referencedStates);
+                continue;
+            }
+            if (group.Effects.Any(x => x.Type == EffectContentType.SelectedWeaponRule) &&
+                !group.Effects.All(x => x.Type == EffectContentType.SelectedWeaponRule))
+                throw new InvalidOperationException("同じグループの武器選択条件を統一してください：" + group.Name);
+            foreach (EffectContent effect in group.Effects)
                 ValidateEquipmentEffect(effect, referencedStates);
         }
         return referencedStates;
     }
 
-    private static void ValidateEquipmentEffect(
-        EquipmentEffectDefinition effect,
-        HashSet<string> referencedStates)
+    private static void ValidateEquipmentEffect(EffectContent effect, HashSet<string> referencedStates)
     {
-        string[] p;
-        switch (effect.Type)
-        {
-            case EquipmentEffectType.ModifyStat:
-                p = Args(effect.Parameters, 4, "ModifyStat");
-                RequireSelf(p[0], "ModifyStat");
-                EquipmentToken(p[1], "能力値名", "[],、+-");
-                if (p[2] != "Add")
-                    throw new InvalidOperationException("装備本体のModifyStat演算はAddです。");
-                string modifierValue = Need(p[3], "ModifyStatの値");
-                List<string> commaParts = Split(modifierValue, ",");
-                List<string> japaneseCommaParts = Split(modifierValue, "、");
-                if (commaParts.Count != 1 || commaParts[0] != modifierValue ||
-                    japaneseCommaParts.Count != 1 || japaneseCommaParts[0] != modifierValue)
-                    throw new InvalidOperationException("ModifyStatの値に括弧外のカンマは使用できません。");
-                break;
-            case EquipmentEffectType.ModifySelectedWeaponAction:
-                p = Args(effect.Parameters, 3, "ModifySelectedWeaponAction");
-                EquipmentToken(p[0], "行動カテゴリー", "〈〉,、");
-                PositiveDecimal(p[1], "達成値倍率");
-                PositiveDecimal(p[2], "威力倍率");
-                break;
-            case EquipmentEffectType.MultiplyIncomingDamage:
-                p = Args(effect.Parameters, 3, "MultiplyIncomingDamage");
-                RequireSelf(p[0], "MultiplyIncomingDamage");
-                EquipmentToken(p[1], "行動カテゴリー", "〈〉,、");
-                PositiveDecimal(p[2], "被ダメージ倍率");
-                break;
-            case EquipmentEffectType.AllowItemUse:
-                p = Args(effect.Parameters, 3, "AllowItemUse");
-                RequireSelf(p[0], "AllowItemUse");
-                if (p[1] != "Encounter")
-                    throw new InvalidOperationException("AllowItemUseのフェーズはEncounterです。");
-                EquipmentToken(p[2], "アイテムカテゴリー", "〈〉,、");
-                break;
-            case EquipmentEffectType.MultiplyActionPower:
-                p = Args(effect.Parameters, 3, "MultiplyActionPower");
-                RequireSelf(p[0], "MultiplyActionPower");
-                EquipmentToken(p[1], "行動カテゴリー", "〈〉,、");
-                PositiveDecimal(p[2], "威力倍率");
-                break;
-            case EquipmentEffectType.GainStateStacksOnAction:
-                p = Args(effect.Parameters, 4, "GainStateStacksOnAction");
-                RequireSelf(p[0], "GainStateStacksOnAction");
-                EquipmentToken(p[1], "行動カテゴリー", "〈〉,、");
-                string stateName = EquipmentToken(p[2], "状態名", "《》：:");
-                Number(p[3], 1, "獲得スタック数");
-                referencedStates.Add(stateName);
-                break;
-            default:
-                throw new InvalidOperationException("未対応の装備効果です：" + effect.Type);
-        }
+        EquipmentEffectText(effect);
+        if (effect.Type == EffectContentType.GainStateStacksOnAction)
+            referencedStates.Add(effect.Parameters[2]);
     }
 
-    private static void ValidateEquipmentStates(
-        List<EquipmentStateDefinition> states,
-        HashSet<string> referencedStates)
+    private static IEnumerable<string> StateReferences(EffectContent effect)
+    {
+        if (effect.Type == EffectContentType.ApplyState || effect.Type == EffectContentType.GainStack)
+            yield return effect.Parameters[1];
+        foreach (string name in ReferencedRuleStates(effect)) yield return name;
+    }
+
+    private static void ValidateEquipmentStates(List<StateDefinition> states,
+        HashSet<string> referencedStates, IEnumerable<string> ruleStates)
     {
         var definitions = new HashSet<string>(StringComparer.Ordinal);
-        foreach (EquipmentStateDefinition state in states)
+        foreach (StateDefinition state in states)
         {
-            string name = EquipmentToken(state.Name, "状態名", "《》：:");
+            string name = Token(state.Name, "状態名", "《》：:");
             if (!definitions.Add(name)) throw new InvalidOperationException("状態名が重複しています：" + name);
-            if (state.Categories == null || state.Categories.Count != 1 || state.Categories[0] != "スタック")
-                throw new InvalidOperationException("装備のスタック状態カテゴリーは「スタック」を1件指定してください：" + name);
-            if (state.Modifiers == null || state.Modifiers.Count != 1 || state.Modifiers[0] == null)
-                throw new InvalidOperationException("スタック状態の補正は1件必要です：" + name);
-            foreach (EquipmentEffectDefinition modifier in state.Modifiers)
-            {
-                if (modifier.Type != EquipmentEffectType.ModifyStat)
-                    throw new InvalidOperationException("スタック状態にはModifyStatだけを指定できます：" + name);
-                string[] p = Args(modifier.Parameters, 4, "状態のModifyStat");
-                RequireSelf(p[0], "状態のModifyStat");
-                EquipmentToken(p[1], "能力値名", "[],、+-");
-                if (p[2] != "Multiply")
-                    throw new InvalidOperationException("スタック状態のModifyStatはMultiplyにしてください：" + name);
-                if (!Need(p[3], "スタック倍率式").Contains("[スタック]"))
-                    throw new InvalidOperationException("スタック状態の倍率式には[スタック]が必要です：" + name);
-            }
+            if (state.Categories == null) throw new InvalidOperationException("状態のカテゴリーがnullです：" + name);
+            EquipmentStateText(state, referencedStates);
         }
 
         foreach (string reference in referencedStates)
             if (!definitions.Contains(reference))
                 throw new InvalidOperationException("参照された状態の定義がありません：" + reference);
+        referencedStates.UnionWith(ruleStates);
         foreach (string definition in definitions)
             if (!referencedStates.Contains(definition))
                 throw new InvalidOperationException("装備効果から参照されていない状態です：" + definition);
@@ -282,7 +283,7 @@ public static partial class EquipmentTextConverter
         {
             if (skill == null || skill.Skill == null)
                 throw new InvalidOperationException("装備内スキルがnullです。");
-            string name = EquipmentToken(skill.Skill.Name, "装備内スキル名", "《》：:");
+            string name = Token(skill.Skill.Name, "装備内スキル名", "《》：:");
             if (!names.Add(name)) throw new InvalidOperationException("装備内スキル名が重複しています：" + name);
             if (!string.IsNullOrWhiteSpace(skill.Skill.Flavor))
                 throw new InvalidOperationException("装備内スキルには個別フレーバーを指定できません：" + name);
@@ -291,26 +292,6 @@ public static partial class EquipmentTextConverter
                 .Any(x => M(SyntaxLine(x), @"^●\s*スキル[：:]\s*《([^《》]+)》$").Success))
                 throw new InvalidOperationException("装備内の子スキル名に予約済みの「スキル：《...》」形式は使用できません：" + name);
         }
-    }
-
-    private static string EquipmentToken(string value, string label, string forbiddenCharacters)
-    {
-        string result = Need(value, label);
-        if (result.IndexOfAny(forbiddenCharacters.ToCharArray()) >= 0)
-            throw new InvalidOperationException(label + "に構文区切り文字「" + forbiddenCharacters + "」は使用できません。");
-        return result;
-    }
-
-    private static void RequireSelf(string actor, string label)
-    {
-        if (actor != "Self") throw new InvalidOperationException(label + "の対象はSelfです。");
-    }
-
-    private static void PositiveDecimal(string value, string label)
-    {
-        decimal number;
-        if (!decimal.TryParse(Need(value, label), NumberStyles.Float, CultureInfo.InvariantCulture, out number) || number <= 0)
-            throw new InvalidOperationException(label + "は0より大きい数値にしてください。");
     }
 
     private static void NonZeroSignedDecimal(string value, string label)

@@ -6,6 +6,22 @@ public static partial class SkillTextConverter
 {
     private static readonly SkillTextRule[] ConditionRules =
     {
+        new SkillTextRule(ConditionType.StatCheckFumbled, "{0}Bによる行為判定をファンブルした時", RuleNamePattern),
+        new SkillTextRule(ConditionType.SeasonalHarvest, "季節が{0}及び{1}の〈{2}〉で収穫を行う時", @"[春夏秋冬]", @"[春夏秋冬]", RuleNamePattern),
+        new SkillTextRule(ConditionType.SelectDangerCategory, "【危険度】☆{0}以下の〈{1}〉を選択", RulePositivePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.SelectOwnedEquipmentSlots, "所持している{0}かつ{1}の装備を{2}つ選択", @"[^〈〉《》【】、,。\s]+", @"[^〈〉《》【】、,。\s]+", RulePositivePattern),
+        new SkillTextRule(ConditionType.TargetedByCategoryRequirement, "自身が〈{0}〉または〈{1}〉を条件として選択対象にされた時", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.OwnBattleCheckFailed, "戦闘中に自身の行為判定が失敗した時"),
+        new SkillTextRule(ConditionType.OwnActivatedCategory, "自身が発動した〈{0}〉に対して", RuleNamePattern),
+        new SkillTextRule(ConditionType.NpcSkillActivation, "NPCキャラクターのスキル発動時"),
+        new SkillTextRule(ConditionType.OwnCategoryRollSuccess, "自身の〈{0}〉による発動ロールが成功した時", RuleNamePattern),
+        new SkillTextRule(ConditionType.OwnCategoryActivation, "自身が〈{0}〉を発動する時", RuleNamePattern),
+        new SkillTextRule(ConditionType.CategoryUsingThisWeapon, "この武器の選択を条件に〈{0}〉を発動する時", RuleNamePattern),
+        new SkillTextRule(ConditionType.HitWithThisWeapon, "この武器による自身の〈{0}〉が命中した時", RuleNamePattern),
+        new SkillTextRule(ConditionType.ApplyCategoryToCharacter, "自身がキャラクターに〈{0}〉を付与した時", RuleNamePattern),
+        new SkillTextRule(ConditionType.RepeatedWeaponDamageOwnTurn, "自身のターン中、この武器によって{0}回以上同一のキャラクターに対してダメージを与えた時", RulePositivePattern),
+        new SkillTextRule(ConditionType.ApplyStateToEnemy, "自身が敵キャラクターに対して状態を付与した時"),
+        new SkillTextRule(ConditionType.AnyResourceFractionAtMost, "何れかのキャラクターの{0}が最大値の{1}%以下になった時", RuleResourcePattern, @"(?:100|[1-9]?[0-9])"),
         new SkillTextRule(ConditionType.MeleeStateTargetOfAction, "自身と同じ接近グループの《{0}》状態のキャラクターが〈{1}〉の対象になった時", RuleNamePattern, RuleNamePattern),
         new SkillTextRule(ConditionType.BattleTurnNumber, "戦闘開始{0}ターン目", RulePositivePattern),
         new SkillTextRule(ConditionType.IncomingActiveDamage, "自身がアクティブ効果によってダメージを受けた時"),
@@ -204,7 +220,7 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"1日([0-9]+)回(?:まで)?。?(?=$|[,、])", "1日$1回まで");
         text = RegexReplace(text, @"戦闘中([0-9]+)度だけ[。、](?=\s*(?:キャラクター|自身|$))", "戦闘中$1度だけ, ");
         text = RegexReplace(text, @"〈([^〉]+)〉と〈([^〉]+)〉を1つ選択", "〈$1〉と〈$2〉を選択");
-        text = RegexReplace(text, @"1日([0-9]+)度まで", "1日$1回まで");
+        text = RegexReplace(text, @"1日([0-9]+)度(?:まで|だけ)", "1日$1回まで");
         text = text.Replace("味方全体を対象に", "味方キャラクターを全体を選択");
         text = RegexReplace(text, @"種族が《([^《》、]+(?:》、《[^《》、]+)+)》のいずれか。?", "自身の種族が《$1》のいずれかであること");
         text = text.Replace("》、《", ", ");
@@ -224,6 +240,12 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"ライフパス《([^》]+)》を習得。?", "ライフパス《$1》の習得");
         text = RegexReplace(text, @"《([^》]+)》を習得している事。?", "《$1》の習得");
         text = RegexReplace(text, @"スタンバイフェーズ(?:時|に)(?=\s*[,、。]|$)", "スタンバイフェーズ");
+        text = RegexReplace(text, @"戦闘中([0-9]+)回だけ", "戦闘中$1回まで");
+        text = RegexReplace(text, @"1日([0-9]+)回(?:だけ|のみ)", "1日$1回まで");
+        text = RegexReplace(text, @"戦闘中に自身の行為判定が失敗した時[、,]\s*([0-9]+)回だけ", "戦闘中に自身の行為判定が失敗した時, 戦闘中$1回まで");
+        text = RegexReplace(text, @"〈([^〉]+)〉が含まれるエリアで", "〈$1〉エリアで");
+        text = RegexReplace(text, @"自身が〈([^〉]+)〉を宣言した時", "自身が〈$1〉を宣言した直後");
+        text = RegexReplace(text, @"(最大値の[0-9]+%以下になった時)、発動可能", "$1");
         return text.Replace("である事。", "であること").Replace("片手が素手。", "片手が素手").TrimEnd('。');
     }
 }

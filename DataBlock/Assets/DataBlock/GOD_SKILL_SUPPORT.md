@@ -1,6 +1,6 @@
 # 神族のスキル・特性
 
-`神族のスキルと特性.txt` の12件を対象に、Inspectorの構文統一 → シリアライズセット → テキスト再構築 → JSON出力で使用する文章変換とデータ表現を追加した。JSONの `Skill / Summons / States` 構造は維持する。戦闘実行・式の評価は従来どおりJSONの利用側で行う。
+`神族のスキルと特性.txt` の12件を対象に、Inspectorの構文統一 → シリアライズセット → テキスト再構築 → JSON出力で使用する文章変換とデータ表現を追加した。スキル本体、召喚、状態はそれぞれ別のJSONに出力する。戦闘実行・式の評価は従来どおりJSONの利用側で行う。
 
 初回追加時には、依頼に従いテスト・ビルド・Inspector操作を実施していない。以下はデータ表現と解釈の記録。
 
@@ -47,7 +47,7 @@
 
 ## Runtime/Model の変更一覧
 
-既存enumの番号とJSONの外形は変更していない。Parametersの順番は以下のとおり。
+Parametersの順番は以下のとおり。
 
 ### ConditionModels.cs
 
@@ -68,15 +68,15 @@
 | 108 SucceedFailedActivationRoll | パラメーターなし。反応元の通常失敗を成功に変更 |
 | 109 UnmodifiableMaximumResourceDamage | リソース名、最大値に対する割合%。対象への、指定要因で増減されないダメージ |
 
-### EffectModels.cs：OverrideContentType
+### EffectModels.cs：EffectContentType
 
 | 値・名称 | Parameters |
 |---|---|
-| 68 EquippedSkillLimit | 装備スキル数の上限式 |
-| 69 ThisSkillStackCost | 自身のスタック名、軽減リソース名、1スタック当たりの軽減値、最低消費 |
-| 70 ThisSkillStackPower | 自身のスタック名、必要スタック数、威力倍率 |
-| 71 OptionalSpikeState | 消費リソースA、消費リソースB、それぞれの消費量、付与する自身の状態名、戦闘中の使用上限 |
-| 72 AllBonusStatsMultiplier | 全能力値Bの倍率。状態の効果として使用 |
+| 648 EquippedSkillLimit | 装備スキル数の上限式 |
+| 649 ThisSkillStackCost | 自身のスタック名、軽減リソース名、1スタック当たりの軽減値、最低消費 |
+| 650 ThisSkillStackPower | 自身のスタック名、必要スタック数、威力倍率 |
+| 651 OptionalSpikeState | 消費リソースA、消費リソースB、それぞれの消費量、付与する自身の状態名、戦闘中の使用上限 |
+| 652 AllBonusStatsMultiplier | 全能力値Bの倍率。状態の効果として使用 |
 
 `SkillModels.cs`、`StateModels.cs` のフィールド追加は不要。
 

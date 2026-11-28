@@ -110,7 +110,7 @@ internal sealed class RacialSkillTextConverterTests
             "火", "火精の昂り", "水", "水精のさざめき", "風", "風精の囁き",
             "電", "雷精の轟き", "冷", "氷精の嬉笑", "土", "土精の踊躍"
         }));
-        OverrideDefinition reduction = echo.Overrides.Single(x => x.Contents.Any(c => c.Type == OverrideContentType.ReduceResourceCostPerMappedStacks));
+        EffectDefinition reduction = echo.Overrides.Single(x => x.Contents.Any(c => c.Type == EffectContentType.ReduceResourceCostPerMappedStacks));
         Assert.That(reduction.Contents.Single().Parameters, Is.EqualTo(new[] { "Self", "ACT", "顕現", "3", "1", "One" }));
         Assert.That(reduction.Triggers.Single().Timing, Is.EqualTo(TriggerTiming.ResourceCost));
         EffectDefinition recovery = echo.Effects.Single(x => x.Triggers.Any(t => t.Timing == TriggerTiming.StateStackChanged));
@@ -119,21 +119,21 @@ internal sealed class RacialSkillTextConverterTests
         Assert.That(recovery.Contents.Single().Parameters, Is.EqualTo(new[] { "Self", "ACT", "1" }));
 
         SkillBody whisper = skills["エレメンタルウィスパー"].Skill;
-        OverrideDefinition power = whisper.Overrides.Single(x => x.Type == EffectType.Passive && x.Contents.Any(c => c.Type == OverrideContentType.MultiplyPower));
-        Assert.That(power.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.ActionCategory).Parameters,
-            Is.EqualTo(new[] { "精霊魔法" }));
-        Assert.That(whisper.Overrides.Single(x => x.Contents.Any(c => c.Type == OverrideContentType.MultiplyResourceCost)).Contents.Single().Parameters,
+        EffectDefinition power = whisper.Overrides.Single(x => x.Type == EffectType.Passive && x.Contents.Any(c => c.Type == EffectContentType.MultiplyActionPower));
+        Assert.That(power.Triggers, Is.Empty);
+        Assert.That(power.Contents.Single().Parameters, Is.EqualTo(new[] { "Self", "精霊魔法", "1.1" }));
+        Assert.That(whisper.Overrides.Single(x => x.Contents.Any(c => c.Type == EffectContentType.MultiplyResourceCost)).Contents.Single().Parameters,
             Is.EqualTo(new[] { "Self", "MP", "0.9" }));
         Assert.That(whisper.Overrides.Where(x => x.Type == EffectType.SecondSpike).SelectMany(x => x.Contents)
-            .Where(x => x.Type == OverrideContentType.SetModifier).Select(x => x.Parameters), Is.EquivalentTo(new[]
+            .Where(x => x.Type == EffectContentType.SetModifier).Select(x => x.Parameters), Is.EquivalentTo(new[]
         {
-            new[] { "MultiplyPower", "ActionCategory", "精霊魔法", "1.15" },
+            new[] { "MultiplyActionPower", "ActionCategory", "精霊魔法", "1.15" },
             new[] { "MultiplyResourceCost", "ActionCategory", "精霊魔法", "MP", "0.85" }
         }));
 
         SkillBody veil = skills["マナヴェール"].Skill;
         Assert.That(veil.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
-            .Where(x => x.Type == OverrideContentType.ModifyStat).Select(x => x.Parameters), Is.EquivalentTo(new[]
+            .Where(x => x.Type == EffectContentType.ModifyStat).Select(x => x.Parameters), Is.EquivalentTo(new[]
         {
             new[] { "Self", "防御点", "Add", "+30" },
             new[] { "Self", "MP最大値", "Add", "-10" }
@@ -142,8 +142,8 @@ internal sealed class RacialSkillTextConverterTests
             Is.EqualTo(new[] { "ModifyStat", "Self", "防御点", "Add", "+40" }));
 
         SkillBody wisdom = skills["長命種の叡智"].Skill;
-        OverrideDefinition result = wisdom.Overrides.Single(x => x.Type == EffectType.Passive);
-        Assert.That(result.Contents.Single().Type, Is.EqualTo(OverrideContentType.AddActionResult));
+        EffectDefinition result = wisdom.Overrides.Single(x => x.Type == EffectType.Passive);
+        Assert.That(result.Contents.Single().Type, Is.EqualTo(EffectContentType.AddActionResult));
         Assert.That(result.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.ActionStat).Parameters,
             Is.EqualTo(new[] { "知力B" }));
         Assert.That(wisdom.Overrides.Where(x => x.Type == EffectType.ThirdSpike).SelectMany(x => x.Contents).Single().Parameters,
@@ -194,7 +194,7 @@ internal sealed class RacialSkillTextConverterTests
         Assert.That(parsed.Skill.Effects.SelectMany(x => x.Contents)
             .Count(x => x.Type == EffectContentType.GainMappedStateStacks), Is.EqualTo(2));
         Assert.That(parsed.Skill.Overrides.SelectMany(x => x.Contents)
-            .Count(x => x.Type == OverrideContentType.ReduceResourceCostPerMappedStacks), Is.EqualTo(2));
+            .Count(x => x.Type == EffectContentType.ReduceResourceCostPerMappedStacks), Is.EqualTo(2));
         Assert.That(parsed.Skill.Effects.Count(x => x.Triggers.Any(t => t.Timing == TriggerTiming.StateStackChanged)), Is.EqualTo(2));
 
         List<EffectDefinition> recoveries = parsed.Skill.Effects
@@ -216,12 +216,12 @@ internal sealed class RacialSkillTextConverterTests
             .Replace("【サードスパイク】このパッシブ効果による防御点増加は+60に変化する。\n", "");
 
         SkillTextData parsed = SkillTextConverter.Parse(source);
-        OverrideContent defense = parsed.Skill.Overrides.SelectMany(x => x.Contents)
-            .Single(x => x.Type == OverrideContentType.ModifyStat && x.Parameters[1] == "防御点");
+        EffectContent defense = parsed.Skill.Overrides.SelectMany(x => x.Contents)
+            .Single(x => x.Type == EffectContentType.ModifyStat && x.Parameters[1] == "防御点");
 
         Assert.That(defense.Parameters, Is.EqualTo(new[] { "Target", "防御点", "Add", "+30" }));
         Assert.That(SkillTextConverter.Parse(SkillTextConverter.Build(parsed)).Skill.Overrides.SelectMany(x => x.Contents)
-            .Single(x => x.Type == OverrideContentType.ModifyStat && x.Parameters[1] == "防御点").Parameters,
+            .Single(x => x.Type == EffectContentType.ModifyStat && x.Parameters[1] == "防御点").Parameters,
             Is.EqualTo(defense.Parameters));
     }
 

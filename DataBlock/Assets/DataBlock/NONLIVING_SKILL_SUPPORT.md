@@ -1,6 +1,6 @@
 # 非生物のスキル・特性
 
-`非生物の実装範囲.txt` の22件に対する文章変換・データ表現。Inspectorの構文統一 → シリアライズセット → テキスト再構築 → JSON出力で使用する。JSONの外形は従来の `Skill / Summons / States` を維持する。戦闘処理そのものは従来どおりJSONの利用側で実行する。
+`非生物の実装範囲.txt` の22件に対する文章変換・データ表現。Inspectorの構文統一 → シリアライズセット → テキスト再構築 → JSON出力で使用する。スキル本体、召喚、状態はそれぞれ別のJSONに出力する。戦闘処理そのものは従来どおりJSONの利用側で実行する。
 
 初回追加時には、依頼に従いテスト・ビルド・Inspector操作を実施していない。以下はデータ表現と解釈の記録。
 
@@ -52,7 +52,7 @@
 
 ## Runtime/Model の変更
 
-既存enumの番号は変更していない。パラメーターは表の順に文字列で保存する。
+パラメーターは表の順に文字列で保存する。
 
 ### ConditionModels.cs
 
@@ -79,13 +79,13 @@
 
 種族・カテゴリー一覧は `人間, 魔法生物, 獣人` のようなカンマ区切りで、いずれかに一致する意味。
 
-### EffectModels.cs：OverrideContentType
+### EffectModels.cs：EffectContentType
 
 | 値・名称 | Parameters |
 |---|---|
-| 65 PowerAgainstState | 攻撃前から対象にある状態名、威力倍率。このスキルの攻撃のみ |
-| 66 WeaponPowerAgainstState | 武器カテゴリー、攻撃前から対象にある状態名、威力倍率 |
-| 67 IncomingCategoriesDamageMultiplier | 受けるカテゴリー一覧、被ダメージ倍率 |
+| 645 PowerAgainstState | 攻撃前から対象にある状態名、威力倍率。このスキルの攻撃のみ |
+| 646 WeaponPowerAgainstState | 武器カテゴリー、攻撃前から対象にある状態名、威力倍率 |
+| 647 IncomingCategoriesDamageMultiplier | 受けるカテゴリー一覧、被ダメージ倍率 |
 
 ### 既存型への追加表現
 

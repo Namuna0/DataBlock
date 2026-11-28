@@ -54,14 +54,14 @@ public static partial class SkillTextConverter
         return false;
     }
 
-    private static bool TryPassiveOverrideText(OverrideDefinition effect, OverrideContent content, out string text)
+    private static bool TryPassiveOverrideText(EffectDefinition effect, EffectContent content, out string text)
     {
         text = null;
         string[] p;
         string category;
         switch (content.Type)
         {
-            case OverrideContentType.ModifyStat:
+            case EffectContentType.ModifyStat:
                 p = Args(content.Parameters, 4, "ModifyStat");
                 if (effect.Type != EffectType.Passive || effect.Triggers.Count != 0) return false;
                 string statPrefix = p[0] == "Self" ? "" : Actor(p[0]) + "の";
@@ -69,21 +69,17 @@ public static partial class SkillTextConverter
                 else if (p[2] == "Add") text = statPrefix + p[1] + Signed(p[3]);
                 else throw new InvalidOperationException("能力値補正はAdd / Multiplyで指定してください。");
                 return true;
-            case OverrideContentType.MultiplyPower:
-                if (effect.Type == EffectType.Passive && TryGetCategoryTrigger(effect.Triggers, TriggerTiming.AttackPower, out category))
-                {
-                    p = Args(content.Parameters, 1, "MultiplyPower");
-                    text = "〈" + category + "〉の威力が×" + p[0] + "倍される。";
-                    return true;
-                }
-                return false;
-            case OverrideContentType.MultiplyResourceCost:
+            case EffectContentType.MultiplyActionPower:
+                if (effect.Type != EffectType.Passive || effect.Triggers.Count != 0) return false;
+                text = CommonEffectTextCodec.WriteRuleContent(content);
+                return true;
+            case EffectContentType.MultiplyResourceCost:
                 p = Args(content.Parameters, 3, "MultiplyResourceCost");
                 if (effect.Type != EffectType.Passive || p[0] != "Self" || p[1] != "MP" ||
                     !TryGetCategoryTrigger(effect.Triggers, TriggerTiming.ResourceCost, out category)) return false;
                 text = "〈" + category + "〉のマナ消費が×" + p[2] + "倍になる。";
                 return true;
-            case OverrideContentType.ReduceResourceCostPerMappedStacks:
+            case EffectContentType.ReduceResourceCostPerMappedStacks:
                 p = Args(content.Parameters, 6, "ReduceResourceCostPerMappedStacks");
                 if (effect.Type != EffectType.Passive || p[0] != "Self" || p[5] != OneAttributePolicy ||
                     !TryGetCategoryTrigger(effect.Triggers, TriggerTiming.ResourceCost, out category)) return false;
@@ -91,7 +87,7 @@ public static partial class SkillTextConverter
                 text = "効果〈" + p[2] + "〉：自身の〈" + category + "〉による消費" + p[1] +
                        "はその属性の[属性に応じたスタック]×" + p[3] + "につき" + p[4] + "減少する。";
                 return true;
-            case OverrideContentType.AddActionResult:
+            case EffectContentType.AddActionResult:
                 if (effect.Type == EffectType.Passive && TryGetActionStatTrigger(effect.Triggers, out category))
                 {
                     p = Args(content.Parameters, 1, "AddActionResult");
@@ -99,7 +95,7 @@ public static partial class SkillTextConverter
                     return true;
                 }
                 return false;
-            case OverrideContentType.SetModifier:
+            case EffectContentType.SetModifier:
                 if (effect.Type != EffectType.SecondSpike && effect.Type != EffectType.ThirdSpike) return false;
                 if (effect.Triggers.Count != 0) return false;
                 p = VariableArgs(content.Parameters, 4, "SetModifier");

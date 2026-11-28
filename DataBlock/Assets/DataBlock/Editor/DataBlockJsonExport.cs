@@ -116,7 +116,14 @@ internal sealed class DataBlockJsonExport
         bool first = true;
         foreach (var cell in entries.Where(c => c.Data != null))
         {
-            string kind = cell.Data is CharacterProfileData ? "profile" : cell.Data is SiegeWeaponData ? "siegeWeapon" : "skill";
+            string kind = cell.Data switch
+            {
+                SkillTextData _ => "skill",
+                EquipmentTextData _ => "equipment",
+                CharacterProfileData _ => "profile",
+                SiegeWeaponData _ => "siegeWeapon",
+                _ => throw new InvalidOperationException("未対応のCSV出力形式です。")
+            };
             var record = new JsonObject
             {
                 ["row"] = cell.Row, ["column"] = cell.Column, ["kind"] = kind,

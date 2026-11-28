@@ -9,7 +9,7 @@ public static partial class SkillTextConverter
     private const string Unspecified = "Unspecified";
     private const string EachAttributePolicy = "Each";
     private const string OneAttributePolicy = "One";
-    private const string PowerModifier = "MultiplyPower";
+    private const string PowerModifier = nameof(EffectContentType.MultiplyActionPower);
     private const string ResourceCostModifier = "MultiplyResourceCost";
     private const string StatModifier = "ModifyStat";
     private const string ActionResultModifier = "AddActionResult";
@@ -51,15 +51,15 @@ public static partial class SkillTextConverter
         {
             string category = m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value.Trim();
             AddOverride(skill.Overrides, type, NoTriggers(),
-                Change(OverrideContentType.SetModifier, PowerModifier, "ActionCategory", category, m.Groups[1].Value),
-                Change(OverrideContentType.SetModifier, ResourceCostModifier, "ActionCategory", category, "MP", m.Groups[4].Value));
+                Change(EffectContentType.SetModifier, PowerModifier, "ActionCategory", category, m.Groups[1].Value),
+                Change(EffectContentType.SetModifier, ResourceCostModifier, "ActionCategory", category, "MP", m.Groups[4].Value));
             return true;
         }
 
         m = M(body, @"^このパッシブ効果による〈([^〉]+)〉の威力倍率は(.+?)倍に変化する。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetModifier,
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetModifier,
                 PowerModifier, "ActionCategory", m.Groups[1].Value, m.Groups[2].Value));
             return true;
         }
@@ -67,7 +67,7 @@ public static partial class SkillTextConverter
         m = M(body, @"^このパッシブ効果による〈([^〉]+)〉のマナ消費倍率は×?(.+?)倍に変化する。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetModifier,
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetModifier,
                 ResourceCostModifier, "ActionCategory", m.Groups[1].Value, "MP", m.Groups[2].Value));
             return true;
         }
@@ -76,7 +76,7 @@ public static partial class SkillTextConverter
         if (m.Success)
         {
             string stat = m.Groups[1].Success ? m.Groups[1].Value : SingleActionResultStat(skill);
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetModifier,
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetModifier,
                 ActionResultModifier, "ActionStat", stat, Signed(m.Groups[2].Value)));
             return true;
         }
@@ -84,7 +84,7 @@ public static partial class SkillTextConverter
         m = M(body, @"^このパッシブ効果による(?:(自身|対象|付与者)の)?(.+?)増加は([+-].+?)に変化する。?$");
         if (m.Success)
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetModifier,
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetModifier,
                 StatModifier, m.Groups[1].Success ? ActorKey(m.Groups[1].Value) : "Self",
                 m.Groups[2].Value, "Add", Signed(m.Groups[3].Value)));
             return true;
@@ -145,7 +145,7 @@ public static partial class SkillTextConverter
             EffectContent gain = gainEffect.Contents.Single(x => x.Type == EffectContentType.GainMappedStateStacks);
             gain.Parameters[3] = m.Groups[1].Value;
             AddOverride(skill.Overrides, type, CategoryResourceCostTriggers(category),
-                Change(OverrideContentType.ReduceResourceCostPerMappedStacks,
+                Change(EffectContentType.ReduceResourceCostPerMappedStacks,
                     "Self", m.Groups[3].Value, m.Groups[1].Value, m.Groups[4].Value, m.Groups[5].Value, Unspecified));
             return true;
         }
@@ -155,7 +155,7 @@ public static partial class SkillTextConverter
         {
             Number(m.Groups[1].Value, 1, "回復間隔");
             Number(m.Groups[3].Value, 1, "回復量");
-            OverrideContent costRule = NextMappedStackCostRule(skill);
+            EffectContent costRule = NextMappedStackCostRule(skill);
             string[] cost = Args(costRule.Parameters, 6, "ReduceResourceCostPerMappedStacks");
             skill.Effects.Add(new EffectDefinition
             {
@@ -174,7 +174,7 @@ public static partial class SkillTextConverter
             if (restore == null) throw new InvalidOperationException("参照方法の前にスタック回復効果を指定してください。");
             string rule = restore.Triggers[0].Conditions.And[0].Parameters[1];
             var costRules = skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
-                .Where(x => x.Type == OverrideContentType.ReduceResourceCostPerMappedStacks &&
+                .Where(x => x.Type == EffectContentType.ReduceResourceCostPerMappedStacks &&
                     x.Parameters != null && x.Parameters.Count == 6 && x.Parameters[2] == rule).ToList();
             if (costRules.Count != 1) throw new InvalidOperationException("回復が参照する消費軽減を1件指定してください：" + rule);
             costRules[0].Parameters[5] = OneAttributePolicy;
@@ -195,37 +195,9 @@ public static partial class SkillTextConverter
             return true;
         }
 
-        m = M(body, @"^(?:(自身|対象|付与者)の)?(.+?最大値)(?:が|は)×(.+?)倍される。?$");
-        if (m.Success)
+        if (CommonEffectTextCodec.TryReadCategoryPower(body, out var categoryPower))
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.ModifyStat,
-                m.Groups[1].Success ? ActorKey(m.Groups[1].Value) : "Self",
-                m.Groups[2].Value, "Multiply", m.Groups[3].Value));
-            return true;
-        }
-
-        List<string> modifierParts = Split(body, ",");
-        if (modifierParts.Count == 1 && body.Contains("、")) modifierParts = Split(body, "、");
-        var modifiers = new List<OverrideContent>();
-        foreach (string part in modifierParts)
-        {
-            m = M(part, @"^(?:(自身|対象|付与者)の)?(.+?(?:最大値|点))([+-].+?)。?$");
-            if (!m.Success) { modifiers.Clear(); break; }
-            modifiers.Add(Change(OverrideContentType.ModifyStat,
-                m.Groups[1].Success ? ActorKey(m.Groups[1].Value) : "Self",
-                m.Groups[2].Value, "Add", Signed(m.Groups[3].Value)));
-        }
-        if (modifiers.Count > 0)
-        {
-            AddOverride(skill.Overrides, type, NoTriggers(), modifiers.ToArray());
-            return true;
-        }
-
-        m = M(body, @"^〈([^〉]+)〉の威力(?:が|は)×(.+?)倍される。?$");
-        if (m.Success)
-        {
-            AddOverride(skill.Overrides, type, CategoryPowerTriggers(m.Groups[1].Value),
-                Change(OverrideContentType.MultiplyPower, m.Groups[2].Value));
+            AddOverride(skill.Overrides, type, NoTriggers(), categoryPower);
             return true;
         }
 
@@ -234,7 +206,7 @@ public static partial class SkillTextConverter
         {
             string category = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value.Trim();
             AddOverride(skill.Overrides, type, CategoryResourceCostTriggers(category),
-                Change(OverrideContentType.MultiplyResourceCost, "Self", "MP", m.Groups[3].Value));
+                Change(EffectContentType.MultiplyResourceCost, "Self", "MP", m.Groups[3].Value));
             return true;
         }
 
@@ -242,7 +214,7 @@ public static partial class SkillTextConverter
         if (m.Success)
         {
             AddOverride(skill.Overrides, type, ActionResultTriggers(m.Groups[1].Value),
-                Change(OverrideContentType.AddActionResult, Signed(m.Groups[2].Value)));
+                Change(EffectContentType.AddActionResult, Signed(m.Groups[2].Value)));
             return true;
         }
         return false;
@@ -293,10 +265,10 @@ public static partial class SkillTextConverter
         throw new InvalidOperationException("同じ行動カテゴリーの未接続な属性スタック取得を指定してください：" + category);
     }
 
-    private static OverrideContent NextMappedStackCostRule(SkillBody skill)
+    private static EffectContent NextMappedStackCostRule(SkillBody skill)
     {
-        foreach (OverrideContent content in skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
-                     .Where(x => x.Type == OverrideContentType.ReduceResourceCostPerMappedStacks))
+        foreach (EffectContent content in skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents)
+                     .Where(x => x.Type == EffectContentType.ReduceResourceCostPerMappedStacks))
         {
             string[] p = Args(content.Parameters, 6, "ReduceResourceCostPerMappedStacks");
             if (!skill.Effects.Any(x => IsMappedStackRestore(x, p[2]))) return content;
@@ -307,8 +279,8 @@ public static partial class SkillTextConverter
     private static string SingleActionResultStat(SkillBody skill)
     {
         var stats = new List<string>();
-        foreach (OverrideDefinition effect in skill.Overrides.Where(x => x.Type == EffectType.Passive &&
-                     x.Contents.Any(c => c.Type == OverrideContentType.AddActionResult)))
+        foreach (EffectDefinition effect in skill.Overrides.Where(x => x.Type == EffectType.Passive &&
+                     x.Contents.Any(c => c.Type == EffectContentType.AddActionResult)))
         {
             string stat;
             if (TryGetActionStatTrigger(effect.Triggers, out stat)) stats.Add(stat);

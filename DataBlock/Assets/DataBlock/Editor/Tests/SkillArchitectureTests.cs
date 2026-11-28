@@ -49,7 +49,7 @@ internal sealed class SkillArchitectureTests
         Assert.That(data.Skill.Costs.Single().Amount, Is.EqualTo(4));
     }
 
-    private static IEnumerable<OverrideContent> Overrides(SkillTextData data, EffectType stage)
+    private static IEnumerable<EffectContent> Overrides(SkillTextData data, EffectType stage)
     {
         return data.Skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents);
     }
@@ -61,7 +61,7 @@ internal sealed class SkillArchitectureTests
             "【パッシブ効果】スキル習得に必要な消費決意が-3される。",
             "【セカンドスパイク】このパッシブ効果による消費決意は-5に変化する。",
             "【サードスパイク】このパッシブ効果による消費決意は-7に変化する。"));
-        Assert.That(Overrides(data, EffectType.Passive).Single().Type, Is.EqualTo(OverrideContentType.ModifyAcquisitionCost));
+        Assert.That(Overrides(data, EffectType.Passive).Single().Type, Is.EqualTo(EffectContentType.ModifyAcquisitionCost));
         Assert.That(Overrides(data, EffectType.Passive).Single().Parameters,
             Is.EqualTo(new[] { "Self", "決意", "Add", "AllSkills", "All", "-3" }));
         Assert.That(Overrides(data, EffectType.SecondSpike).Single().Parameters,
@@ -92,10 +92,10 @@ internal sealed class SkillArchitectureTests
             "〈精霊魔法〉による消費MPが-1される。",
             "〈精霊魔法〉を発動するたびに《任意状態》〈顕現〉状態を1スタック得る。",
             "3スタック得た時、ACTは+2回復して、スタックは0になる。"));
-        var target = data.Skill.Overrides.Single(x => x.Contents.Any(c => c.Type == OverrideContentType.AddTargetValue));
+        var target = data.Skill.Overrides.Single(x => x.Contents.Any(c => c.Type == EffectContentType.AddTargetValue));
         Assert.That(target.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.ActionTarget).Parameters, Is.EqualTo(new[] { "Self" }));
         Assert.That(target.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.CheckContext).Parameters, Is.EqualTo(new[] { "Activation" }));
-        Assert.That(Overrides(data, EffectType.Passive).Single(x => x.Type == OverrideContentType.AddResourceCost).Parameters,
+        Assert.That(Overrides(data, EffectType.Passive).Single(x => x.Type == EffectContentType.AddResourceCost).Parameters,
             Is.EqualTo(new[] { "Self", "MP", "-1", "Automatic" }));
         Assert.That(Contents(data).Single(x => x.Type == EffectContentType.CyclingStateStacks).Parameters,
             Is.EqualTo(new[] { "Self", "精霊魔法", "任意状態", "顕現", "1", "3", "ACT", "2", "0" }));
@@ -140,7 +140,7 @@ internal sealed class SkillArchitectureTests
             "【セカンドスパイク】このアクティブ効果による《任意状態》付与は3ターンに変化する。",
             "【サードスパイク】このアクティブ効果による《任意状態》付与は4ターンに変化する。"));
         Assert.That(Contents(data).Single().Parameters, Is.EqualTo(new[] { "Target", "任意状態", "2" }));
-        Assert.That(Overrides(data, EffectType.SecondSpike).Single().Type, Is.EqualTo(OverrideContentType.SetAppliedStateDuration));
+        Assert.That(Overrides(data, EffectType.SecondSpike).Single().Type, Is.EqualTo(EffectContentType.SetAppliedStateDuration));
         Assert.That(Overrides(data, EffectType.SecondSpike).Single().Parameters, Is.EqualTo(new[] { "Target", "任意状態", "3" }));
         Assert.That(Overrides(data, EffectType.ThirdSpike).Single().Parameters, Is.EqualTo(new[] { "Target", "任意状態", "4" }));
     }
@@ -158,7 +158,7 @@ internal sealed class SkillArchitectureTests
             "【発動ロール】1d100*[筋力B] 目標値30",
             "【アクティブ効果】対象を50の威力で攻撃する。",
             "既に対象が《任意状態》状態の時、威力は×1.5倍される。"));
-        Assert.That(Overrides(attack, EffectType.Active).Single().Type, Is.EqualTo(OverrideContentType.PowerAgainstState));
+        Assert.That(Overrides(attack, EffectType.Active).Single().Type, Is.EqualTo(EffectContentType.PowerAgainstState));
         Assert.That(Overrides(attack, EffectType.Active).Single().Parameters, Is.EqualTo(new[] { "任意状態", "1.5" }));
         attack.Skill.Effects.Clear();
         Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(attack));
@@ -179,7 +179,7 @@ internal sealed class SkillArchitectureTests
             "対象は2ターンの間《任意状態》スタックを3得る。"));
         Assert.That(Contents(data).Single(x => x.Type == EffectContentType.DeferMissingResourceCost).Parameters, Is.EqualTo(new[] { "ACT" }));
         Assert.That(Contents(data).Single(x => x.Type == EffectContentType.TimedTargetStacks).Parameters, Is.EqualTo(new[] { "任意状態", "3", "2" }));
-        Assert.That(Overrides(data, EffectType.Passive).Single(x => x.Type == OverrideContentType.ThisSkillStackCost).Parameters,
+        Assert.That(Overrides(data, EffectType.Passive).Single(x => x.Type == EffectContentType.ThisSkillStackCost).Parameters,
             Is.EqualTo(new[] { "任意状態", "ACT", "2", "1" }));
         data.Skill.Costs.RemoveAll(x => x.Resource == "ACT");
         Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(data));
@@ -301,9 +301,9 @@ internal sealed class SkillArchitectureTests
             "【発動ロール】1d100*[知力B] 目標値39",
             "【アクティブ効果】対象をスキル値100の武器威力+60*([火属性B]+[土属性B])の火かつ土属性威力で攻撃する。",
             "【セカンドスパイク】このアクティブ効果によるスキル値は110、属性威力は70*([火属性B]+[土属性B])に変化する。"));
-        Assert.That(Overrides(data, EffectType.SecondSpike).Single(x => x.Type == OverrideContentType.SetSkillValue).Parameters,
+        Assert.That(Overrides(data, EffectType.SecondSpike).Single(x => x.Type == EffectContentType.SetSkillValue).Parameters,
             Is.EqualTo(new[] { "110" }));
-        Assert.That(Overrides(data, EffectType.SecondSpike).Single(x => x.Type == OverrideContentType.SetAttackComponent).Parameters,
+        Assert.That(Overrides(data, EffectType.SecondSpike).Single(x => x.Type == EffectContentType.SetAttackComponent).Parameters,
             Is.EqualTo(new[] { "AttributePower", "70*([火属性B]+[土属性B])" }));
     }
 
@@ -484,7 +484,7 @@ internal sealed class SkillArchitectureTests
         Assert.That(cloth.Amount, Is.EqualTo(1));
         Assert.That(aid.Effects.Single(e => e.Type == EffectType.Active).Contents.Single().Parameters, Is.EqualTo(new[] { "Target", "HP", "100" }));
         var critical = aid.Overrides.Single(e => e.Type == EffectType.Critical).Contents.Single();
-        Assert.That(critical.Type, Is.EqualTo(OverrideContentType.MultiplyRecovery));
+        Assert.That(critical.Type, Is.EqualTo(EffectContentType.MultiplyRecovery));
         Assert.That(critical.Parameters, Is.EqualTo(new[] { "1.5" }));
         var fumble = aid.Effects.Single(e => e.Type == EffectType.Fumble).Contents.Single();
         Assert.That(fumble.Type, Is.EqualTo(EffectContentType.Damage));
@@ -496,7 +496,7 @@ internal sealed class SkillArchitectureTests
         foreach (var stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike })
         {
             var delta = Overrides(search, stage).Single();
-            Assert.That(delta.Type, Is.EqualTo(OverrideContentType.AddTargetValue));
+            Assert.That(delta.Type, Is.EqualTo(EffectContentType.AddTargetValue));
             Assert.That(delta.Parameters.Single(), Is.EqualTo(stage == EffectType.SecondSpike ? "-5" : "-10"));
         }
     }

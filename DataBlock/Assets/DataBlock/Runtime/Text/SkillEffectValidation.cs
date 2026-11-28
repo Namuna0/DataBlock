@@ -33,6 +33,11 @@ public static partial class SkillTextConverter
         {
             if (effect == null || !IsOrdinary(effect.Type) || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("通常効果の種別・内容を指定してください。");
             SkillTriggerText(effect.Type, effect.Triggers);
+            if (effect.Contents[0]?.Type == EffectContentType.RollTable)
+            {
+                WriteCommonGroup(effect.Contents, effect.Triggers.Count == 0);
+                continue;
+            }
             foreach (EffectContent content in effect.Contents)
             {
                 SkillContentText(content);
@@ -67,39 +72,39 @@ public static partial class SkillTextConverter
 
         ValidateConsumedItems(skill);
         ValidateRandomRolls(skill);
-        foreach (OverrideDefinition effect in skill.Overrides)
+        foreach (EffectDefinition effect in skill.Overrides)
         {
             if (effect == null || effect.Type == EffectType.None || !DisplayOrder.Contains(effect.Type) || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("上書き効果の種別と内容を指定してください。");
-            foreach (OverrideContent content in effect.Contents)
+            foreach (EffectContent content in effect.Contents)
             {
                 OverrideText(skill, effect, content);
                 bool spike = effect.Type == EffectType.SecondSpike || effect.Type == EffectType.ThirdSpike;
-                if (spike && !IsRuleSpike(content.Type) && content.Type != OverrideContentType.SetRoleplayDescription && content.Type != OverrideContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != OverrideContentType.SetSkillValue && content.Type != OverrideContentType.SetDamageReduction && content.Type != OverrideContentType.SetAttackComponent && content.Type != OverrideContentType.SetModifier && !IsRollSpike(content.Type) && content.Type != OverrideContentType.SetRollRange && content.Type != OverrideContentType.StateTurnRecovery)
+                if (spike && !IsRuleSpike(content.Type) && content.Type != EffectContentType.SetRoleplayDescription && content.Type != EffectContentType.OptionalSpikeState && !IsAppliedStateSpike(content.Type) && !IsStateReferenceSpike(content.Type) && content.Type != EffectContentType.SetSkillValue && content.Type != EffectContentType.SetDamageReduction && content.Type != EffectContentType.SetAttackComponent && content.Type != EffectContentType.SetModifier && !IsRollSpike(content.Type) && content.Type != EffectContentType.SetRollRange && content.Type != EffectContentType.StateTurnRecovery)
                     throw new InvalidOperationException("スパイクはスキル値・攻撃構成要素・被ダメージ軽減値・発動ロールの変更に対応します。");
                 if (spike && IsRollSpike(content.Type) &&
                     (skill.Roll.Count <= 0 || skill.Roll.Formula == "自動成功"))
                     throw new InvalidOperationException("発動ロールのスパイク変更には通常の発動ロールが必要です。");
-                if (content.Type == OverrideContentType.SetSkillValue && !hasUnconditionalSkillValueAttack)
+                if (content.Type == EffectContentType.SetSkillValue && !hasUnconditionalSkillValueAttack)
                     throw new InvalidOperationException("スキル値の上書き先となるアクティブ攻撃を無条件で1件だけ指定してください。");
-                if (content.Type == OverrideContentType.SetAttackComponent || content.Type == OverrideContentType.MultiplyAttackComponent)
+                if (content.Type == EffectContentType.SetAttackComponent || content.Type == EffectContentType.MultiplyAttackComponent)
                 {
                     string[] p = Args(content.Parameters, 2, content.Type.ToString());
                     if (p[0] != "AttributePower" && p[0] != "Power") throw new InvalidOperationException("攻撃構成要素はPower / AttributePowerです。");
                     if (!(p[0] == "Power" ? hasUnconditionalActiveAttack : hasUnconditionalAttributeAttack))
                         throw new InvalidOperationException("威力の変更先となる対応アクティブ攻撃を無条件で1件だけ指定してください。");
                 }
-                if (content.Type == OverrideContentType.SetAttackRule && !hasUnconditionalActiveAttack && !content.Parameters.SequenceEqual(new[] { "Response", "回避", "Prohibit", "ThisSkill" }))
+                if (content.Type == EffectContentType.SetAttackRule && !hasUnconditionalActiveAttack && !content.Parameters.SequenceEqual(new[] { "Response", "回避", "Prohibit", "ThisSkill" }))
                     throw new InvalidOperationException("攻撃規則の適用先となるアクティブ攻撃を無条件で1件だけ指定してください。");
-                if (content.Type == OverrideContentType.SetDamageReduction && !hasUnconditionalCounterReduction)
+                if (content.Type == EffectContentType.SetDamageReduction && !hasUnconditionalCounterReduction)
                     throw new InvalidOperationException("軽減値の上書き先となるカウンターの被ダメージ軽減を無条件で1件だけ指定してください。");
-                if (content.Type == OverrideContentType.SetCritical && !hasUnconditionalSkillValueAttack)
+                if (content.Type == EffectContentType.SetCritical && !hasUnconditionalSkillValueAttack)
                     throw new InvalidOperationException("確定クリティカルの対象となるアクティブ武器攻撃を無条件で1件だけ指定してください。");
-                if (content.Type == OverrideContentType.SetCritical && (effect.Type != EffectType.Active || skill.Roll.Count == 0)) throw new InvalidOperationException("確定クリティカルは発動ロールのあるActiveに指定してください。");
-                if (content.Type == OverrideContentType.PreventCounterDamage && !hasUnconditionalActiveAttack)
+                if (content.Type == EffectContentType.SetCritical && (effect.Type != EffectType.Active || skill.Roll.Count == 0)) throw new InvalidOperationException("確定クリティカルは発動ロールのあるActiveに指定してください。");
+                if (content.Type == EffectContentType.PreventCounterDamage && !hasUnconditionalActiveAttack)
                     throw new InvalidOperationException("カウンターダメージ禁止の対象となるアクティブ攻撃を無条件で1件だけ指定してください。");
-                if (content.Type == OverrideContentType.AddStateDuration && (effect.Type != EffectType.Active || skill.DeclarationConditions.And.Count(x => x.Type == ConditionType.SelectOwnState && x.Parameters.Count >= 2 && x.Parameters[0] == "1") != 1)) throw new InvalidOperationException("持続ターン変更にはActiveとSelectOwnState宣言条件が必要です。");
-                if (content.Type == OverrideContentType.AddTargetValue && !spike && effect.Type != EffectType.Passive) throw new InvalidOperationException("目標値補正はパッシブまたはスパイクに指定してください。");
-                if (content.Type == OverrideContentType.AddResourceCost)
+                if (content.Type == EffectContentType.AddStateDuration && (effect.Type != EffectType.Active || skill.DeclarationConditions.And.Count(x => x.Type == ConditionType.SelectOwnState && x.Parameters.Count >= 2 && x.Parameters[0] == "1") != 1)) throw new InvalidOperationException("持続ターン変更にはActiveとSelectOwnState宣言条件が必要です。");
+                if (content.Type == EffectContentType.AddTargetValue && !spike && effect.Type != EffectType.Passive) throw new InvalidOperationException("目標値補正はパッシブまたはスパイクに指定してください。");
+                if (content.Type == EffectContentType.AddResourceCost)
                 {
                     string[] p = Args(content.Parameters, 4, "AddResourceCost");
                     if (p[3] == "Optional" && effect.Type != EffectType.Passive) throw new InvalidOperationException("任意消費補正はPassiveに指定してください。");
@@ -122,7 +127,7 @@ public static partial class SkillTextConverter
         ValidateDeferredCostAndTimedStacks(skill);
         foreach (EffectType stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike }) ValidateSpikeStage(skill, stage);
 
-        int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == OverrideContentType.SetSkillValue));
+        int activeConditionalValueCount = skill.Overrides.Where(x => x.Type == EffectType.Active).Sum(x => x.Contents.Count(c => c.Type == EffectContentType.SetSkillValue));
         if (activeConditionalValueCount > 1) throw new InvalidOperationException("優先順位が曖昧になるため、アクティブ効果の状態別スキル値は1件までです。");
     }
 
@@ -167,23 +172,25 @@ public static partial class SkillTextConverter
         }
     }
 
-    private static bool IsRollSpike(OverrideContentType type)
+    private static bool IsRollSpike(EffectContentType type)
     {
-        return type == OverrideContentType.SetActivationRollFormula || type == OverrideContentType.SetActivationRollTarget || type == OverrideContentType.AddTargetValue;
+        return type == EffectContentType.SetActivationRollFormula || type == EffectContentType.SetActivationRollTarget || type == EffectContentType.AddTargetValue;
     }
 
-    private static void ValidateRuleSpike(SkillBody skill, OverrideContent entry)
+    private static void ValidateRuleSpike(SkillBody skill, EffectContent entry)
     {
         var effects = skill.Effects.SelectMany(e => e.Contents);
         var modifiers = skill.Overrides.Where(e => !IsSpikeStage(e.Type)).SelectMany(e => e.Contents);
         switch (entry.Type)
         {
-            case OverrideContentType.SetActivationResultFactor: Require(skill.Roll.Count > 0 && skill.Roll.Formula != "自動成功"); break;
-            case OverrideContentType.SetPartyDefenseBonus: Require(modifiers.Count(c => c.Type == OverrideContentType.AlliesFlatDefense) == 1); break;
-            case OverrideContentType.SetResourceDamageAtRank: Require(effects.Count(c => c.Type == EffectContentType.ResourceDamage && c.Parameters[1] == entry.Parameters[0]) == 1); break;
-            case OverrideContentType.SetInjuryResourceThreshold: Require(modifiers.Count(c => c.Type == OverrideContentType.InjuryRollThreshold && c.Parameters[0] == entry.Parameters[0]) == 1); break;
-            case OverrideContentType.SetAdditionalRacialSkillCount: Require(effects.Count(c => c.Type == EffectContentType.AdditionalRaceSkills) == 1); break;
-            case OverrideContentType.SetTwoResourceCosts:
+            case EffectContentType.SetActivationResultFactor: Require(skill.Roll.Count > 0 && skill.Roll.Formula != "自動成功"); break;
+            case EffectContentType.SetPartyDefenseBonus: Require(modifiers.Count(c => c.Type == EffectContentType.AlliesFlatDefense) == 1); break;
+            case EffectContentType.SetResourceDamageAtRank: Require(effects.Count(c => c.Type == EffectContentType.ResourceDamage && c.Parameters[1] == entry.Parameters[0]) == 1); break;
+            case EffectContentType.SetInjuryResourceThreshold: Require(modifiers.Count(c => c.Type == EffectContentType.InjuryRollThreshold && c.Parameters[0] == entry.Parameters[0]) == 1); break;
+            case EffectContentType.SetAdditionalRacialSkillCount: Require(effects.Count(c => c.Type == EffectContentType.AdditionalRaceSkills) == 1); break;
+            case EffectContentType.SetResourceCostFixed:
+                Require(skill.Costs.Count(c => c.Kind == CostKind.Resource && c.Resource == entry.Parameters[0]) == 1); break;
+            case EffectContentType.SetTwoResourceCosts:
                 Require(entry.Parameters[0] != entry.Parameters[2] && new[] { entry.Parameters[0], entry.Parameters[2] }.All(r => skill.Costs.Count(c => c.Kind == CostKind.Resource && c.Resource == r) == 1)); break;
         }
     }
@@ -191,13 +198,13 @@ public static partial class SkillTextConverter
     private static void ValidateSpikeStage(SkillBody skill, EffectType stage)
     {
         var entries = skill.Overrides.Where(x => x.Type == stage).SelectMany(x => x.Contents.Select(c => new { Definition = x, Content = c }))
-            .Where(x => x.Content.Type != OverrideContentType.OptionalSpikeState && x.Content.Type != OverrideContentType.SetRollRange && x.Content.Type != OverrideContentType.StateTurnRecovery && !IsStateReferenceSpike(x.Content.Type) && !IsAppliedStateSpike(x.Content.Type)).ToList();
+            .Where(x => x.Content.Type != EffectContentType.OptionalSpikeState && x.Content.Type != EffectContentType.SetRollRange && x.Content.Type != EffectContentType.StateTurnRecovery && !IsStateReferenceSpike(x.Content.Type) && !IsAppliedStateSpike(x.Content.Type)).ToList();
         var ruleEntries = entries.Where(x => IsRuleSpike(x.Content.Type)).ToList();
         Require(ruleEntries.All(x => x.Definition.Triggers.Count == 0) && ruleEntries.Select(x => x.Content.Type).Distinct().Count() == ruleEntries.Count);
-        if (ruleEntries.Any(x => x.Content.Type == OverrideContentType.NoSpikeChange)) Require(entries.Count == 1);
+        if (ruleEntries.Any(x => x.Content.Type == EffectContentType.NoSpikeChange)) Require(entries.Count == 1);
         foreach (var entry in ruleEntries) ValidateRuleSpike(skill, entry.Content);
         entries.RemoveAll(x => IsRuleSpike(x.Content.Type));
-        if (entries.Any(x => x.Content.Type == OverrideContentType.SetRoleplayDescription))
+        if (entries.Any(x => x.Content.Type == EffectContentType.SetRoleplayDescription))
         {
             Require(entries.Count == 1 && skill.Effects.Any(x => x.Type == EffectType.Roleplay));
             return;
@@ -210,7 +217,7 @@ public static partial class SkillTextConverter
                 throw new InvalidOperationException("発動ロールのスパイク変更は各段階に無条件で1件指定してください。");
             return;
         }
-        var modifierEntries = entries.Where(x => x.Content.Type == OverrideContentType.SetModifier).ToList();
+        var modifierEntries = entries.Where(x => x.Content.Type == EffectContentType.SetModifier).ToList();
         if (modifierEntries.Count > 0)
         {
             var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -220,21 +227,21 @@ public static partial class SkillTextConverter
                 if (!keys.Add(SetModifierKey(entry.Content))) throw new InvalidOperationException("同じ補正に対するスパイク変更が重複しています。");
                 ValidateSetModifierTarget(skill, entry.Content);
             }
-            entries = entries.Where(x => x.Content.Type != OverrideContentType.SetModifier).ToList();
+            entries = entries.Where(x => x.Content.Type != EffectContentType.SetModifier).ToList();
             if (entries.Count == 0) return;
         }
-        int reductions = entries.Count(x => x.Content.Type == OverrideContentType.SetDamageReduction);
+        int reductions = entries.Count(x => x.Content.Type == EffectContentType.SetDamageReduction);
         if (reductions > 0)
         {
             if (entries.Count != 1 || entries[0].Definition.Triggers.Count != 0) throw new InvalidOperationException("軽減値スパイクは各段階に無条件で1件指定してください。");
             return;
         }
-        if (entries.Any(x => x.Content.Type != OverrideContentType.SetSkillValue && x.Content.Type != OverrideContentType.SetAttackComponent))
+        if (entries.Any(x => x.Content.Type != EffectContentType.SetSkillValue && x.Content.Type != EffectContentType.SetAttackComponent))
             throw new InvalidOperationException("攻撃スパイクにはスキル値または攻撃構成要素を指定してください。");
-        var skillValues = entries.Where(x => x.Content.Type == OverrideContentType.SetSkillValue).ToList();
+        var skillValues = entries.Where(x => x.Content.Type == EffectContentType.SetSkillValue).ToList();
         if (skillValues.Count > 0 && skillValues.Count(x => x.Definition.Triggers.Count == 0) != 1) throw new InvalidOperationException("各スパイク段階には無条件の基準スキル値を1件指定してください。");
         if (skillValues.Count(x => x.Definition.Triggers.Count > 0) > 1) throw new InvalidOperationException("優先順位が曖昧になるため、各スパイク段階の状態別スキル値は1件までです。");
-        var components = entries.Where(x => x.Content.Type == OverrideContentType.SetAttackComponent).ToList();
+        var components = entries.Where(x => x.Content.Type == EffectContentType.SetAttackComponent).ToList();
         if (components.Count > 0 && (components.Any(x => x.Definition.Triggers.Count != 0) || components.GroupBy(x => x.Content.Parameters[0]).Any(x => x.Count() > 1))) throw new InvalidOperationException("各スパイク段階の属性威力は無条件で1件指定してください。");
     }
 
@@ -264,11 +271,11 @@ public static partial class SkillTextConverter
         foreach (var effect in skill.Overrides)
         foreach (var content in effect.Contents)
         {
-            if (content.Type == OverrideContentType.SetAppliedStateDuration)
+            if (content.Type == EffectContentType.SetAppliedStateDuration)
                 Require(skill.Effects.Where(x => x.Type == EffectType.Active && x.Triggers.Count == 0).SelectMany(x => x.Contents).Count(x => x.Type == EffectContentType.ApplyState && x.Parameters.Count == 3 && x.Parameters[0] == content.Parameters[0] && x.Parameters[1] == content.Parameters[1]) == 1);
-            if (content.Type == OverrideContentType.SetOnAppliedStateRecovery)
+            if (content.Type == EffectContentType.SetOnAppliedStateRecovery)
                 Require(skill.Effects.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents).Count(x => x.Type == EffectContentType.RestoreOnAppliedState && x.Parameters[4] == content.Parameters[0]) == 1);
-            if (content.Type == OverrideContentType.MultiplyDeclaredSkillPower)
+            if (content.Type == EffectContentType.MultiplyDeclaredSkillPower)
                 Require(skill.Effects.Where(x => x.Type == EffectType.Counter && x.Triggers.Count == 0).SelectMany(x => x.Contents).Count(x => x.Type == EffectContentType.DeclareSelectedSkill) == 1);
         }
         foreach (var stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike })
@@ -302,9 +309,9 @@ public static partial class SkillTextConverter
         Require(!branches.GroupBy(c => c.Parameters[0]).Any(g => g.Count() > 1));
         foreach (var content in skill.Overrides.SelectMany(e => e.Contents))
         {
-            if (content.Type == OverrideContentType.ThisSkillCriticalRange || content.Type == OverrideContentType.CriticalThresholdDelta)
+            if (content.Type == EffectContentType.ThisSkillCriticalRange || content.Type == EffectContentType.CriticalThresholdDelta)
                 Require(skill.Roll.Count > 0 && skill.Roll.Formula != "自動成功");
-            if (content.Type == OverrideContentType.OwnAttributeBonus || content.Type == OverrideContentType.OwnAttributeWeaknessMultiplier)
+            if (content.Type == EffectContentType.OwnAttributeBonus || content.Type == EffectContentType.OwnAttributeWeaknessMultiplier)
                 Require(skill.Effects.SelectMany(e => e.Contents).Count(c => c.Type == EffectContentType.DefineOwnAttribute) == 1);
         }
         if (skill.DeclarationConditions.And.Any(c => c.Type == ConditionType.AutomaticEnemyAction))
@@ -316,7 +323,7 @@ public static partial class SkillTextConverter
         var stacks = skill.Effects.Where(e => (e.Type == EffectType.Active || e.Type == EffectType.Counter) && e.Triggers.Count == 0)
             .SelectMany(e => e.Contents).Where(c => c.Type == EffectContentType.GainStack).ToList();
         var stackOverrides = skill.Overrides.SelectMany(e => e.Contents
-            .Where(c => c.Type == OverrideContentType.SetStackAmount).Select(c => new { Stage = e.Type, Content = c })).ToList();
+            .Where(c => c.Type == EffectContentType.SetStackAmount).Select(c => new { Stage = e.Type, Content = c })).ToList();
         foreach (var change in stackOverrides)
         {
             string[] p = Args(change.Content.Parameters, 3, "SetStackAmount");
@@ -362,17 +369,17 @@ public static partial class SkillTextConverter
             if (content.Type == EffectContentType.SucceedFailedActivationRoll)
                 Require(skill.DeclarationConditions.And.Any(c => c.Type == ConditionType.RollResult && c.Parameters.SequenceEqual(new[] { "Activation", "NormalFailure" })));
         }
-        var costs = skill.Overrides.SelectMany(e => e.Contents).Where(c => c.Type == OverrideContentType.ThisSkillStackCost).ToList();
+        var costs = skill.Overrides.SelectMany(e => e.Contents).Where(c => c.Type == EffectContentType.ThisSkillStackCost).ToList();
         Require(!costs.GroupBy(c => c.Parameters[1]).Any(g => g.Count() > 1));
         foreach (var cost in costs)
             Require(skill.Costs.Count(c => c.Kind == CostKind.Resource && c.Resource == cost.Parameters[1] && c.Amount >= Number(cost.Parameters[3], 1, "最低消費")) == 1);
-        foreach (var content in skill.Overrides.SelectMany(e => e.Contents).Where(c => c.Type == OverrideContentType.ThisSkillStackPower))
+        foreach (var content in skill.Overrides.SelectMany(e => e.Contents).Where(c => c.Type == EffectContentType.ThisSkillStackPower))
             Require(attacks.Count == 1);
         foreach (var stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike })
-            Require(skill.Overrides.Where(e => e.Type == stage).SelectMany(e => e.Contents).Count(c => c.Type == OverrideContentType.OptionalSpikeState) <= 1);
+            Require(skill.Overrides.Where(e => e.Type == stage).SelectMany(e => e.Contents).Count(c => c.Type == EffectContentType.OptionalSpikeState) <= 1);
     }
 
-    private static bool ValidateModifierRuleTarget(SkillBody skill, OverrideContent content)
+    private static bool ValidateModifierRuleTarget(SkillBody skill, EffectContent content)
     {
         if (content.Parameters == null || content.Parameters.Count == 0 || content.Parameters[0] != "Rule") return false;
         string[] p = VariableArgs(content.Parameters, 3, "SetModifier/Rule");
@@ -429,18 +436,18 @@ public static partial class SkillTextConverter
         foreach (var effect in skill.Overrides)
         foreach (var c in effect.Contents)
         {
-            if (c.Type == OverrideContentType.MultiplyDamageReduction)
+            if (c.Type == EffectContentType.MultiplyDamageReduction)
                 Require(skill.Effects.Where(e => e.Type == EffectType.Counter && e.Triggers.Count == 0).SelectMany(e => e.Contents).Count(x => x.Type == EffectContentType.ReduceDamage) == 1);
-            if (c.Type == OverrideContentType.SetRollRange && effect.Type != EffectType.Passive)
-                Require(skill.Overrides.Where(e => e.Type == EffectType.Passive).SelectMany(e => e.Contents).Count(x => x.Type == OverrideContentType.SetRollRange && x.Parameters[1] == c.Parameters[1]) == 1);
-            if (c.Type == OverrideContentType.StateTurnRecovery)
+            if (c.Type == EffectContentType.SetRollRange && effect.Type != EffectType.Passive)
+                Require(skill.Overrides.Where(e => e.Type == EffectType.Passive).SelectMany(e => e.Contents).Count(x => x.Type == EffectContentType.SetRollRange && x.Parameters[1] == c.Parameters[1]) == 1);
+            if (c.Type == EffectContentType.StateTurnRecovery)
                 Require(skill.Effects.SelectMany(e => e.Contents).Any(x => x.Type == EffectContentType.TransformAtStacks && x.Parameters[6] == c.Parameters[0]));
         }
         foreach (var stage in new[] { EffectType.Passive, EffectType.SecondSpike, EffectType.ThirdSpike })
         {
             var special = skill.Overrides.Where(e => e.Type == stage).SelectMany(e => e.Contents)
-                .Where(c => c.Type == OverrideContentType.SetRollRange || c.Type == OverrideContentType.StateTurnRecovery);
-            Require(!special.GroupBy(c => c.Type + ":" + (c.Type == OverrideContentType.SetRollRange ? c.Parameters[1] : c.Parameters[0] + ":" + c.Parameters[1])).Any(g => g.Count() > 1));
+                .Where(c => c.Type == EffectContentType.SetRollRange || c.Type == EffectContentType.StateTurnRecovery);
+            Require(!special.GroupBy(c => c.Type + ":" + (c.Type == EffectContentType.SetRollRange ? c.Parameters[1] : c.Parameters[0] + ":" + c.Parameters[1])).Any(g => g.Count() > 1));
         }
     }
 
@@ -459,7 +466,7 @@ public static partial class SkillTextConverter
             if (content.Type == EffectContentType.SkillAttack && content.Parameters[0] == "AllBattleCharacters")
                 Require(effect.Type == EffectType.Counter && effect.Triggers.Count == 0);
         }
-        foreach (var content in skill.Overrides.SelectMany(e => e.Contents).Where(c => c.Type == OverrideContentType.PowerAgainstState))
+        foreach (var content in skill.Overrides.SelectMany(e => e.Contents).Where(c => c.Type == EffectContentType.PowerAgainstState))
             Require(attacks.Count == 1);
     }
 
@@ -489,10 +496,10 @@ public static partial class SkillTextConverter
         foreach (var effect in skill.Overrides)
         foreach (var content in effect.Contents)
         {
-            if (content.Type == OverrideContentType.SetConditionalStatePower)
-                Require(skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents).Count(x => x.Type == OverrideContentType.ConditionalStatePower) == 1);
-            if (content.Type == OverrideContentType.SetCooldown && IsSpikeStage(effect.Type)) Require(skill.CooldownTurns > 0);
-            if (content.Type == OverrideContentType.MultiplyRecovery && effect.Type == EffectType.Critical && effect.Triggers.Count == 0)
+            if (content.Type == EffectContentType.SetConditionalStatePower)
+                Require(skill.Overrides.Where(x => x.Type == EffectType.Passive).SelectMany(x => x.Contents).Count(x => x.Type == EffectContentType.ConditionalStatePower) == 1);
+            if (content.Type == EffectContentType.SetCooldown && IsSpikeStage(effect.Type)) Require(skill.CooldownTurns > 0);
+            if (content.Type == EffectContentType.MultiplyRecovery && effect.Type == EffectType.Critical && effect.Triggers.Count == 0)
                 Require(skill.Effects.Where(x => x.Type == EffectType.Active).SelectMany(x => x.Contents).Count(x => x.Type == EffectContentType.RestoreResource) == 1);
         }
         foreach (var stage in new[] { EffectType.SecondSpike, EffectType.ThirdSpike })

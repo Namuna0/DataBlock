@@ -55,7 +55,7 @@
 
 ## Runtime/Model変更一覧
 
-既存enumの番号とJSONのSkill／Summons／States構造を維持する。今回はクラスのフィールド追加はない。
+スキル本体、召喚、状態はそれぞれ別のJSONに出力する。今回はクラスのフィールド追加はない。
 
 ### ConditionModels.cs
 
@@ -81,15 +81,15 @@
 | DeclareSelectedSkill = 68 | Self, Target, ACT, 0, Optional, 威力倍率 |
 | SwapWeapon = 69 | Self, SelectedWeapon, Battle, AllowUnarmed |
 
-| OverrideContentType | Parameters |
+| EffectContentType | Parameters |
 |---|---|
-| SetAppliedStateDuration = 43 | Target, 状態名, 置換ターン数 |
-| SetStateDamageMultiplier = 44 | ローカル状態名, Self, 置換被ダメージ倍率 |
-| SetOnAppliedStateRecovery = 45 | リソース, 置換回復率（最大値の%） |
-| CriticalCategoryMultiplier = 46 | 行動カテゴリー, PowerまたはActionResult, 倍率, Stack |
-| ItemEffectDuration = 47 | Self, AllTargets, 追加ターン数 |
-| ItemCapacity = 48 | サイズ, 所持上限 |
-| OptionalAreaProgressReduction = 49 | 通常の減少回数, エリアカテゴリー, 置換減少回数, Optional |
-| MultiplyDeclaredSkillPower = 50 | 追加宣言スキルへの倍率 |
+| SetAppliedStateDuration = 623 | Target, 状態名, 置換ターン数 |
+| SetStateDamageMultiplier = 624 | ローカル状態名, Self, 置換被ダメージ倍率 |
+| SetOnAppliedStateRecovery = 625 | リソース, 置換回復率（最大値の%） |
+| CriticalCategoryMultiplier = 626 | 行動カテゴリー, PowerまたはActionResult, 倍率, Stack |
+| ItemEffectDuration = 627 | Self, AllTargets, 追加ターン数 |
+| ItemCapacity = 628 | サイズ, 所持上限 |
+| OptionalAreaProgressReduction = 629 | 通常の減少回数, エリアカテゴリー, 置換減少回数, Optional |
+| MultiplyDeclaredSkillPower = 630 | 追加宣言スキルへの倍率 |
 
 入力の整形は `SkillInputTextCodec`、効果の読み取り・再構築は `SkillEffectReaders / SkillContentTextCodec`、補正とスパイクは `SkillModifierTextCodec / SkillSpikeTextCodec`、整合性と参照先の検証は `SkillEffectValidation / SkillDataValidation` が担当する。読み取り・再構築の両方向、参照先・効果種別・スパイクの基本効果との対応を検証する。

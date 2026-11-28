@@ -91,11 +91,11 @@ internal sealed class SkillTextConverterTests
         Assert.That(parsed.Skill.Roll.Formula, Is.EqualTo("1d100*0.75*[敏捷B]"));
         Assert.That(parsed.Skill.Roll.Target, Is.EqualTo("[対象の達成値]"));
 
-        OverrideContent second = parsed.Skill.Overrides.Single(x => x.Type == EffectType.SecondSpike).Contents.Single();
-        OverrideContent third = parsed.Skill.Overrides.Single(x => x.Type == EffectType.ThirdSpike).Contents.Single();
-        Assert.That(second.Type, Is.EqualTo(OverrideContentType.SetActivationRollFormula));
+        EffectContent second = parsed.Skill.Overrides.Single(x => x.Type == EffectType.SecondSpike).Contents.Single();
+        EffectContent third = parsed.Skill.Overrides.Single(x => x.Type == EffectType.ThirdSpike).Contents.Single();
+        Assert.That(second.Type, Is.EqualTo(EffectContentType.SetActivationRollFormula));
         Assert.That(second.Parameters, Is.EqualTo(new[] { "1d100*[敏捷B]*0.8" }));
-        Assert.That(third.Type, Is.EqualTo(OverrideContentType.SetActivationRollFormula));
+        Assert.That(third.Type, Is.EqualTo(EffectContentType.SetActivationRollFormula));
         Assert.That(third.Parameters, Is.EqualTo(new[] { "1d100*[敏捷B]*0.85" }));
         StringAssert.Contains("【セカンドスパイク】この発動ロールは1d100*[敏捷B]*0.8に変化する。", normalized);
         StringAssert.Contains("【サードスパイク】この発動ロールは1d100*[敏捷B]*0.85に変化する。", normalized);
@@ -111,9 +111,9 @@ internal sealed class SkillTextConverterTests
         Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(automatic));
 
         SkillTextData duplicate = SkillTextConverter.Parse(source);
-        duplicate.Skill.Overrides.Single(x => x.Type == EffectType.SecondSpike).Contents.Add(new OverrideContent
+        duplicate.Skill.Overrides.Single(x => x.Type == EffectType.SecondSpike).Contents.Add(new EffectContent
         {
-            Type = OverrideContentType.SetActivationRollFormula,
+            Type = EffectContentType.SetActivationRollFormula,
             Parameters = new List<string> { "1d100*[敏捷B]" }
         });
         Assert.Throws<InvalidOperationException>(() => SkillTextConverter.Build(duplicate));
@@ -150,11 +150,11 @@ internal sealed class SkillTextConverterTests
 
         StateDefinition ironWall = skills["堅守"].States.Single();
         Assert.That(ironWall.Trigger.Timing, Is.EqualTo(TriggerTiming.IncomingDamage));
-        Assert.That(ironWall.Overrides.Single().Contents.Single().Type, Is.EqualTo(OverrideContentType.MultiplyDamageTaken));
+        Assert.That(ironWall.Overrides.Single().Contents.Single().Type, Is.EqualTo(EffectContentType.MultiplyDamageTaken));
         Assert.That(ironWall.Overrides.Single().Contents.Single().Parameters, Is.EqualTo(new[] { "Self", "0.33" }));
 
         SkillBody charge = skills["ランスチャージ"].Skill;
-        OverrideDefinition mountedCharge = charge.Overrides.Single(x => x.Type == EffectType.Active && x.Contents.Any(c => c.Type == OverrideContentType.SetSkillValue));
+        EffectDefinition mountedCharge = charge.Overrides.Single(x => x.Type == EffectType.Active && x.Contents.Any(c => c.Type == EffectContentType.SetSkillValue));
         Assert.That(mountedCharge.Contents.Single().Parameters, Is.EqualTo(new[] { "150" }));
         Assert.That(mountedCharge.Triggers.Single().Conditions.And.Single().Parameters, Is.EqualTo(new[] { "騎乗" }));
         Assert.That(charge.Overrides.Count(x => x.Type == EffectType.SecondSpike), Is.EqualTo(2));
@@ -167,14 +167,14 @@ internal sealed class SkillTextConverterTests
         Assert.That(bash.DeclarationConditions.And.Single(x => x.Type == ConditionType.EquippedCategory).Parameters, Is.EqualTo(new[] { "Self", "盾" }));
         Assert.That(bash.Effects.SelectMany(x => x.Contents).Single(x => x.Type == EffectContentType.SkillAttack).Parameters, Is.EqualTo(new[] { "Target", "[〈盾〉の防御点]*1.5+1d100*[筋力B]*2" }));
         Assert.That(bash.Effects.SelectMany(x => x.Contents).Single(x => x.Type == EffectContentType.ModifyResource).Parameters, Is.EqualTo(new[] { "Target", "ACT", "-1" }));
-        Assert.That(bash.Overrides.SelectMany(x => x.Contents).Single(x => x.Type == OverrideContentType.PreventCounterDamage).Parameters, Is.EqualTo(new[] { "Self", "攻撃" }));
+        Assert.That(bash.Overrides.SelectMany(x => x.Contents).Single(x => x.Type == EffectContentType.PreventCounterDamage).Parameters, Is.EqualTo(new[] { "Self", "攻撃" }));
         Assert.That(bash.Overrides.Single(x => x.Type == EffectType.Critical).Contents.Single().Parameters, Is.EqualTo(new[] { "Self", "ACT", "-1", "Automatic" }));
 
         StateDefinition counterStance = skills["カウンタースタンス"].States.Single();
         Assert.That(counterStance.Trigger.Timing, Is.EqualTo(TriggerTiming.ActionResult));
         Assert.That(counterStance.Trigger.Conditions.And.Single(x => x.Type == ConditionType.ActionSource).Parameters, Is.EqualTo(new[] { "Self" }));
         Assert.That(counterStance.Trigger.Conditions.And.Any(x => x.Type == ConditionType.EffectKind && x.Parameters.SequenceEqual(new[] { "Counter" })), Is.True);
-        Assert.That(counterStance.Overrides.Single().Contents.Single().Type, Is.EqualTo(OverrideContentType.AddActionResult));
+        Assert.That(counterStance.Overrides.Single().Contents.Single().Type, Is.EqualTo(EffectContentType.AddActionResult));
         Assert.That(counterStance.Overrides.Single().Contents.Single().Parameters, Is.EqualTo(new[] { "+5" }));
 
         SkillBody piercing = skills["ピアシングウェイブ"].Skill;
@@ -194,11 +194,11 @@ internal sealed class SkillTextConverterTests
         SkillBody guard = skills["パーフェクトガード"].Skill;
         Assert.That(guard.DeclarationConditions.And.Single(x => x.Type == ConditionType.ActionTarget).Parameters, Is.EqualTo(new[] { "Receiver", "攻撃", "Any" }));
         Assert.That(guard.Effects.SelectMany(x => x.Contents).Single().Parameters, Is.EqualTo(new[] { "Target", "100+2d100*[筋力B]" }));
-        Assert.That(guard.Overrides.Where(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike).SelectMany(x => x.Contents).All(x => x.Type == OverrideContentType.SetDamageReduction), Is.True);
+        Assert.That(guard.Overrides.Where(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike).SelectMany(x => x.Contents).All(x => x.Type == EffectContentType.SetDamageReduction), Is.True);
         Assert.That(guard.Overrides.Where(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike).SelectMany(x => x.Contents).Select(x => x.Parameters.Single()), Is.EqualTo(new[] { "115+2d100*[筋力B]", "130+2d100*[筋力B]" }));
 
-        OverrideDefinition mastery = skills["ランスマスタリー"].Skill.Overrides.Single();
-        Assert.That(mastery.Contents.Single().Type, Is.EqualTo(OverrideContentType.MultiplyPower));
+        EffectDefinition mastery = skills["ランスマスタリー"].Skill.Overrides.Single();
+        Assert.That(mastery.Contents.Single().Type, Is.EqualTo(EffectContentType.MultiplyPower));
         Assert.That(mastery.Contents.Single().Parameters, Is.EqualTo(new[] { "1.1" }));
         Assert.That(mastery.Triggers.Single().Conditions.And.Any(x => x.Type == ConditionType.ActionOrigin && x.Parameters.SequenceEqual(new[] { "Skill" })), Is.True);
         Assert.That(mastery.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.WeaponCategory).Parameters, Is.EqualTo(new[] { "ランス" }));
@@ -272,13 +272,13 @@ internal sealed class SkillTextConverterTests
         Assert.That(volcanic.Roll.Formula, Is.EqualTo("1d100*[知力B]"), "Markdown転送用の\\*を式へ残さないこと。");
         Assert.That(SkillAttack(volcanic).Parameters, Is.EqualTo(new[]
             { "Target", "ElementalWeapon", "100", "60*([火属性B]+[土属性B])", "火", "土" }));
-        Assert.That(volcanic.Overrides.SelectMany(x => x.Contents).Single(x => x.Type == OverrideContentType.SetAttackRule).Parameters,
+        Assert.That(volcanic.Overrides.SelectMany(x => x.Contents).Single(x => x.Type == EffectContentType.SetAttackRule).Parameters,
             Is.EqualTo(new[] { "Defense", "Ignore" }));
         Assert.That(volcanic.Overrides.Where(x => x.Type == EffectType.SecondSpike).SelectMany(x => x.Contents).Select(x => x.Type),
-            Is.EquivalentTo(new[] { OverrideContentType.SetSkillValue, OverrideContentType.SetAttackComponent }));
+            Is.EquivalentTo(new[] { EffectContentType.SetSkillValue, EffectContentType.SetAttackComponent }));
 
         SkillBody glass = skills["グラスシャードアローズ"].Skill;
-        Assert.That(glass.Overrides.SelectMany(x => x.Contents).Single(x => x.Type == OverrideContentType.SetAttackRule).Parameters,
+        Assert.That(glass.Overrides.SelectMany(x => x.Contents).Single(x => x.Type == EffectContentType.SetAttackRule).Parameters,
             Is.EqualTo(new[] { "Response", "回避", "Prohibit" }));
 
         SkillBody catastrophe = skills["カタストロフィー"].Skill;
@@ -310,10 +310,10 @@ internal sealed class SkillTextConverterTests
         StateDefinition frostbite = snow.States.Single(x => x.Name == "凍傷");
         Assert.That(frostbite.Effects.Single().Triggers.Single().Conditions.And
             .Single(x => x.Type == ConditionType.TurnOwner).Parameters, Is.EqualTo(new[] { "Self" }));
-        OverrideDefinition dexterityPenalty = frostbite.Overrides.Single();
-        Assert.That(dexterityPenalty.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.ActionStat).Parameters,
-            Is.EqualTo(new[] { "器用B" }));
-        Assert.That(dexterityPenalty.Contents.Single().Parameters, Is.EqualTo(new[] { "0.75" }));
+        EffectDefinition dexterityPenalty = frostbite.Overrides.Single();
+        Assert.That(dexterityPenalty.Triggers, Is.Empty);
+        Assert.That(dexterityPenalty.Contents.Single().Type, Is.EqualTo(EffectContentType.StatRollFactorForAction));
+        Assert.That(dexterityPenalty.Contents.Single().Parameters, Is.EqualTo(new[] { "器用B", "0.75" }));
 
         SkillTextData mud = skills["マッドゴーレム"];
         Assert.That(mud.Skill.Effects.SelectMany(x => x.Contents).Single(x => x.Type == EffectContentType.Summon).Parameters,
@@ -323,8 +323,10 @@ internal sealed class SkillTextConverterTests
         Assert.That(soldier.DeclarationConditions.And.Single(x => x.Type == ConditionType.AutomaticActivation).Parameters,
             Is.EqualTo(new[] { "EveryTurn", "Start", "Random", "Enemy", "1" }));
         StateDefinition mudHand = mud.States.Single(x => x.Name == "マッドハンド");
-        Assert.That(mudHand.Overrides.Single().Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.ActionStat).Parameters,
-            Is.EqualTo(new[] { "敏捷B", "器用B" }));
+        var mudPenalty = mudHand.Overrides.Single();
+        Assert.That(mudPenalty.Triggers, Is.Empty);
+        Assert.That(mudPenalty.Contents.Single().Type, Is.EqualTo(EffectContentType.StatRollFactorForAction));
+        Assert.That(mudPenalty.Contents.Single().Parameters, Is.EqualTo(new[] { "敏捷B", "器用B", "0.67" }));
         TriggerDefinition removeMudHand = mudHand.Effects.Single().Triggers.Single();
         Assert.That(removeMudHand.Timing, Is.EqualTo(TriggerTiming.CharacterIncapacitated));
         Assert.That(removeMudHand.Conditions.And.Single(x => x.Type == ConditionType.ActionSource).Parameters,
@@ -336,12 +338,12 @@ internal sealed class SkillTextConverterTests
             Is.EqualTo("AllAllies"));
 
         SkillBody photon = skills["スーパーコンダクター・フォトンレイ"].Skill;
-        OverrideDefinition lowHp = photon.Overrides.Single(x => x.Triggers.SelectMany(t => t.Conditions.And)
+        EffectDefinition lowHp = photon.Overrides.Single(x => x.Triggers.SelectMany(t => t.Conditions.And)
             .Any(c => c.Type == ConditionType.ResourceRatio));
         Assert.That(lowHp.Triggers.Single().Timing, Is.EqualTo(TriggerTiming.ElementalPower));
         Assert.That(lowHp.Triggers.Single().Conditions.And.Single(x => x.Type == ConditionType.ResourceRatio).Parameters,
             Is.EqualTo(new[] { "Target", "HP", "AtMost", "0.5" }));
-        Assert.That(lowHp.Contents.Single().Type, Is.EqualTo(OverrideContentType.MultiplyAttackComponent));
+        Assert.That(lowHp.Contents.Single().Type, Is.EqualTo(EffectContentType.MultiplyAttackComponent));
         Assert.That(lowHp.Contents.Single().Parameters, Is.EqualTo(new[] { "AttributePower", "2" }));
         Assert.That(photon.Overrides.Single(x => x.Type == EffectType.Critical).Contents.Single().Parameters,
             Is.EqualTo(new[] { "AttributePower", "3" }));

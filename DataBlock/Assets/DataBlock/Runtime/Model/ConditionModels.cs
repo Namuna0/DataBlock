@@ -474,7 +474,39 @@ public enum ConditionType
     /// <summary>対象の装備部位の数が指定数であることを要求する。</summary>
     EquipmentSlotCount = 229,
     /// <summary>指定カテゴリーの行為を宣言した敵に対して自動発動する。</summary>
-    AutoEnemyOnDeclaration = 230
+    AutoEnemyOnDeclaration = 230,
+    /// <summary>危険度上限とカテゴリーを満たす対象を選ぶ。</summary>
+    SelectDangerCategory = 231,
+    /// <summary>両方の装備部位に該当する所持装備を指定数選ぶ。</summary>
+    SelectOwnedEquipmentSlots = 232,
+    /// <summary>いずれかの指定カテゴリーを条件として自身が選択された時に成立する。</summary>
+    TargetedByCategoryRequirement = 233,
+    /// <summary>戦闘中に自身が行為判定に失敗した時に成立する。</summary>
+    OwnBattleCheckFailed = 234,
+    /// <summary>自身が発動した指定カテゴリーの行為に反応する。</summary>
+    OwnActivatedCategory = 235,
+    /// <summary>NPCがスキルを発動した時に成立する。</summary>
+    NpcSkillActivation = 236,
+    /// <summary>指定カテゴリーの自身の発動ロールが成功すると成立する。</summary>
+    OwnCategoryRollSuccess = 237,
+    /// <summary>自身が指定カテゴリーの行為を発動する時に成立する。</summary>
+    OwnCategoryActivation = 238,
+    /// <summary>この武器を選択して指定カテゴリーの行為を発動する時に成立する。</summary>
+    CategoryUsingThisWeapon = 239,
+    /// <summary>この武器を使った指定カテゴリーの行為が命中した時に成立する。</summary>
+    HitWithThisWeapon = 240,
+    /// <summary>自身がキャラクターに指定カテゴリーの状態を付与した時に成立する。</summary>
+    ApplyCategoryToCharacter = 241,
+    /// <summary>自身のターンに同じ対象へこの武器で指定回数以上ダメージを与える。</summary>
+    RepeatedWeaponDamageOwnTurn = 242,
+    /// <summary>自身が敵に状態を付与した時に成立する。</summary>
+    ApplyStateToEnemy = 243,
+    /// <summary>誰かの指定リソースが最大値に対する指定割合以下になった時に成立する。</summary>
+    AnyResourceFractionAtMost = 244,
+    /// <summary>特定の能力値を参照する行為判定でファンブルが出た時に成立する。</summary>
+    StatCheckFumbled = 245,
+    /// <summary>指定した季節のいずれかで、指定エリアにおいて収穫を行う時に成立する。</summary>
+    SeasonalHarvest = 246
 }
 [Serializable]
 public class ConditionEntry

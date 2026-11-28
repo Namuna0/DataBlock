@@ -10,40 +10,55 @@ public static partial class SkillTextConverter
     {
         string s = RegexReplace(text.Trim(), @"^(?:さらに|更に)[、]?\s*", "");
         if (ReadEquipmentAndItemModifier(skill, type, s)) return true;
-        Match m = M(s, @"^環境((?:《[^》]+》)(?:および《[^》]+》)*)による環境効果を受けない。?$");
-        if (m.Success)
-        { AddSkillEffect(skill, type, Content(EffectContentType.EnvironmentImmunity, new[] { "Self" }.Concat(AllMatches(m.Groups[1].Value, @"《([^》]+)》").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray())); return true; }
-        m = M(s, @"^自身の〈([^〉]+)〉によって相手を《([^》]+)》状態にした時、([A-Z]+)を\3最大値の([0-9]+)%回復する。?$");
-        if (m.Success)
-        { AddSkillEffect(skill, type, Content(EffectContentType.RestoreOnAppliedState, "Self", m.Groups[1].Value, "Target", m.Groups[2].Value, m.Groups[3].Value, "MaximumPercent", m.Groups[4].Value)); return true; }
-        if (s.TrimEnd('。') == "対象の行為判定をクリティカル、もしくはファンブルに変える事が出来る")
-        { AddSkillEffect(skill, type, Content(EffectContentType.ChooseCheckOutcome, "Target", "Critical", "Fumble", "Optional")); return true; }
-        m = M(s, @"^《([^》]+)》×([0-9]+)を獲得。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.GrantItem, "Self", m.Groups[1].Value, m.Groups[2].Value, "Unspecified")); return true; }
-        m = M(s, @"^ランクは☆×(.+?)となる。?$");
-        if (m.Success)
-        {
-            var item = skill.Effects.Where(x => x.Type == type).SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.GrantItem);
-            Require(item != null && item.Parameters[3] == "Unspecified"); item.Parameters[3] = m.Groups[1].Value; return true;
-        }
-        m = M(s, @"^(.+?)ロールによる状態を解除する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.RemoveStatesByOrigin, "Self", "Roll", m.Groups[1].Value)); return true; }
-        if (s.TrimEnd('。') == "対象へ選択したスキルをACT消費無しで宣言してもよい")
-        { AddSkillEffect(skill, type, Content(EffectContentType.DeclareSelectedSkill, "Self", "Target", "ACT", "0", "Optional", "Unspecified")); return true; }
-        m = M(s, @"^そのスキルで与える威力は×([0-9.]+)倍される。?$");
-        if (m.Success)
-        {
-            var declaration = skill.Effects.Where(x => x.Type == type).SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.DeclareSelectedSkill);
-            Require(declaration != null && declaration.Parameters[5] == "Unspecified"); declaration.Parameters[5] = m.Groups[1].Value; return true;
-        }
-        if (s.TrimEnd('。') == "戦闘中、装備している武器と対象武器を入れ替える")
-        { AddSkillEffect(skill, type, Content(EffectContentType.SwapWeapon, "Self", "SelectedWeapon", "Battle", "AllowUnarmed")); return true; }
-        m = M(s, @"^([0-9]+)ターンの間、対象は《([^》]+)》状態になる。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ApplyState, "Target", m.Groups[2].Value, m.Groups[1].Value)); return true; }
-        m = M(s, @"^対象を(.+?)のスキル値で武器攻撃する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.WeaponAttack, "Target", m.Groups[1].Value)); return true; }
+        EffectContent content = ReadDirectItemEffect(s);
+        if (content != null) { AddSkillEffect(skill, type, content); return true; }
+        if (TryReadItemEffectContinuation(skill.Effects.Where(effect => effect.Type == type).SelectMany(effect => effect.Contents), s)) return true;
         if (s != text.Trim()) { ReadSkillLine(skill, type, s); return true; }
         return false;
+    }
+
+    internal static bool TryReadItemEffectContinuation(IEnumerable<EffectContent> contents, string text)
+    {
+        EffectContentType target = EffectContentType.GrantItem;
+        int parameter = 3;
+        Match value = M(text, @"^ランクは☆×(.+?)となる。?$");
+        if (!value.Success)
+        {
+            value = M(text, @"^そのスキルで与える威力は×([0-9.]+)倍される。?$");
+            if (!value.Success) return false;
+            target = EffectContentType.DeclareSelectedSkill;
+            parameter = 5;
+        }
+        var content = contents.LastOrDefault(effect => effect.Type == target);
+        if (content == null) return false;
+        Require(content.Parameters.Count == parameter + 1 && content.Parameters[parameter] == "Unspecified");
+        content.Parameters[parameter] = value.Groups[1].Value;
+        return true;
+    }
+
+    private static EffectContent ReadDirectItemEffect(string s)
+    {
+        Match m = M(s, @"^環境((?:《[^》]+》)(?:および《[^》]+》)*)による環境効果を受けない。?$");
+        if (m.Success)
+            return Content(EffectContentType.EnvironmentImmunity, new[] { "Self" }.Concat(AllMatches(m.Groups[1].Value, @"《([^》]+)》").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
+        m = M(s, @"^自身の〈([^〉]+)〉によって相手を《([^》]+)》状態にした時、([A-Z]+)を\3最大値の([0-9]+)%回復する。?$");
+        if (m.Success)
+            return Content(EffectContentType.RestoreOnAppliedState, "Self", m.Groups[1].Value, "Target", m.Groups[2].Value, m.Groups[3].Value, "MaximumPercent", m.Groups[4].Value);
+        if (s.TrimEnd('。') == "対象の行為判定をクリティカル、もしくはファンブルに変える事が出来る")
+            return Content(EffectContentType.ChooseCheckOutcome, "Target", "Critical", "Fumble", "Optional");
+        m = M(s, @"^《([^》]+)》×([0-9]+)を獲得。?$");
+        if (m.Success) return Content(EffectContentType.GrantItem, "Self", m.Groups[1].Value, m.Groups[2].Value, "Unspecified");
+        m = M(s, @"^(.+?)ロールによる状態を解除する。?$");
+        if (m.Success) return Content(EffectContentType.RemoveStatesByOrigin, "Self", "Roll", m.Groups[1].Value);
+        if (s.TrimEnd('。') == "対象へ選択したスキルをACT消費無しで宣言してもよい")
+            return Content(EffectContentType.DeclareSelectedSkill, "Self", "Target", "ACT", "0", "Optional", "Unspecified");
+        if (s.TrimEnd('。') == "戦闘中、装備している武器と対象武器を入れ替える")
+            return Content(EffectContentType.SwapWeapon, "Self", "SelectedWeapon", "Battle", "AllowUnarmed");
+        m = M(s, @"^([0-9]+)ターンの間、対象は《([^》]+)》状態になる。?$");
+        if (m.Success) return Content(EffectContentType.ApplyState, "Target", m.Groups[2].Value, m.Groups[1].Value);
+        m = M(s, @"^対象を(.+?)のスキル値で武器攻撃する。?$");
+        if (m.Success) return Content(EffectContentType.WeaponAttack, "Target", m.Groups[1].Value);
+        return null;
     }
 
     private static bool ReadTimedAttackEffects(SkillBody skill, EffectType type, string text)
@@ -59,7 +74,7 @@ public static partial class SkillTextConverter
             Require(type == EffectType.Critical);
             var gains = skill.Effects.Where(x => x.Type == EffectType.Active && x.Triggers.Count == 0).SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.GainStack).ToList();
             Require(gains.Count == 1);
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetStackAmount, gains[0].Parameters[0], gains[0].Parameters[1], m.Groups[1].Value)); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetStackAmount, gains[0].Parameters[0], gains[0].Parameters[1], m.Groups[1].Value)); return true;
         }
         m = M(s, @"^自身は毎ターン《([^》]+)》スタックを([0-9]+)得る。?$");
         if (m.Success)
@@ -80,16 +95,16 @@ public static partial class SkillTextConverter
         { Require(type == EffectType.Passive); AddSkillEffect(skill, type, ReadContent(m.Groups[2].Value), Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnNumber, m.Groups[1].Value))); return true; }
         m = M(s, @"^(?:自身の)?防御点(?:は|が)×?([0-9.]+)倍される。?$");
         if (m.Success)
-        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", "防御点", "Multiply", m.Groups[1].Value)); return true; }
+        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.ModifyStat, "Self", "防御点", "Multiply", m.Groups[1].Value)); return true; }
         m = M(s, @"^自身のあらゆる威力は×([0-9.]+)倍される。?$");
         if (m.Success)
-        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.AttackPower, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.MultiplyPower, m.Groups[1].Value)); return true; }
+        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.AttackPower, Condition(ConditionType.ActionSource, "Self"))), Change(EffectContentType.MultiplyPower, m.Groups[1].Value)); return true; }
         m = M(s, @"^戦闘開始の([0-9]+)ターン目に発動した場合、威力は×([0-9.]+)倍される。?$");
         if (m.Success)
-        { Require(type == EffectType.Active); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.AttackPower, Condition(ConditionType.TurnNumber, m.Groups[1].Value))), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
+        { Require(type == EffectType.Active); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.AttackPower, Condition(ConditionType.TurnNumber, m.Groups[1].Value))), Change(EffectContentType.MultiplyPower, m.Groups[2].Value)); return true; }
         m = M(s, @"^エリアに〈([^〉]+)〉を含む場合、エリアの進行ロールの回数を-([0-9]+)しても良い。?$");
         if (m.Success)
-        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.OptionalAreaProgressReduction, "0", m.Groups[1].Value, m.Groups[2].Value, "Optional")); return true; }
+        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.OptionalAreaProgressReduction, "0", m.Groups[1].Value, m.Groups[2].Value, "Optional")); return true; }
         m = M(s, @"^自身が受ける〈([^〉]+)〉かつ〈([^〉]+)〉による被ダメージは(.+?)減少される。?$");
         if (m.Success)
         {
@@ -128,7 +143,7 @@ public static partial class SkillTextConverter
         m = M(s, @"^自身がパーティーを組んでいる時、自身を除く味方の受ける([A-Z]+)ダメージを×(.+?)倍しても良い。?$");
         if (m.Success && type == EffectType.Passive)
         {
-            AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.IncomingDamage, Condition(ConditionType.InParty, "Self"))), Change(OverrideContentType.MultiplyResourceDamage, "AllAlliesExceptSelf", m.Groups[1].Value, m.Groups[2].Value, "Optional")); return true;
+            AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.IncomingDamage, Condition(ConditionType.InParty, "Self"))), Change(EffectContentType.MultiplyResourceDamage, "AllAlliesExceptSelf", m.Groups[1].Value, m.Groups[2].Value, "Optional")); return true;
         }
         m = M(s, @"^自身を〈([^〉]+)〉ではない物として扱うかその都度任意で選択可能。?$");
         if (m.Success && type == EffectType.Passive) { AddSkillEffect(skill, type, Content(EffectContentType.OptionalCategoryExclusion, "Self", m.Groups[1].Value, "PerOccurrence")); return true; }
@@ -140,18 +155,18 @@ public static partial class SkillTextConverter
         m = M(s, @"^自身を除く味方全員の\[([^\]]+)\]による行為判定の達成値が\+(.+?)される。?$");
         if (m.Success && type == EffectType.Passive)
         {
-            AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "AllAlliesExceptSelf"), Condition(ConditionType.ActionStat, m.Groups[1].Value))), Change(OverrideContentType.AddActionResult, m.Groups[2].Value)); return true;
+            AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "AllAlliesExceptSelf"), Condition(ConditionType.ActionStat, m.Groups[1].Value))), Change(EffectContentType.AddActionResult, m.Groups[2].Value)); return true;
         }
         m = M(s, @"^(自身|対象)へ付与する《([^》]+)》スタックの付与が([0-9]+)に変化する。?$");
-        if (m.Success && type == EffectType.Critical) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetStackAmount, ActorKey(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value)); return true; }
+        if (m.Success && type == EffectType.Critical) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetStackAmount, ActorKey(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value)); return true; }
         m = M(s, @"^このアクティブ効果による威力は(.+?)(?:、?属性威力は(.+?))?に変化する。?$");
         if (m.Success && (type == EffectType.SecondSpike || type == EffectType.ThirdSpike))
         {
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackComponent, "Power", m.Groups[1].Value));
-            if (m.Groups[2].Success) AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackComponent, "AttributePower", m.Groups[2].Value)); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetAttackComponent, "Power", m.Groups[1].Value));
+            if (m.Groups[2].Success) AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetAttackComponent, "AttributePower", m.Groups[2].Value)); return true;
         }
         m = M(s, @"^このアクティブ効果による属性威力は(.+?)に変化する。?$");
-        if (m.Success && (type == EffectType.SecondSpike || type == EffectType.ThirdSpike)) { AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.SetAttackComponent, "AttributePower", m.Groups[1].Value)); return true; }
+        if (m.Success && (type == EffectType.SecondSpike || type == EffectType.ThirdSpike)) { AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.SetAttackComponent, "AttributePower", m.Groups[1].Value)); return true; }
         // Sentences following a timed state application are separate effects.
         if (s.Contains("。さらに")) { foreach (string part in s.Split(new[] { "。さらに" }, StringSplitOptions.None)) ReadSkillLine(skill, type, part.TrimEnd('。') + "。"); return true; }
         EffectContent content = ReadBasicEffectContent(s);
@@ -181,17 +196,17 @@ public static partial class SkillTextConverter
         if (m.Success)
         {
             Require(IsSpikeStage(type));
-            AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.OptionalSpikeState, m.Groups[2].Value, m.Groups[3].Value, m.Groups[4].Value, m.Groups[5].Value, m.Groups[1].Value)); return true;
+            AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.OptionalSpikeState, m.Groups[2].Value, m.Groups[3].Value, m.Groups[4].Value, m.Groups[5].Value, m.Groups[1].Value)); return true;
         }
         m = M(text, @"^自身が行為判定を行う際、達成値が([+-][0-9]+)される。?$");
         if (m.Success)
-        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.AddActionResult, m.Groups[1].Value)); return true; }
+        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(EffectContentType.AddActionResult, m.Groups[1].Value)); return true; }
         m = M(text, @"^((?:〈[^〉]+〉)(?:及び〈[^〉]+〉)*)の達成値が([+-][0-9]+)される。?$");
         if (m.Success)
         {
             Require(type == EffectType.Passive);
             var triggers = AllMatches(m.Groups[1].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, x.Groups[1].Value))).ToList();
-            AddOverride(skill.Overrides, type, triggers, Change(OverrideContentType.AddActionResult, m.Groups[2].Value)); return true;
+            AddOverride(skill.Overrides, type, triggers, Change(EffectContentType.AddActionResult, m.Groups[2].Value)); return true;
         }
         return false;
     }
@@ -227,10 +242,12 @@ public static partial class SkillTextConverter
 
         m = M(s, @"^スキルによって〈([^〉]+)〉で武器攻撃を行う時、発動ロール達成値が×(.+?)倍される。?$");
         if (m.Success) { AddModifierRule(skill, type, m.Groups[2].Value, "WeaponActivation", m.Groups[1].Value); return true; }
-        m = M(s, @"^((?:\[[^\]]+\])(?:(?:および|及び)\[[^\]]+\])*)による行為判定を行う際、達成値が×(.+?)倍される。?$");
-        if (m.Success)
+        if (CommonEffectTextCodec.TryReadAbilityCheckMultiplier(s, out var checkMultiplier))
         {
-            AddModifierRule(skill, type, m.Groups[2].Value, new[] { "ActionStats" }.Concat(AllMatches(m.Groups[1].Value, @"\[([^\]]+)\]").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray()); return true;
+            Require(type == EffectType.Passive);
+            PositiveModifierFactor(checkMultiplier.Parameters.Last());
+            AddOverride(skill.Overrides, type, NoTriggers(), checkMultiplier);
+            return true;
         }
         m = M(s, @"^環境による行為判定を行う際、達成値が([+-].+?)される。?$");
         if (m.Success) { AddModifierRule(skill, type, m.Groups[1].Value, "EnvironmentCheck"); return true; }
@@ -251,7 +268,7 @@ public static partial class SkillTextConverter
         }
         m = M(s, @"^戦闘開始から([0-9]+)ターンの間、自身の被ダメージは×(.+?)倍される。?$");
         if (m.Success) { AddModifierRule(skill, type, m.Groups[2].Value, "EarlyBattleDamage", m.Groups[1].Value); return true; }
-        m = M(s, @"^([A-Z]+)最大値が×(.+?)倍される。?$");
+        m = M(s, @"^([A-Z]+)最大値が×([+-]?[0-9]+(?:\.[0-9]+)?)倍される。?$");
         if (m.Success) { AddModifierRule(skill, type, m.Groups[2].Value, "ResourceMaximum", m.Groups[1].Value); return true; }
         m = M(s, @"^NPCへの〈([^〉]+)〉を除くアイテムの売値が×(.+?)倍される。?$");
         if (m.Success) { AddModifierRule(skill, type, m.Groups[2].Value, "SalePrice", m.Groups[1].Value); return true; }
@@ -385,7 +402,7 @@ public static partial class SkillTextConverter
         { Require(type == EffectType.Active); AddSkillEffect(skill, type, Content(EffectContentType.HitRaceState, RaceNames(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value)); return true; }
         m = M(s, @"^既に対象が《([^》]+)》状態の時、威力は×([0-9.]+)倍される。?$");
         if (m.Success)
-        { Require(type == EffectType.Active); AddOverride(skill.Overrides, type, NoTriggers(), Change(OverrideContentType.PowerAgainstState, m.Groups[1].Value, m.Groups[2].Value)); return true; }
+        { Require(type == EffectType.Active); AddOverride(skill.Overrides, type, NoTriggers(), Change(EffectContentType.PowerAgainstState, m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^(?:この)?攻撃が命中した時、対象に《([^》]+)》状態を([0-9]+)ターン付与する。?$");
         if (m.Success)
         { Require(type == EffectType.Active); AddSkillEffect(skill, type, Content(EffectContentType.ApplyState, "Target", m.Groups[1].Value, m.Groups[2].Value), Trigger(TriggerTiming.AttackHit)); return true; }
@@ -399,7 +416,7 @@ public static partial class SkillTextConverter
         }
         m = M(s, @"^自身が与える([A-Z]+)ダメージは×([0-9.]+)倍される。?$");
         if (m.Success)
-        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.DamageDealt, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.MultiplyResourceDamage, "Self", m.Groups[1].Value, m.Groups[2].Value, "Automatic")); return true; }
+        { Require(type == EffectType.Passive); AddOverride(skill.Overrides, type, On(Trigger(TriggerTiming.DamageDealt, Condition(ConditionType.ActionSource, "Self"))), Change(EffectContentType.MultiplyResourceDamage, "Self", m.Groups[1].Value, m.Groups[2].Value, "Automatic")); return true; }
         return false;
     }
 
@@ -409,46 +426,54 @@ public static partial class SkillTextConverter
         Match m;
         m = M(s, @"^自身は([A-Z]+が[0-9]+以下になった時、.*)$");
         if (m.Success && s.Contains("状態になる")) { ReadSkillLine(skill, type, m.Groups[1].Value); return true; }
-        if (s.TrimEnd('。') == "自身は戦闘を離脱する")
-        { AddSkillEffect(skill, type, Content(EffectContentType.LeaveBattle, "Self")); return true; }
-        m = M(s, @"^自身は([A-Z]+)が([0-9]+)以下になった時、(.+?)ロールを行う必要がない。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.PreventRollAtResource, "Self", m.Groups[1].Value, "AtMost", m.Groups[2].Value, m.Groups[3].Value)); return true; }
-        m = M(s, @"^自身はあらゆる〈([^〉]+)〉からの効果を受けない。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.CategoryImmunity, "Self", m.Groups[1].Value)); return true; }
-        m = M(s, @"^自身は((?:〈[^〉]+〉)(?:及び〈[^〉]+〉)*)による効果を受ける事が出来ない。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.CategoryImmunity, new[] { "Self" }.Concat(AllMatches(m.Groups[1].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray())); return true; }
-        m = M(s, @"^自身は〈([^〉]+)〉を対象にすることはできない。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ProhibitCategoryTarget, "Self", m.Groups[1].Value)); return true; }
-        m = M(s, @"^自身の([A-Z]+)の消費は全て([A-Z]+)の消費に置き換えられる。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ConvertResourceCost, "Self", m.Groups[1].Value, m.Groups[2].Value, "All")); return true; }
-        m = M(s, @"^クエストによって獲得する(.+?)が\+([0-9]+)される。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.AddQuestReward, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
-        m = M(s, @"^対象スキルを([0-9]+)ターンの間《([^》]+)》状態にする。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ApplySelectedSkillState, "SelectedSkill", m.Groups[2].Value, m.Groups[1].Value)); return true; }
-        m = M(s, @"^対象(?:に|へ)(.+?)の([A-Z]+)ダメージを与える。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.ResourceDamage, "Target", m.Groups[2].Value, m.Groups[1].Value.Replace("×", "*"))); return true; }
+        EffectContent content = ReadDirectResourceEffect(s);
+        if (content != null) { AddSkillEffect(skill, type, content); return true; }
         m = M(s, @"^与えた([A-Z]+)ダメージの値の([A-Z]+)と、([0-9.]+)倍の値の([A-Z]+)を回復する。?$");
         if (m.Success)
         {
             AddSkillEffect(skill, type, Content(EffectContentType.RestoreFromResourceDamage, "Self", m.Groups[1].Value, m.Groups[2].Value, "1", "ThisResolution"));
             AddSkillEffect(skill, type, Content(EffectContentType.RestoreFromResourceDamage, "Self", m.Groups[1].Value, m.Groups[4].Value, m.Groups[3].Value, "ThisResolution")); return true;
         }
-        m = M(s, @"^与えた([A-Z]+)ダメージの([0-9.]+)倍の値の([A-Z]+)を回復する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.RestoreFromResourceDamage, "Self", m.Groups[1].Value, m.Groups[3].Value, m.Groups[2].Value, "ThisResolution")); return true; }
-        m = M(s, @"^《([^》]+)》状態のキャラクター全てに自身のターン開始時《([^》]+)》スタックを([0-9]+)付与する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.TurnStartStateStacks, "Self", m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value, "AllCharacters")); return true; }
-        m = M(s, @"^対象に《([^》]+)》スタックを([0-9]+)付与する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.GainStack, "Target", m.Groups[1].Value, m.Groups[2].Value)); return true; }
-        m = M(s, @"^対象の([A-Z]+)を(.+?)の効果量で回復する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.RestoreResource, "Target", m.Groups[1].Value, m.Groups[2].Value)); return true; }
-        m = M(s, @"^自身の《([^》]+)》状態を解除する。?$");
-        if (m.Success) { AddSkillEffect(skill, type, Content(EffectContentType.RemoveState, "Self", m.Groups[1].Value)); return true; }
         m = M(s, @"^自身の([A-Z]+最大値)及び([A-Z]+最大値)は×([0-9.]+)倍される。?$");
         if (m.Success)
         { ReadSkillLine(skill, type, m.Groups[1].Value + "が×" + m.Groups[3].Value + "倍される。"); ReadSkillLine(skill, type, m.Groups[2].Value + "が×" + m.Groups[3].Value + "倍される。"); return true; }
         return false;
     }
 
+
+    private static EffectContent ReadDirectResourceEffect(string s)
+    {
+        Match m;
+        if (s.TrimEnd('。') == "自身は戦闘を離脱する")
+            return Content(EffectContentType.LeaveBattle, "Self");
+        m = M(s, @"^自身は([A-Z]+)が([0-9]+)以下になった時、(.+?)ロールを行う必要がない。?$");
+        if (m.Success) return Content(EffectContentType.PreventRollAtResource, "Self", m.Groups[1].Value, "AtMost", m.Groups[2].Value, m.Groups[3].Value);
+        m = M(s, @"^自身はあらゆる〈([^〉]+)〉からの効果を受けない。?$");
+        if (m.Success) return Content(EffectContentType.CategoryImmunity, "Self", m.Groups[1].Value);
+        m = M(s, @"^自身は((?:〈[^〉]+〉)(?:及び〈[^〉]+〉)*)による効果を受ける事が出来ない。?$");
+        if (m.Success) return Content(EffectContentType.CategoryImmunity, new[] { "Self" }.Concat(AllMatches(m.Groups[1].Value, @"〈([^〉]+)〉").Cast<Match>().Select(x => x.Groups[1].Value)).ToArray());
+        m = M(s, @"^自身は〈([^〉]+)〉を対象にすることはできない。?$");
+        if (m.Success) return Content(EffectContentType.ProhibitCategoryTarget, "Self", m.Groups[1].Value);
+        m = M(s, @"^自身の([A-Z]+)の消費は全て([A-Z]+)の消費に置き換えられる。?$");
+        if (m.Success) return Content(EffectContentType.ConvertResourceCost, "Self", m.Groups[1].Value, m.Groups[2].Value, "All");
+        m = M(s, @"^クエストによって獲得する(.+?)が\+([0-9]+)される。?$");
+        if (m.Success) return Content(EffectContentType.AddQuestReward, "Self", m.Groups[1].Value, m.Groups[2].Value);
+        m = M(s, @"^対象スキルを([0-9]+)ターンの間《([^》]+)》状態にする。?$");
+        if (m.Success) return Content(EffectContentType.ApplySelectedSkillState, "SelectedSkill", m.Groups[2].Value, m.Groups[1].Value);
+        m = M(s, @"^対象(?:に|へ)(.+?)の([A-Z]+)ダメージを与える。?$");
+        if (m.Success) return Content(EffectContentType.ResourceDamage, "Target", m.Groups[2].Value, m.Groups[1].Value.Replace("×", "*"));
+        m = M(s, @"^与えた([A-Z]+)ダメージの([0-9.]+)倍の値の([A-Z]+)を回復する。?$");
+        if (m.Success) return Content(EffectContentType.RestoreFromResourceDamage, "Self", m.Groups[1].Value, m.Groups[3].Value, m.Groups[2].Value, "ThisResolution");
+        m = M(s, @"^《([^》]+)》状態のキャラクター全てに自身のターン開始時《([^》]+)》スタックを([0-9]+)付与する。?$");
+        if (m.Success) return Content(EffectContentType.TurnStartStateStacks, "Self", m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value, "AllCharacters");
+        m = M(s, @"^対象に《([^》]+)》スタックを([0-9]+)付与する。?$");
+        if (m.Success) return Content(EffectContentType.GainStack, "Target", m.Groups[1].Value, m.Groups[2].Value);
+        m = M(s, @"^対象の([A-Z]+)を(.+?)の効果量で回復する。?$");
+        if (m.Success) return Content(EffectContentType.RestoreResource, "Target", m.Groups[1].Value, m.Groups[2].Value);
+        m = M(s, @"^自身の《([^》]+)》状態を解除する。?$");
+        if (m.Success) return Content(EffectContentType.RemoveState, "Self", m.Groups[1].Value);
+        return null;
+    }
 
     private static bool ReadSkillStatement(SkillBody skill, EffectType type, string text)
     {

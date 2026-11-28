@@ -1,3 +1,4 @@
+using static CommonEffectTextCodec;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -17,22 +18,53 @@ public static partial class EquipmentTextConverter
         builder.AppendLine("《" + Need(equipment.Name, "装備名") + "》" + gradeSuffix);
         builder.AppendLine(CategoryText(equipment.Categories));
         builder.AppendLine("【レアリティ】" + Need(equipment.Rarity, "レアリティ"));
-        builder.AppendLine("【グレード】" + new string('☆', equipment.Grade));
-        builder.AppendLine("【価値】" + EquipmentValueText(equipment.Value));
-        var slots = new List<string>();
-        foreach (string slot in equipment.EquipSlots) slots.Add(Need(slot, "装備部位"));
-        builder.AppendLine("【装備部位】" + string.Join(", ", slots));
+        if (equipment.Grade > 0 || !string.IsNullOrEmpty(equipment.SpecialGrade))
+            builder.AppendLine("【グレード】" + (equipment.Grade > 0 ? new string('☆', equipment.Grade) : equipment.SpecialGrade));
+        if (equipment.Value.Kind != EquipmentValueKind.Unspecified)
+            builder.AppendLine("【価値】" + EquipmentValueText(equipment.Value));
+        if (equipment.EquipSlots.Count > 0)
+            builder.AppendLine("【装備部位】" + string.Join(", ", equipment.EquipSlots));
         if (equipment.EquipRequirements.Count > 0)
             builder.AppendLine("【装備条件】" + EquipmentRequirementsText(equipment.EquipRequirements));
         builder.AppendLine("【サイズ】" + Need(equipment.Size, "サイズ"));
-        builder.AppendLine("【耐久最大値】" + equipment.MaxDurability.ToString(CultureInfo.InvariantCulture));
+        if (equipment.MaxDurability != 0)
+            builder.AppendLine("【耐久最大値】" + (equipment.MaxDurability == -1 ? "∞" : equipment.MaxDurability.ToString(CultureInfo.InvariantCulture)));
+        if (equipment.RequiredSpace > 0)
+            builder.AppendLine("【必要敷地】" + equipment.RequiredSpace.ToString(CultureInfo.InvariantCulture));
         if (!string.IsNullOrWhiteSpace(equipment.WeaponPowerFormula))
-            builder.AppendLine("【武器威力】" + Need(equipment.WeaponPowerFormula, "武器威力"));
-        builder.AppendLine("【装備効果】");
+        {
+            string name = string.IsNullOrEmpty(equipment.WeaponPowerName) ? "" : "《" + equipment.WeaponPowerName + "》：";
+            builder.AppendLine("【武器威力】" + name + Need(equipment.WeaponPowerFormula, "武器威力"));
+        }
+        if (equipment.WeaponPowerBonus != 0)
+            builder.AppendLine("【武器威力補正】" + SignedIntegerText(equipment.WeaponPowerBonus));
+        EquipmentEffectSection? section = null;
         foreach (EquipmentEffectGroup group in equipment.EffectGroups)
+        {
+            if (section != group.Section)
+            {
+                section = group.Section;
+                builder.AppendLine(section == EquipmentEffectSection.Passive ? "【パッシブ効果】" :
+                    section == EquipmentEffectSection.Installed ? "【設置効果】" : "【装備効果】");
+            }
             builder.AppendLine("・" + EquipmentEffectGroupText(group));
-        foreach (EquipmentStateDefinition state in equipment.States)
+        }
+        if (section == null && equipment.States.Count > 0) builder.AppendLine("【装備効果】");
+        foreach (StateDefinition state in equipment.States)
             builder.AppendLine("・" + EquipmentStateText(state));
+
+        if (equipment.WeaponModes.Count > 0)
+        {
+            builder.AppendLine();
+            builder.AppendLine("【説明】武器を参照する時、以下から一つ選ぶ。");
+            foreach (var mode in equipment.WeaponModes)
+            {
+                builder.AppendLine("●" + mode.Name);
+                builder.AppendLine("【武器威力】" + mode.WeaponPowerFormula);
+                foreach (var group in mode.EffectGroups)
+                    builder.AppendLine("・" + EquipmentEffectGroupText(group));
+            }
+        }
 
         if (equipment.GradeAdjustments.Count > 0)
         {
@@ -60,7 +92,8 @@ public static partial class EquipmentTextConverter
         switch (value.Kind)
         {
             case EquipmentValueKind.Currency:
-                return value.Amount.ToString(CultureInfo.InvariantCulture) + Need(value.Currency, "通貨名");
+                string quantity = value.Quantity > 1 ? value.Quantity.ToString(CultureInfo.InvariantCulture) + "個で" : "";
+                return quantity + value.Amount.ToString(CultureInfo.InvariantCulture) + value.Currency;
             case EquipmentValueKind.Untradeable:
                 return "取引不可";
             default:
@@ -79,6 +112,16 @@ public static partial class EquipmentTextConverter
                 case EquipmentRequirementType.MinimumLevel:
                     string[] parameters = Args(requirement.Parameters, 1, "MinimumLevel");
                     texts.Add(Number(parameters[0], 1, "必要レベル").ToString(CultureInfo.InvariantCulture) + "レベル以上");
+                    break;
+                case EquipmentRequirementType.MinimumStat:
+                case EquipmentRequirementType.MaximumStat:
+                    string[] stat = Args(requirement.Parameters, 2, "能力値条件");
+                    texts.Add(stat[0] + stat[1] + (requirement.Type == EquipmentRequirementType.MinimumStat ? "以上" : "以下"));
+                    break;
+                case EquipmentRequirementType.LearnedSkill:
+                case EquipmentRequirementType.LearnedTitle:
+                    string prefix = requirement.Type == EquipmentRequirementType.LearnedTitle ? "称号" : "";
+                    texts.Add(prefix + "《" + Args(requirement.Parameters, 1, "習得条件")[0] + "》の習得");
                     break;
                 default:
                     throw new InvalidOperationException("未対応の装備条件です：" + requirement.Type);

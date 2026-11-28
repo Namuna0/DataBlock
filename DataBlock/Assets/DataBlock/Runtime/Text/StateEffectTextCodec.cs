@@ -11,7 +11,7 @@ public static partial class SkillTextConverter
         var m = M(text, @"^〈([^〉]+)〉に対する自身の〈回避〉の達成値を(-[0-9]+)減少させる。?$");
         if (m.Success)
         {
-            AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.EvasionResult, Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(OverrideContentType.AddEvasionResult, m.Groups[2].Value)); return true;
+            AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.EvasionResult, Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(EffectContentType.AddEvasionResult, m.Groups[2].Value)); return true;
         }
         if (M(text, @"^自身の被ダメージは×[0-9.]+倍されます。?$").Success)
             return ReadStateLine(state, text.Replace("されます", "される"));
@@ -41,18 +41,18 @@ public static partial class SkillTextConverter
         if (m.Success)
         {
             foreach (Match category in AllMatches(m.Groups[1].Value, @"〈([^〉]+)〉"))
-                AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, category.Groups[1].Value))), Change(OverrideContentType.MultiplyActionResult, m.Groups[2].Value));
+                AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, category.Groups[1].Value))), Change(EffectContentType.MultiplyActionResult, m.Groups[2].Value));
             return true;
         }
         m = M(s, @"^自身の〈([^〉]+)〉による威力(?:は|が)スタックに応じて(.+?)と(?:減少してゆく|変化する)。?$");
         if (m.Success)
         {
             var values = m.Groups[2].Value.Split('→').Select(x => x.Trim().TrimStart('×').TrimEnd('倍')).ToArray();
-            AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPowerByStacks, new[] { "Self", m.Groups[1].Value }.Concat(values).ToArray())); return true;
+            AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPowerByStacks, new[] { "Self", m.Groups[1].Value }.Concat(values).ToArray())); return true;
         }
         m = M(s, @"^スキルによる([A-Z]+)の消費量が×(.+?)倍される。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, StateSkillCostTriggers(), Change(OverrideContentType.MultiplyResourceCost, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, StateSkillCostTriggers(), Change(EffectContentType.MultiplyResourceCost, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^(毎ターン開始時|自身のターン開始時)、自身は([A-Z]+)を(.+?)(回復|消費)する。?$");
         if (m.Success)
         {
@@ -60,13 +60,13 @@ public static partial class SkillTextConverter
         }
         m = M(s, @"^自身が〈([^〉]+)〉によって受けるダメージを×([0-9.]+)倍する。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.IncomingDamage, Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(OverrideContentType.MultiplyDamageTaken, "Self", m.Groups[2].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.IncomingDamage, Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(EffectContentType.MultiplyDamageTaken, "Self", m.Groups[2].Value)); return true; }
         m = M(s, @"^自身の〈([^〉]+)〉による行為判定の目標値は([+-][0-9]+)加算される。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.TargetValue, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(OverrideContentType.AddTargetValue, m.Groups[2].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.TargetValue, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(EffectContentType.AddTargetValue, m.Groups[2].Value)); return true; }
         m = M(s, @"^自身への〈([^〉]+)〉による命中ロールの目標値が([+-][0-9]+)される。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.TargetValue, Condition(ConditionType.ActionTarget, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(OverrideContentType.AddTargetValue, m.Groups[2].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.TargetValue, Condition(ConditionType.ActionTarget, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value))), Change(EffectContentType.AddTargetValue, m.Groups[2].Value)); return true; }
         m = M(s, @"^自身への〈([^〉]+)〉を無効(?:に)?する。?$");
         if (!m.Success) m = M(s, @"^自身はあらゆる〈([^〉]+)〉からの効果を受けない。?$");
         if (m.Success) { AddStateEffect(state, NoTriggers(), Content(EffectContentType.CategoryImmunity, "Self", m.Groups[1].Value)); return true; }
@@ -91,7 +91,7 @@ public static partial class SkillTextConverter
         if (content == null) return null;
         string rule = SemanticRuleContentText(content, true);
         if (rule != null) { Require(Matches(t, Trigger(TriggerTiming.Always))); return rule; }
-        if (content.Type == EffectContentType.CategoryImmunity)
+        if (content.Type == EffectContentType.CategoryImmunity && content.Parameters?.Count == 2)
         {
             var p = Args(content.Parameters, 2, "CategoryImmunity"); Require(p[0] == "Self" && Matches(t, Trigger(TriggerTiming.Always)));
             return "自身への〈" + p[1] + "〉を無効にする。";
@@ -124,7 +124,7 @@ public static partial class SkillTextConverter
         {
             Number(m.Groups[1].Value, 1, "参照スタック数"); Number(m.Groups[2].Value, 1, "防御点");
             AddOverride(state.Overrides, EffectType.Passive, NoTriggers(),
-                Change(OverrideContentType.ModifyStat, "Self", "防御点", "Add", "+[スタック]*" + m.Groups[2].Value + "/" + m.Groups[1].Value)); return true;
+                Change(EffectContentType.ModifyStat, "Self", "防御点", "Add", "+[スタック]*" + m.Groups[2].Value + "/" + m.Groups[1].Value)); return true;
         }
         m = M(s, @"^このスタックは自身が〈([^〉]+)〉を受けた時その威力分減少する。?$");
         if (m.Success)
@@ -140,11 +140,11 @@ public static partial class SkillTextConverter
         if (m.Success)
         {
             string[] values = m.Groups[2].Value.Split('→').Select(x => x.Trim().TrimEnd('倍')).ToArray();
-            AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPowerByStacks, new[] { "Self", m.Groups[1].Value }.Concat(values).ToArray()));
+            AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPowerByStacks, new[] { "Self", m.Groups[1].Value }.Concat(values).ToArray()));
             AddStateEffect(state, On(Trigger(TriggerTiming.BattleEnd)), Content(EffectContentType.RemoveState, "Self", state.Name)); return true;
         }
         m = M(s, @"^被ダメージが×(.+?)倍増加する。?（最大(.+?)倍まで）$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.IncomingDamage)), Change(OverrideContentType.MultiplyDamageTaken, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.IncomingDamage)), Change(EffectContentType.MultiplyDamageTaken, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
         if (s.TrimEnd('。') == "自身はあらゆる効果の選択対象にならない") { AddStateEffect(state, NoTriggers(), Content(EffectContentType.PreventSelection, "Self", "All")); return true; }
         m = M(s, @"^自身がダメージを受ける、もしくは((?:〈[^〉]+〉)(?:及び〈[^〉]+〉)*)を宣言するとこの状態は解除される。?$");
         if (m.Success)
@@ -156,28 +156,28 @@ public static partial class SkillTextConverter
         m = M(s, @"^(.+?最大値)が×(.+?)倍増加,\s*自身のターン開始時([A-Z]+)(.+?)回復,\s*(.+?点)([+-].+)$");
         if (m.Success)
         {
-            AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Multiply", m.Groups[2].Value), Change(OverrideContentType.ModifyStat, "Self", m.Groups[5].Value, "Add", Signed(m.Groups[6].Value)));
+            AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(EffectContentType.ModifyStat, "Self", m.Groups[1].Value, "Multiply", m.Groups[2].Value), Change(EffectContentType.ModifyStat, "Self", m.Groups[5].Value, "Add", Signed(m.Groups[6].Value)));
             AddStateEffect(state, On(Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Self"))), Content(EffectContentType.RestoreResource, "Self", m.Groups[3].Value, m.Groups[4].Value)); return true;
         }
         m = M(s, @"^自身のターン開始時([A-Z]+)(.+?)回復。?$");
         if (m.Success) { AddStateEffect(state, On(Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Self"))), Content(EffectContentType.RestoreResource, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^(.+?最大値)が×(.+?)倍増加。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Multiply", m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(EffectContentType.ModifyStat, "Self", m.Groups[1].Value, "Multiply", m.Groups[2].Value)); return true; }
         m = M(s, @"^(.+?点)([+-].+?)。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Add", Signed(m.Groups[2].Value))); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(EffectContentType.ModifyStat, "Self", m.Groups[1].Value, "Add", Signed(m.Groups[2].Value))); return true; }
         m = M(s, @"^自身の([^\s〈〉《》。\[\]]+B)は([+-][0-9]+(?:\.[0-9]+)?)される。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.ModifyStat, "Self", m.Groups[1].Value, "Add", m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(EffectContentType.ModifyStat, "Self", m.Groups[1].Value, "Add", m.Groups[2].Value)); return true; }
         if (s.TrimEnd('。') == "自身はカウンター効果を発動できなくなる") { AddStateEffect(state, NoTriggers(), Content(EffectContentType.ProhibitEffect, "Self", "Counter")); return true; }
         m = M(s, @"^自身の〈([^〉]+)〉による威力(?:が|は)×?(.+?)倍される。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPower, m.Groups[2].Value)); return true; }
         m = M(s, @"^自身の被ダメージ(?:が|は)×?(.+?)倍される。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.IncomingDamage)), Change(OverrideContentType.MultiplyDamageTaken, "Self", m.Groups[1].Value)); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.IncomingDamage)), Change(EffectContentType.MultiplyDamageTaken, "Self", m.Groups[1].Value)); return true; }
         m = M(s, @"^《([^》]+)》を除くあらゆる状態を付与されない。?$");
         if (m.Success) { AddStateEffect(state, NoTriggers(), Content(EffectContentType.PreventStateApplication, "Self", "Except", m.Groups[1].Value)); return true; }
         if (s == "戦闘終了時、この状態は解除される。") { AddStateEffect(state, On(Trigger(TriggerTiming.BattleEnd)), Content(EffectContentType.RemoveState, "Self", state.Name)); return true; }
         // Canonical stack scaling and expiration are separate serialized entries.
         m = M(s, @"^自身の〈([^〉]+)〉による威力がスタックに応じて(.+?)と増加する。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPowerByStacks, new[] { "Self", m.Groups[1].Value }.Concat(m.Groups[2].Value.Split('→').Select(x => x.Trim().TrimEnd('倍'))).ToArray())); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPowerByStacks, new[] { "Self", m.Groups[1].Value }.Concat(m.Groups[2].Value.Split('→').Select(x => x.Trim().TrimEnd('倍'))).ToArray())); return true; }
         return false;
     }
 
@@ -200,7 +200,7 @@ public static partial class SkillTextConverter
             p = Args(content.Parameters, 3, "RestoreFromDamage"); string category = StateDamageCategory(t, false); Require(p[0] == "Self");
             return "自身が〈" + category + "〉によるダメージを与えた時、与えたダメージの" + p[2] + "倍の値の" + p[1] + "を回復する。";
         }
-        if (content.Type == EffectContentType.GainStack && content.Parameters != null && content.Parameters.Count == 3)
+        if (content.Type == EffectContentType.GainStack && content.Parameters != null && content.Parameters.Count == 3 && !Matches(t, Trigger(TriggerTiming.Always)))
         {
             p = Args(content.Parameters, 3, "GainStack"); string category = StateDamageCategory(t, true); Require(p[0] == "Self"); Number(p[2], 1, "スタック数");
             string[] condition = Args(t[0].Conditions.And[2].Parameters, 2, "AttackAppliedState"); Require(condition[0] == "Target");
@@ -210,7 +210,7 @@ public static partial class SkillTextConverter
         if (content.Type == EffectContentType.ProhibitEffect) { Require(Args(content.Parameters, 2, "ProhibitEffect").SequenceEqual(new[] { "Self", "Counter" }) && Matches(t, Trigger(TriggerTiming.Always))); return "自身はカウンター効果を発動できなくなる。"; }
         if (content.Type == EffectContentType.PreventStateApplication) { p = Args(content.Parameters, 3, "PreventStateApplication"); Require(p[0] == "Self" && p[1] == "Except" && Matches(t, Trigger(TriggerTiming.Always))); return "《" + p[2] + "》を除くあらゆる状態を付与されない。"; }
         if (content.Type == EffectContentType.RestoreResource && Matches(t, Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Self")))) { p = Args(content.Parameters, 3, "RestoreResource"); Require(p[0] == "Self"); return "自身のターン開始時" + p[1] + p[2] + "回復。"; }
-        if (content.Type == EffectContentType.RemoveState)
+        if (content.Type == EffectContentType.RemoveState && !Matches(t, Trigger(TriggerTiming.Always)))
         {
             p = Args(content.Parameters, 2, "RemoveState"); Require(p[0] == "Self" && p[1] == state.Name);
             if (Matches(t, Trigger(TriggerTiming.BattleEnd))) return "戦闘終了時、この状態は解除される。";
@@ -242,7 +242,7 @@ public static partial class SkillTextConverter
     {
         var m = M(text, @"^あらゆる行為判定の達成値が([+-][0-9]+)上昇する。?$");
         if (!m.Success) return false;
-        AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.AddActionResult, m.Groups[1].Value)); return true;
+        AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(EffectContentType.AddActionResult, m.Groups[1].Value)); return true;
     }
 
     private static bool ReadCompoundStatePower(StateDefinition state, string s)
@@ -250,8 +250,8 @@ public static partial class SkillTextConverter
         var m = M(s, @"^対象の〈([^〉]+)〉の威力を×([0-9.]+)倍する。さらにその攻撃に属性Bによる威力ある場合、属性威力を×([0-9.]+)倍する。?$");
         if (m.Success)
         {
-            AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value));
-            AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.HasAttributeBonusPower))), Change(OverrideContentType.MultiplyAttackComponent, "AttributePower", m.Groups[3].Value)); return true;
+            AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPower, m.Groups[2].Value));
+            AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.HasAttributeBonusPower))), Change(EffectContentType.MultiplyAttackComponent, "AttributePower", m.Groups[3].Value)); return true;
         }
         return false;
     }
@@ -259,10 +259,10 @@ public static partial class SkillTextConverter
     private static bool ReadStackAndAttributeState(StateDefinition state, string s)
     {
         Match m = M(s, @"^自身のあらゆる〈([^〉]+)〉の威力が×([0-9.]+)倍される。?$");
-        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(OverrideContentType.MultiplyPower, m.Groups[2].Value)); return true; }
+        if (m.Success) { AddOverride(state.Overrides, EffectType.Passive, CategoryPowerTriggers(m.Groups[1].Value), Change(EffectContentType.MultiplyPower, m.Groups[2].Value)); return true; }
         m = M(s, @"^自身の〈([^〉]+)〉による攻撃に属性Bによる威力がある場合、属性威力を×([0-9.]+)倍する。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.HasAttributeBonusPower))), Change(OverrideContentType.MultiplyAttackComponent, "AttributePower", m.Groups[2].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ElementalPower, Condition(ConditionType.ActionSource, "Self"), Condition(ConditionType.ActionCategory, m.Groups[1].Value), Condition(ConditionType.HasAttributeBonusPower))), Change(EffectContentType.MultiplyAttackComponent, "AttributePower", m.Groups[2].Value)); return true; }
         m = M(s, @"^この状態のスタックが([0-9]+)を超えた時、(?:以下の効果|《([^》]+)》の効果)に変化する。?$");
         if (m.Success)
         { AddStateEffect(state, NoTriggers(), Content(EffectContentType.UseStateDefinitionAtStacks, "GreaterThan", m.Groups[1].Value, m.Groups[2].Success ? m.Groups[2].Value : "NextDefinition", "ReplaceEffects", "KeepIdentityAndStacks")); return true; }
@@ -298,14 +298,14 @@ public static partial class SkillTextConverter
         {
             var weapons = state.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.WeaponHitRaceState).ToList();
             Require(weapons.Count == 1);
-            AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.WeaponPowerAgainstState, weapons[0].Parameters[0], m.Groups[1].Value, m.Groups[2].Value)); return true;
+            AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(EffectContentType.WeaponPowerAgainstState, weapons[0].Parameters[0], m.Groups[1].Value, m.Groups[2].Value)); return true;
         }
         m = M(s, @"^自身のあらゆる行為判定の達成値は(.+?)減少する。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.AddActionResult, "-(" + m.Groups[1].Value + ")")); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(EffectContentType.AddActionResult, "-(" + m.Groups[1].Value + ")")); return true; }
         m = M(s, @"^自身のあらゆる行為判定の達成値は([+-].+?)加算される。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(OverrideContentType.AddActionResult, m.Groups[1].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, On(Trigger(TriggerTiming.ActionResult, Condition(ConditionType.ActionSource, "Self"))), Change(EffectContentType.AddActionResult, m.Groups[1].Value)); return true; }
         return false;
     }
 
@@ -316,7 +316,7 @@ public static partial class SkillTextConverter
         { AddStateEffect(state, NoTriggers(), Content(EffectContentType.ProhibitSelectedSkill, "Self", "SelectedSkill")); return true; }
         m = M(s, @"^自身が〈([^〉]+)〉かつ〈([^〉]+)〉を発動する際、対象の防御点は無視される。?$");
         if (m.Success)
-        { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(OverrideContentType.IgnoreDefenseForCategories, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
+        { AddOverride(state.Overrides, EffectType.Passive, NoTriggers(), Change(EffectContentType.IgnoreDefenseForCategories, "Self", m.Groups[1].Value, m.Groups[2].Value)); return true; }
         m = M(s, @"^付与者は、この状態が付与されたキャラクターの代わりに行動を毎ターン([0-9]+)回まで宣言できる。?$");
         if (m.Success)
         { AddStateEffect(state, NoTriggers(), Content(EffectContentType.GrantActionControl, "Applier", "Self", "Turn", m.Groups[1].Value, "Unspecified")); return true; }

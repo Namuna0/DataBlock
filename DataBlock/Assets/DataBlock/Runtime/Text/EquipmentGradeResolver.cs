@@ -20,7 +20,7 @@ public static class EquipmentGradeResolver
     public static string FormatReference(EquipmentTextData source, int targetGrade)
     {
         EquipmentDefinition equipment = Clone(source).Equipment;
-        RequireResolvableGrade(equipment, targetGrade);
+        if (targetGrade != equipment.Grade) RequireResolvableGrade(equipment, targetGrade);
         string reference = "《" + equipment.Name + "》";
         return targetGrade == equipment.Grade && equipment.VariantGrade == 0
             ? reference
@@ -35,35 +35,40 @@ public static class EquipmentGradeResolver
     private static EquipmentTextData Apply(EquipmentTextData copy, int targetGrade)
     {
         EquipmentDefinition equipment = copy.Equipment;
+        if (targetGrade == equipment.Grade) return copy;
         RequireResolvableGrade(equipment, targetGrade);
-        if (targetGrade == equipment.Grade)
-        {
-            equipment.GradeAdjustments.Clear();
-            EquipmentTextConverter.Build(copy);
-            return copy;
-        }
 
-        EquipmentGradeAdjustmentDefinition adjustment =
-            equipment.GradeAdjustments.Single(x => x.Grade == targetGrade);
-        equipment.MaxDurability = checked(equipment.MaxDurability + adjustment.MaxDurabilityDelta);
-        if (adjustment.Modifiers.Count > 0)
+        EquipmentGradeAdjustmentDefinition adjustment = equipment.GradeAdjustments.SingleOrDefault(x => x.Grade == targetGrade);
+        if (adjustment != null)
         {
-            var group = new EquipmentEffectGroup();
-            foreach (EquipmentEffectDefinition modifier in adjustment.Modifiers)
+            equipment.MaxDurability = checked(equipment.MaxDurability + adjustment.MaxDurabilityDelta);
+            if (string.IsNullOrEmpty(equipment.WeaponPowerFormula))
+                equipment.WeaponPowerBonus = checked(equipment.WeaponPowerBonus + adjustment.WeaponPowerDelta);
+            else if (adjustment.WeaponPowerDelta != 0)
+                equipment.WeaponPowerFormula = "(" + equipment.WeaponPowerFormula + ")" +
+                    adjustment.WeaponPowerDelta.ToString("+0;-0", CultureInfo.InvariantCulture);
+            foreach (var change in adjustment.Replacements)
             {
-                group.Effects.Add(new EquipmentEffectDefinition
-                {
-                    Type = modifier.Type,
-                    Parameters = modifier.Parameters.ToList()
-                });
+                var parameters = ReplacementTarget(equipment, change.Rule).Parameters;
+                parameters[parameters.Count - 1] = change.Amount.ToString(CultureInfo.InvariantCulture);
             }
-            equipment.EffectGroups.Add(group);
+            foreach (var modifier in adjustment.Modifiers)
+                equipment.EffectGroups.Add(new EquipmentEffectGroup { Effects = { modifier } });
         }
-        equipment.Grade = targetGrade;
         equipment.VariantGrade = targetGrade;
+        equipment.Grade = targetGrade;
         equipment.GradeAdjustments.Clear();
         EquipmentTextConverter.Build(copy);
         return copy;
+    }
+
+    internal static EffectContent ReplacementTarget(EquipmentDefinition equipment, string rule)
+    {
+        var targets = equipment.EffectGroups.SelectMany(g => g.Effects)
+            .Where(e => e.Type == EffectContentType.RuleModifier && e.Parameters != null && e.Parameters.Count > 1 &&
+                e.Parameters[0] == rule).Take(2).ToArray();
+        if (targets.Length != 1) throw new InvalidOperationException("グレード補正の置換対象が一意ではありません：" + rule);
+        return targets[0];
     }
 
     private static int ReadReferenceGrade(EquipmentDefinition equipment, string referenceText)
@@ -98,6 +103,8 @@ public static class EquipmentGradeResolver
             throw new InvalidOperationException("解決するグレードは1～" +
                 EquipmentTextConverter.MaximumEquipmentGrade + "にしてください。");
         if (targetGrade == equipment.Grade) return;
+        // The standard table lists adjustments for 1, 2, 4 and 5. Its omitted grade 3 has no adjustment.
+        if (targetGrade == 3 && new[] { 1, 2, 4, 5 }.All(g => equipment.GradeAdjustments.Any(x => x.Grade == g))) return;
         if (!equipment.GradeAdjustments.Any(x => x.Grade == targetGrade))
             throw new InvalidOperationException("☆" + targetGrade + "のグレード補正がありません：" +
                 equipment.Name);

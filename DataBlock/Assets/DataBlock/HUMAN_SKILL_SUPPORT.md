@@ -25,7 +25,7 @@
 
 ## 新しい定義と既存定義の追加形式
 
-既存enum番号と `Skill / Summons / States` のJSON構造は維持します。以下はデータ表現・文章変換の契約であり、戦闘や判定を実行する機能ではありません。`TriggerTiming.ResourceRecovery = 25` を回復量が決まるタイミングとして追加しています。
+スキル本体、召喚、状態はそれぞれ別のJSONに出力する。以下はデータ表現・文章変換の契約であり、戦闘や判定を実行する機能ではありません。`TriggerTiming.ResourceRecovery = 25` を回復量が決まるタイミングとして追加しています。
 
 ### ConditionType
 
@@ -45,13 +45,13 @@
 - `RaceAlias = 37`: `[Self, 追加の種族カテゴリ]`。元の種族を置換せず追加扱い。
 - 既存 `RemoveState`: `[Self, Categories, All, 状態カテゴリ...]` を追加。いずれかのカテゴリを持つ状態を全解除。
 
-### OverrideContentType
+### EffectContentType
 
-- `AddTimedActionResult = 26`: `[Self, CurrentTurn, WeaponPower, 武器カテゴリ, 行動カテゴリ, 加算値]`。「穂焔狙撃術」の武器威力参照・攻撃・発動ロール・当ターン限定を保持。
-- `ModifyAcquisitionCost = 27`: `[Self, 決意, Add|Multiply, AllSkills|Class|SkillCategory, 選択対象, 値]`。`AllSkills` の選択対象は `All`。クラス名とスキルカテゴリは別の補正。
-- `MultiplySalePrice = 28`: `[NPC, ExceptCategory, 除外カテゴリ, 倍率]`。
-- `MultiplyRecovery = 29`: `[倍率]`。行動カテゴリ・回復効果の指定は `Triggers`。リソース全般の回復量を対象とする。
-- `SetActivationRollTarget = 30`: `[置換後の目標値]`。通常発動ロールの式・回数を保持。
+- `AddTimedActionResult = 606`: `[Self, CurrentTurn, WeaponPower, 武器カテゴリ, 行動カテゴリ, 加算値]`。「穂焔狙撃術」の武器威力参照・攻撃・発動ロール・当ターン限定を保持。
+- `ModifyAcquisitionCost = 607`: `[Self, 決意, Add|Multiply, AllSkills|Class|SkillCategory, 選択対象, 値]`。`AllSkills` の選択対象は `All`。クラス名とスキルカテゴリは別の補正。
+- `MultiplySalePrice = 608`: `[NPC, ExceptCategory, 除外カテゴリ, 倍率]`。
+- `MultiplyRecovery = 609`: `[倍率]`。行動カテゴリ・回復効果の指定は `Triggers`。リソース全般の回復量を対象とする。
+- `SetActivationRollTarget = 610`: `[置換後の目標値]`。通常発動ロールの式・回数を保持。
 - 既存 `SetModifier` に `[Rule, 対象識別子, 対象の引数..., 置換値]` を追加。`SkillModifierTextCodec.cs` の `CreateModifierRule` が識別子から元の条件・内容を構成し、基本補正が1件に定まることを検証する。リスト番号・スキル名・原文への参照ではない。
 
 `Rule` の対象識別子と引数：

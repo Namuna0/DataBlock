@@ -42,8 +42,8 @@
 
 - `ConditionModels.cs`：62 `AreaWithoutCategory`、63 `SelectCharactersWithState`、64 `AutomaticEnemyAction`。通常の対象選択に `AllowDuplicates` を追加。
 - `EffectModels.cs`：`TriggerTiming.AttackHit = 26`。`EffectContentType` の70〜89に、エリア制限・特性抑制・自属性・命中時分岐・ランダム化・禁止・追加宣言などを追加。
-- `OverrideContentType` の51〜64に、上限付きスタック倍率・エリア補正・付与者の属性威力・種族別判定・自属性ボーナス・次回補正・Critical範囲・アイテムコスト・フェーズ倍率を追加。
-- 各enumのパラメーター順と適用範囲は `EffectModels.cs` の各項目のコメントに記載。既存enumの番号は変更していない。
-- `SkillModels.cs` と `StateModels.cs` のフィールド追加は不要。JSONの `Skill / Summons / States` 構造を維持。
+- `EffectContentType` に、上限付きスタック倍率・エリア補正・付与者の属性威力・種族別判定・自属性ボーナス・次回補正・Critical範囲・アイテムコスト・フェーズ倍率を追加。
+- 各enumのパラメーター順と適用範囲は `EffectModels.cs` の各項目のコメントに記載。
+- `SkillModels.cs` と `StateModels.cs` のフィールド追加は不要。スキル本体、召喚、状態はそれぞれ別のJSONに出力する。
 
 入力の整形は `SkillInputTextCodec`、共通文型は `SemanticRuleTextCodec`、効果の読み取り・再構築は `SkillEffectReaders / SkillContentTextCodec`、状態の効果・補正は `StateEffectTextCodec / StateModifierTextCodec`、整合性と参照先の検証は `SkillEffectValidation / SkillDataValidation` が担当する。

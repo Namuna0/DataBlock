@@ -1,6 +1,6 @@
 # 魔法生物のスキル・特性
 
-文章変換とJSONのデータ表現を拡張する。戦闘・移動・成長の実行処理は従来どおり利用側で実装する。既存enum番号とJSONのルート構造は維持する。
+文章変換とJSONのデータ表現を拡張する。戦闘・移動・成長の実行処理は従来どおり利用側で実装する。スキル本体、召喚、状態はそれぞれ別のJSONに出力する。
 
 ## 表記の解釈
 
@@ -34,12 +34,12 @@ EffectContentType:
 | OptionalInvalidateAction (48) | Self, 行動カテゴリ, AtMost, 達成値 |
 | UseStateDefinitionAtStacks (49) | GreaterThan, 閾値, 定義名, ReplaceEffects, KeepIdentityAndStacks |
 
-OverrideContentType:
+EffectContentType:
 
-- `SetRollRange=31`: Action, FumbleまたはCritical, 下限, 上限。両端を含む。スパイクは該当する基本範囲を置換する。
-- `MultiplyDamageReduction=32`: 軽減量倍率。既存のカウンター軽減を参照する。
-- `MultiplyPowerByTurnActivations=33`: 行動カテゴリ, 開始回数, 順次倍率..., 最大倍率。毎ターン回数をリセットする。
-- `StateTurnRecovery=34`: 状態名, リソース, 回復量, AnyTurn。指定状態を持つ間のターン開始時に適用する。
+- `SetRollRange=611`: Action, FumbleまたはCritical, 下限, 上限。両端を含む。スパイクは該当する基本範囲を置換する。
+- `MultiplyDamageReduction=612`: 軽減量倍率。既存のカウンター軽減を参照する。
+- `MultiplyPowerByTurnActivations=613`: 行動カテゴリ, 開始回数, 順次倍率..., 最大倍率。毎ターン回数をリセットする。
+- `StateTurnRecovery=614`: 状態名, リソース, 回復量, AnyTurn。指定状態を持つ間のターン開始時に適用する。
 
 既存型の追加形式：`ApplyState` の対象 `SameMeleeExceptSelf`、`RerollActivation` の能力値指定 `Original`、`InvalidateTriggeredEffect` の `Target / Counter`、`SetAttackRule` の `Response / 回避 / Prohibit / ThisSkill`。`AddResourceCost` の自動適用はカテゴリ指定Passiveにも対応する。
 
@@ -65,5 +65,5 @@ OverrideContentType:
 ## Runtime/Modelの変更一覧
 
 - `ConditionModels.cs`: `ConditionType` に `ActionName (47)`、`HasAttributeBonusPower (48)`、`CounterToOwnActive (49)` を追加。
-- `EffectModels.cs`: `EffectContentType` に上表の38〜49を追加。`OverrideContentType` に31〜34を追加。
-- 既存の列挙値は変更していない。`SkillBody` などのフィールド追加はなく、《人外》も共通の `CharacterRule` で表現する。旧 `OutsiderRule` の型・専用変換・互換処理は残さない。
+- `EffectModels.cs`: `EffectContentType` に上表の効果・補正を追加。
+- `SkillBody` などのフィールド追加はなく、《人外》も共通の `CharacterRule` で表現する。旧 `OutsiderRule` の型・専用変換・互換処理は残さない。

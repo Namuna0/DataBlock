@@ -157,18 +157,19 @@ public enum EffectType
     /// <summary>失敗時に適用する効果を表す。</summary>
     Failure = 11
 }
+/// <summary>発動タイミングと追加条件を、そのとき適用する効果の列に関連付ける。</summary>
 [Serializable]
 public class EffectDefinition
 {
     public EffectType Type;
-    // 空なら追加トリガーなし。複数指定時は、いずれかのトリガーが成立した時。
+    // 空なら効果種別に従う。複数指定時はいずれかが成立した時、同じイベントに1回適用する。
     public List<TriggerDefinition> Triggers = new List<TriggerDefinition>();
     public List<EffectContent> Contents = new List<EffectContent>();
 }
-/// <summary>通常効果が何を行うかを表す。対象、状態名、量、計算式などは効果の引数で指定する。</summary>
+/// <summary>スキル・装備・アイテム・状態が適用する効果や補正の種類。対象、量、計算式などを共通の引数で指定する。</summary>
 public enum EffectContentType
 {
-    /// <summary>通常効果の内容が未指定であることを表す。</summary>
+    /// <summary>効果の内容が未指定であることを表す。</summary>
     None = 0,
     /// <summary>指定した人物のリソースを回復する。</summary>
     RestoreResource = 1,
@@ -1255,521 +1256,574 @@ public enum EffectContentType
     /// <summary>指定カテゴリーの武器を装備した扱いとし、この状態を武器として選んだときに指定式の武器威力を使う。</summary>
     EquipStateWeaponFormula = 552,
     /// <summary>武器威力と属性Bに係数を掛けた値を足し、その合計に倍率を掛けた属性威力で対象を攻撃する。</summary>
-    GroupedElementWeaponAttack = 553
-}
-// 数値・判定・消費などへの変更。通常の効果内容には入れません。
-/// <summary>既存の効果やルールをどう補正するかを表す。補正対象、置き換える値、倍率などは補正の引数で指定する。</summary>
-public enum OverrideContentType
-{
-    /// <summary>上書きする内容が未指定であることを表す。</summary>
-    None = 0,
+    GroupedElementWeaponAttack = 553,
+    /// <summary>指定の二部位に装備中の装備と対象装備を交換する。</summary>
+    SwapEquipmentInTwoSlots = 554,
+    /// <summary>指定カテゴリーの品名を参照値を含む名前に変更し、指定先に登録する。</summary>
+    RenameAndRegisterItem = 555,
+    /// <summary>コマンドを実行し、その効果を対象に適用する。</summary>
+    ApplyCommandToTarget = 556,
+    /// <summary>自身に指定個数の永続スタックを付与する。</summary>
+    GainPermanentStacks = 557,
+    /// <summary>対象に指定式で行為判定させる。</summary>
+    TargetPerformsCheck = 558,
+    /// <summary>当日の終了まで、結果の各条件を満たす占い効果を重複して付与する。</summary>
+    GrantCumulativeOutcomesUntilDayEnd = 559,
+    /// <summary>達成値のしきい値を満たすと、指定ロールの出目を増減する。</summary>
+    TierRollDelta = 560,
+    /// <summary>達成値がしきい値以上ならクエストで得る報酬を加算する。</summary>
+    TierQuestReward = 561,
+    /// <summary>達成値がしきい値以上なら指定ロールの回数を加算する。</summary>
+    TierAdditionalRoll = 562,
+    /// <summary>通常威力と指定属性の威力をそれぞれの式で算出して攻撃する。</summary>
+    MixedPowerAttack = 563,
+    /// <summary>自身を対象とする選択を無効にする。</summary>
+    InvalidateSelection = 564,
+    /// <summary>行為判定の出目を指定量変化させて結果を再計算する。</summary>
+    ModifyCheckDieAfterRoll = 565,
+    /// <summary>対象スキルのクールタイムを指定量減らす。</summary>
+    ReduceTargetCooldown = 566,
+    /// <summary>指定カテゴリーの敵が行動するときに自身を必ず選択させる。</summary>
+    ForceEnemyActionTarget = 567,
+    /// <summary>発動した行為のカテゴリーに応じて達成値に倍率を掛ける。</summary>
+    ScaleActivatedActionResult = 568,
+    /// <summary>発動ロールを指定式に置き換えた追加ロールを任意で行う。</summary>
+    OptionalRepeatWithFormula = 569,
+    /// <summary>命中した指定カテゴリーの攻撃の威力に倍率を掛けて対象を攻撃する。</summary>
+    AttackFromHitPower = 570,
+    /// <summary>指定カテゴリーの状態の付与ターン数を増減する。</summary>
+    ModifyAppliedCategoryTurns = 571,
+    /// <summary>対象になった指定カテゴリーの行為の威力に倍率を掛ける。</summary>
+    ScaleDeclaredActionPower = 572,
+    /// <summary>直前に対象へ行った状態付与をもう一度適用する。</summary>
+    ReapplyStateToTarget = 573,
+    /// <summary>対象のリソースを指定値にして状態を付与する。</summary>
+    SetResourceAndApplyState = 574,
+    /// <summary>付与者が自身を対象に指定カテゴリーの行為を宣言すれば発動ロールを成功扱いにする。</summary>
+    ApplierAlwaysSucceedsOnCategory = 575,
+    /// <summary>指定カテゴリーの効果と指定状態の解除を受け付けない。</summary>
+    DenyEffectAndStateRemoval = 576,
+    /// <summary>自身が召喚するキャラクターの指定能力値に倍率を掛ける。</summary>
+    ScaleSummonedCharacterStat = 577,
+    /// <summary>サイズ別のアイテム所持上限を指定量増減する。</summary>
+    IncreaseItemCapacityBySize = 578,
+    /// <summary>ファンブルに伴う効果を無効にする。</summary>
+    CancelFumbleEffect = 579,
+    /// <summary>判定結果が季節ロールを上回ると、そのロールの効果を任意で無視できる。</summary>
+    IgnoreSeasonOnHigherRoll = 580,
     /// <summary>対象となるアクティブ攻撃のスキル値を置き換える。</summary>
-    SetSkillValue = 1,
+    SetSkillValue = 581,
     /// <summary>条件に合う行動の威力に倍率を掛ける。</summary>
-    MultiplyPower = 2,
+    MultiplyPower = 582,
     /// <summary>条件に合う回避の達成値に補正値を加える。</summary>
-    AddEvasionResult = 3,
+    AddEvasionResult = 583,
     /// <summary>特定リソースの消費量を指定値に置き換える。</summary>
-    SetResourceCost = 4,
+    SetResourceCost = 584,
     /// <summary>スキルのクールタイムを指定値に置き換える。</summary>
-    SetCooldown = 5,
+    SetCooldown = 585,
     /// <summary>指定リソースの消費量を増減する。自動適用か任意適用かも表す。</summary>
-    AddResourceCost = 6,
+    AddResourceCost = 586,
     /// <summary>行為判定や発動ロールの目標値を増減する。</summary>
-    AddTargetValue = 7,
+    AddTargetValue = 587,
     /// <summary>該当する攻撃のクリティカルを確定する。</summary>
-    SetCritical = 8,
+    SetCritical = 588,
     /// <summary>選択した自身の状態の持続ターンを増減する。</summary>
-    AddStateDuration = 9,
+    AddStateDuration = 589,
 
     /// <summary>対象の被ダメージに倍率を掛ける。必要に応じて倍率の上限を設ける。</summary>
-    MultiplyDamageTaken = 10, // actor, multiplier, optional maximum multiplier
+    MultiplyDamageTaken = 590, // actor, multiplier, optional maximum multiplier
     /// <summary>この攻撃に対するカウンターで自身がダメージを受けることを防ぐ。</summary>
-    PreventCounterDamage = 11,
+    PreventCounterDamage = 591,
     /// <summary>条件に合う行為判定の達成値に補正値を加える。</summary>
-    AddActionResult = 12,
+    AddActionResult = 592,
     /// <summary>カウンターによる被ダメージの軽減値を置き換える。</summary>
-    SetDamageReduction = 13,
+    SetDamageReduction = 593,
 
     // Component/rule names live in Parameters to avoid one enum value per
     // element, response type, or future attack component.
     /// <summary>攻撃の威力または属性威力を指定式に置き換える。</summary>
-    SetAttackComponent = 14, // Power|AttributePower, replacement formula
+    SetAttackComponent = 594, // Power|AttributePower, replacement formula
     /// <summary>攻撃の威力または属性威力に倍率を掛ける。</summary>
-    MultiplyAttackComponent = 15,
+    MultiplyAttackComponent = 595,
     /// <summary>防御点の扱いや宣言可能な応答など、この攻撃の規則を変更する。</summary>
-    SetAttackRule = 16,
+    SetAttackRule = 596,
     /// <summary>条件に合う行為判定の達成値に倍率を掛ける。</summary>
-    MultiplyActionResult = 17,
+    MultiplyActionResult = 597,
 
     // actor, stat name, Add|Multiply, value.
     /// <summary>指定した人物のステータスに加算または乗算の補正を適用する。</summary>
-    ModifyStat = 18,
+    ModifyStat = 598,
     // actor, resource, factor. The action selector belongs to Triggers.
     /// <summary>対象の行動で消費する指定リソースに倍率を掛ける。</summary>
-    MultiplyResourceCost = 19,
+    MultiplyResourceCost = 599,
     // actor, resource, mapped-stack rule key, interval, reduction, selection policy.
     /// <summary>対応する属性のスタックが一定数増すごとに、行動のリソース消費を減らす。</summary>
-    ReduceResourceCostPerMappedStacks = 20,
+    ReduceResourceCostPerMappedStacks = 600,
     // Base modifier kind, selector fields, replacement value.
     /// <summary>スパイク段階に応じて、指定した既存の補正項目の値を置き換える。</summary>
-    SetModifier = 21,
+    SetModifier = 601,
     // Replacement formula for a skill activation roll. The base target is retained.
     /// <summary>発動ロールの計算式を置き換える。目標値は引き継ぐ。</summary>
-    SetActivationRollFormula = 22,
+    SetActivationRollFormula = 602,
     /// <summary>対象に与える指定リソースへのダメージに倍率を掛ける。</summary>
-    MultiplyResourceDamage = 23, // actor, resource, multiplier, Optional
+    MultiplyResourceDamage = 603, // actor, resource, multiplier, Optional
     /// <summary>指定状態の付与スタック数を置き換える。</summary>
-    SetStackAmount = 24, // actor, state, amount
+    SetStackAmount = 604, // actor, state, amount
     /// <summary>現在のスタック数に対応する段階の倍率を行動の威力に掛ける。</summary>
-    MultiplyPowerByStacks = 25, // actor, action category, multipliers for stacks 1..N
+    MultiplyPowerByStacks = 605, // actor, action category, multipliers for stacks 1..N
     /// <summary>このターン中、指定した武器威力を参照する行為の発動ロールの達成値に補正を加える。</summary>
-    AddTimedActionResult = 26, // Self, CurrentTurn, WeaponPower, weapon category, action category, value
+    AddTimedActionResult = 606, // Self, CurrentTurn, WeaponPower, weapon category, action category, value
     /// <summary>対象スキルやクラスの習得に必要なリソースを加算または乗算で補正する。</summary>
-    ModifyAcquisitionCost = 27, // Self, resource, Add|Multiply, AllSkills|Class|SkillCategory, selector, value
+    ModifyAcquisitionCost = 607, // Self, resource, Add|Multiply, AllSkills|Class|SkillCategory, selector, value
     /// <summary>指定カテゴリーを除くアイテムのNPCへの売却価格に倍率を掛ける。</summary>
-    MultiplySalePrice = 28, // NPC, ExceptCategory, category, factor
+    MultiplySalePrice = 608, // NPC, ExceptCategory, category, factor
     /// <summary>条件に合う行動による回復量に倍率を掛ける。</summary>
-    MultiplyRecovery = 29, // factor; action category belongs to Triggers
+    MultiplyRecovery = 609, // factor; action category belongs to Triggers
     /// <summary>このスキルの発動ロールの目標値を置き換える。</summary>
-    SetActivationRollTarget = 30, // replacement target for this skill's activation roll
+    SetActivationRollTarget = 610, // replacement target for this skill's activation roll
     /// <summary>クリティカルまたはファンブルとなる出目の範囲を両端を含めて指定する。</summary>
-    SetRollRange = 31, // Action, Fumble|Critical, lower inclusive, upper inclusive
+    SetRollRange = 611, // Action, Fumble|Critical, lower inclusive, upper inclusive
     /// <summary>カウンター効果で軽減するダメージ量に倍率を掛ける。</summary>
-    MultiplyDamageReduction = 32, // factor applied to the counter's reduction amount
+    MultiplyDamageReduction = 612, // factor applied to the counter's reduction amount
     /// <summary>ターン内の発動順に応じて行動の威力に段階別の倍率を掛ける。</summary>
-    MultiplyPowerByTurnActivations = 33, // action category, first ordinal, factors..., maximum (reset each turn)
+    MultiplyPowerByTurnActivations = 613, // action category, first ordinal, factors..., maximum (reset each turn)
     /// <summary>指定状態による毎ターンのリソース回復量を、スパイクの値に置き換える。</summary>
-    StateTurnRecovery = 34, // state name, resource, amount, AnyTurn (spike replacement, not cumulative)
+    StateTurnRecovery = 614, // state name, resource, amount, AnyTurn (spike replacement, not cumulative)
     /// <summary>属性威力による被ダメージに、その属性に不利な属性Bの最大値を掛ける。</summary>
-    AttributeWeaknessDamage = 35, // Self, HighestDisadvantageAttributeBonus
+    AttributeWeaknessDamage = 615, // Self, HighestDisadvantageAttributeBonus
     /// <summary>この効果をカウンター効果の対象にできなくする。</summary>
-    PreventCounterTarget = 36, // ThisEffect
+    PreventCounterTarget = 616, // ThisEffect
     /// <summary>指定状態によって対象の行動を指示できるターン内の回数を変更する。</summary>
-    SetStateControlLimit = 37, // state, Turn, limit
+    SetStateControlLimit = 617, // state, Turn, limit
     /// <summary>自身・対象の状態と接近条件を満たすとき、該当カテゴリーの威力に倍率を掛ける。</summary>
-    ConditionalStatePower = 38, // action category, own state, target state, shared melee state, multiplier
+    ConditionalStatePower = 618, // action category, own state, target state, shared melee state, multiplier
     /// <summary>自身・対象の状態と接近条件を満たすとき、規定量以上のリソース消費を軽減する。</summary>
-    ConditionalStateCost = 39, // same first four selectors, resource, minimum base cost, delta
+    ConditionalStateCost = 619, // same first four selectors, resource, minimum base cost, delta
     /// <summary>指定状態と接近条件による既存の威力倍率を置き換える。</summary>
-    SetConditionalStatePower = 40, // replacement multiplier for ConditionalStatePower
+    SetConditionalStatePower = 620, // replacement multiplier for ConditionalStatePower
     /// <summary>指定カテゴリーの条件を満たす行動で防御点を無視する。</summary>
-    IgnoreDefenseForCategories = 41, // Self, categories... (all)
+    IgnoreDefenseForCategories = 621, // Self, categories... (all)
     /// <summary>状態による攻撃の威力に、状態付与時に決まる倍率を掛ける。</summary>
-    MultiplyStateAttackPower = 42, // local state name, factor (captured when applying the state)
+    MultiplyStateAttackPower = 622, // local state name, factor (captured when applying the state)
     /// <summary>対象に付与する指定状態の持続ターン数を置き換える。</summary>
-    SetAppliedStateDuration = 43, // Target, state, replacement turns
+    SetAppliedStateDuration = 623, // Target, state, replacement turns
     /// <summary>指定状態が自身の被ダメージに掛ける倍率を置き換える。</summary>
-    SetStateDamageMultiplier = 44, // local state, Self, replacement damage multiplier
+    SetStateDamageMultiplier = 624, // local state, Self, replacement damage multiplier
     /// <summary>状態付与時のリソース回復量を決める最大値割合を置き換える。</summary>
-    SetOnAppliedStateRecovery = 45, // resource, replacement maximum percent
+    SetOnAppliedStateRecovery = 625, // resource, replacement maximum percent
     /// <summary>指定カテゴリーのクリティカル時に威力または達成値に倍率を掛ける。</summary>
-    CriticalCategoryMultiplier = 46, // action category, Power|ActionResult, factor, Stack
+    CriticalCategoryMultiplier = 626, // action category, Power|ActionResult, factor, Stack
     /// <summary>アイテム効果の持続ターンを補正する。他の対象への使用にも適用する。</summary>
-    ItemEffectDuration = 47, // Self, AllTargets, added turns
+    ItemEffectDuration = 627, // Self, AllTargets, added turns
     /// <summary>指定サイズのアイテムを所持できる上限数を変更する。</summary>
-    ItemCapacity = 48, // size, maximum count
+    ItemCapacity = 628, // size, maximum count
     /// <summary>エリア進行を任意に減らせる量を、エリアカテゴリーに応じて指定する。</summary>
-    OptionalAreaProgressReduction = 49, // default reduction, area category, replacement reduction, Optional
+    OptionalAreaProgressReduction = 629, // default reduction, area category, replacement reduction, Optional
     /// <summary>選択して宣言するスキルの威力に倍率を掛ける。</summary>
-    MultiplyDeclaredSkillPower = 50, // factor for the selected skill declaration
+    MultiplyDeclaredSkillPower = 630, // factor for the selected skill declaration
     /// <summary>指定カテゴリーの威力に、スタックに応じた上限付きの倍率を掛ける。</summary>
-    CappedStackPower = 51, // action category, stack multiplier formula, maximum multiplier
+    CappedStackPower = 631, // action category, stack multiplier formula, maximum multiplier
     /// <summary>指定カテゴリーのエリア内で、対象の能力値に倍率を掛ける。</summary>
-    AreaStatMultiplier = 52, // present area category, stat, multiplier
+    AreaStatMultiplier = 632, // present area category, stat, multiplier
     /// <summary>指定カテゴリーのエリア内で、特定能力値による行為判定の達成値を増減する。</summary>
-    AreaActionResult = 53, // present area category, check stat, added result
+    AreaActionResult = 633, // present area category, check stat, added result
     /// <summary>2カテゴリーを併せ持つ行動に、算出時点の付与者の能力値を参照した属性威力を加える。</summary>
-    ApplierAttributePower = 54, // action category A AND B, added attribute power (current Applier stats)
+    ApplierAttributePower = 634, // action category A AND B, added attribute power (current Applier stats)
     /// <summary>該当種族のキャラクターに対する指定能力値の行為判定で、達成値を増減する。</summary>
-    RaceCheckResult = 55, // target race categories (comma separated, OR), check stat, added result
+    RaceCheckResult = 635, // target race categories (comma separated, OR), check stat, added result
     /// <summary>自属性の種族属性ボーナスに指定割合を加える。</summary>
-    OwnAttributeBonus = 56, // added race attribute bonus percentage points
+    OwnAttributeBonus = 636, // added race attribute bonus percentage points
     /// <summary>弱点となる属性威力から受けるダメージに倍率を掛ける。</summary>
-    OwnAttributeWeaknessMultiplier = 57, // incoming weak attribute power multiplier formula
+    OwnAttributeWeaknessMultiplier = 637, // incoming weak attribute power multiplier formula
     /// <summary>名前で指定したスキルの発動ロールの達成値を増減する。</summary>
-    NamedSkillRollResult = 58, // skill name, added activation roll result
+    NamedSkillRollResult = 638, // skill name, added activation roll result
     /// <summary>次の指定回数だけ、該当カテゴリーの行動の威力に倍率を掛ける。</summary>
-    NextActionPower = 59, // matching uses, action category, multiplier
+    NextActionPower = 639, // matching uses, action category, multiplier
     /// <summary>自身を含む味方が対象に付与した状態の数に応じて、指定カテゴリーの威力に倍率を掛ける。</summary>
-    PowerByAlliedStateTypes = 60, // action category, multiplier formula; distinct Target states applied by Self/allies
+    PowerByAlliedStateTypes = 640, // action category, multiplier formula; distinct Target states applied by Self/allies
     /// <summary>このスキルの発動ロールでクリティカルになる出目の範囲を指定する。</summary>
-    ThisSkillCriticalRange = 61, // inclusive lower and upper activation dice bounds
+    ThisSkillCriticalRange = 641, // inclusive lower and upper activation dice bounds
     /// <summary>このスキルのクリティカル目を指定量だけずらす。</summary>
-    CriticalThresholdDelta = 62, // signed delta to this skill's critical threshold
+    CriticalThresholdDelta = 642, // signed delta to this skill's critical threshold
     /// <summary>指定カテゴリーのアイテムを使う際のリソース消費を増減する。</summary>
-    ItemUseCostDelta = 63, // item category, resource, signed delta
+    ItemUseCostDelta = 643, // item category, resource, signed delta
     /// <summary>指定した2つのフェーズで自身の被ダメージに倍率を掛ける。</summary>
-    PhaseDamageMultiplier = 64, // phase A OR B, incoming damage multiplier
+    PhaseDamageMultiplier = 644, // phase A OR B, incoming damage multiplier
     /// <summary>攻撃前から対象が指定状態の場合に、この攻撃の威力に倍率を掛ける。</summary>
-    PowerAgainstState = 65, // target state before this attack, multiplier (this skill only)
+    PowerAgainstState = 645, // target state before this attack, multiplier (this skill only)
     /// <summary>攻撃前から対象が指定状態の場合に、指定カテゴリーの武器攻撃の威力に倍率を掛ける。</summary>
-    WeaponPowerAgainstState = 66, // weapon category, target state before this attack, multiplier
+    WeaponPowerAgainstState = 646, // weapon category, target state before this attack, multiplier
     /// <summary>該当カテゴリーの行動による被ダメージに倍率を掛ける。</summary>
-    IncomingCategoriesDamageMultiplier = 67, // incoming categories (comma separated, OR), multiplier
+    IncomingCategoriesDamageMultiplier = 647, // incoming categories (comma separated, OR), multiplier
     /// <summary>自身が装備できるスキルの個数に上限を設ける。</summary>
-    EquippedSkillLimit = 68, // maximum equipped skill count formula (not acquired skill count)
+    EquippedSkillLimit = 648, // maximum equipped skill count formula (not acquired skill count)
     /// <summary>自身のスタック数に応じて、このスキルのリソース消費を最低消費量まで減らす。</summary>
-    ThisSkillStackCost = 69, // own stack state, resource, reduction per stack, minimum cost
+    ThisSkillStackCost = 649, // own stack state, resource, reduction per stack, minimum cost
     /// <summary>自身のスタック数が指定値以上なら、このスキルの威力に倍率を掛ける。</summary>
-    ThisSkillStackPower = 70, // own stack state, minimum stacks, multiplier; before stack removal
+    ThisSkillStackPower = 650, // own stack state, minimum stacks, multiplier; before stack removal
     /// <summary>戦闘中の指定回数まで、2種類のリソースを任意で消費して自身に状態を付与できる。</summary>
-    OptionalSpikeState = 71, // resource A, resource B, cost each, granted own state, battle use limit; unlocked by spike stage
+    OptionalSpikeState = 651, // resource A, resource B, cost each, granted own state, battle use limit; unlocked by spike stage
     /// <summary>自身のすべての能力値Bに倍率を掛ける。</summary>
-    AllBonusStatsMultiplier = 72, // all ability bonuses B, multiplier (not base ability values)
+    AllBonusStatsMultiplier = 652, // all ability bonuses B, multiplier (not base ability values)
     /// <summary>この攻撃に対する被ダメージの軽減割合を指定式の倍率で補正する。</summary>
-    SetIncomingReductionRatio = 73,
+    SetIncomingReductionRatio = 653,
     /// <summary>この攻撃の威力算出ではキャラクターに付与された状態の影響を除外する。</summary>
-    IgnoreCharacterStatesForPower = 74,
+    IgnoreCharacterStatesForPower = 654,
     /// <summary>指定カテゴリーの発動ロールの達成値に倍率を掛ける。</summary>
-    MultiplyCategoryActivationResult = 75,
+    MultiplyCategoryActivationResult = 655,
     /// <summary>指定カテゴリーによる判定の達成値に倍率を掛ける。</summary>
-    MultiplyCategoryCheckResult = 76,
+    MultiplyCategoryCheckResult = 656,
     /// <summary>指定カテゴリーの習得に要する決意を固定値にする。</summary>
-    SetCategoryAcquisitionCost = 77,
+    SetCategoryAcquisitionCost = 657,
     /// <summary>指定ターンの間に同カテゴリーの宣言が規定回数に達すると、以後のリソース消費を増減する。</summary>
-    RepeatedCategoryTurnCost = 78,
+    RepeatedCategoryTurnCost = 658,
     /// <summary>指定種族から受けるダメージに追加の倍率を掛ける。</summary>
-    ReduceIncomingFromRace = 79,
+    ReduceIncomingFromRace = 659,
     /// <summary>指定フェーズで自身の行為判定の達成値に倍率を掛ける。</summary>
-    PhaseCheckMultiplier = 80,
+    PhaseCheckMultiplier = 660,
     /// <summary>この攻撃で、対象の防御点を指定点数だけ無視する。</summary>
-    IgnoreAmountOfDefense = 81,
+    IgnoreAmountOfDefense = 661,
     /// <summary>指定カテゴリーを必要数装備していれば、戦闘開始時のリソースを増減する。</summary>
-    EquippedBattleStartingResource = 82,
+    EquippedBattleStartingResource = 662,
     /// <summary>防御点を無視する値が対象の防御点を上回った分をスキル値に加える。</summary>
-    AddExcessDefensePenetration = 83,
+    AddExcessDefensePenetration = 663,
     /// <summary>自身と対象が同じ指定状態なら威力に倍率を掛ける。</summary>
-    SharedMeleeStatePower = 84,
+    SharedMeleeStatePower = 664,
     /// <summary>この攻撃の威力に指定式の結果を倍率として掛ける。</summary>
-    AttackPowerFormulaFactor = 85,
+    AttackPowerFormulaFactor = 665,
     /// <summary>対象が指定状態のとき威力に倍率を掛ける。</summary>
-    StateTargetPower = 86,
+    StateTargetPower = 666,
     /// <summary>自身が指定名のスキルで得る達成値に倍率を掛ける。</summary>
-    NamedSkillResultMultiplier = 87,
+    NamedSkillResultMultiplier = 667,
     /// <summary>スパイク段階に応じてロールプレイ効果の説明を置き換える。</summary>
-    SetRoleplayDescription = 88,
+    SetRoleplayDescription = 668,
     /// <summary>自身が指定状態のとき、指定カテゴリーのスキルによる達成値を増減する。</summary>
-    OwnStateCategoryResult = 89,
+    OwnStateCategoryResult = 669,
     /// <summary>指定カテゴリーへの防御行動の発動に失敗した場合、被ダメージに倍率を掛ける。</summary>
-    FailedDefenseIncomingMultiplier = 90,
+    FailedDefenseIncomingMultiplier = 670,
     /// <summary>指定した種族能力値ボーナスに割合を加算する。</summary>
-    RacialAbilityPercent = 91,
+    RacialAbilityPercent = 671,
     /// <summary>指定した属性の種族属性ボーナスに割合を加算する。</summary>
-    RacialElementPercent = 92,
+    RacialElementPercent = 672,
     /// <summary>指定カテゴリーの発動ロールの目標値を増減する。</summary>
-    CategoryActivationTargetDelta = 93,
+    CategoryActivationTargetDelta = 673,
     /// <summary>指定カテゴリーによる被ダメージを指定量軽減する。</summary>
-    CategoryIncomingReduction = 94,
+    CategoryIncomingReduction = 674,
     /// <summary>自身への指定リソースダメージを一定量軽減する。</summary>
-    ResourceIncomingReduction = 95,
+    ResourceIncomingReduction = 675,
     /// <summary>リソースが指定値を下回ったときに重症ロールを行うようにする。</summary>
-    InjuryRollThreshold = 96,
+    InjuryRollThreshold = 676,
     /// <summary>指定部位が空いているとき、スタック数と係数の積を防御点に加える。</summary>
-    EmptySlotDefensePerStack = 97,
+    EmptySlotDefensePerStack = 677,
     /// <summary>指定の発生元が与えるダメージを、指定属性・威力の攻撃に置き換える。</summary>
-    ReplaceSourceDamageWithElement = 98,
+    ReplaceSourceDamageWithElement = 678,
     /// <summary>自身が対象になった指定スキルの目標値を増減する。</summary>
-    IncomingSkillTargetDelta = 99,
+    IncomingSkillTargetDelta = 679,
     /// <summary>指定カテゴリーの行動によって自身が受けるダメージに倍率を掛ける。</summary>
-    CategoryDamageTakenFactor = 100,
+    CategoryDamageTakenFactor = 680,
     /// <summary>2つの指定カテゴリーを併せ持つ行動の威力に倍率を掛ける。</summary>
-    CombinedCategoryPower = 101,
+    CombinedCategoryPower = 681,
     /// <summary>指定カテゴリーに上位段階のディスティニースパイクを適用する。</summary>
-    CategorySpikeRankIncrease = 102,
+    CategorySpikeRankIncrease = 682,
     /// <summary>指定した能力値Bを固定値にする。</summary>
-    SetFixedBonusStat = 103,
+    SetFixedBonusStat = 683,
     /// <summary>所持する指定2カテゴリーの合計個数をスタック数の上限とする。</summary>
-    StackCapFromPossessedItems = 104,
+    StackCapFromPossessedItems = 684,
     /// <summary>指定アイテムの消費個数に応じて、指定カテゴリーのリソース消費を減らす。</summary>
-    ReduceCostPerSpentItem = 105,
+    ReduceCostPerSpentItem = 685,
     /// <summary>カウンター効果の発動ロールの目標値を増減する。</summary>
-    CounterActivationTargetDelta = 106,
+    CounterActivationTargetDelta = 686,
     /// <summary>指定2カテゴリーを併せ持つ行動に属性威力を加える。</summary>
-    TwoCategoryAttributePower = 107,
+    TwoCategoryAttributePower = 687,
     /// <summary>2つの能力値を、別の能力値と係数の積で置き換える。</summary>
-    ReplaceTwoStatsFromThird = 108,
+    ReplaceTwoStatsFromThird = 688,
     /// <summary>指定能力値による行為判定の目標値を増減する。</summary>
-    CheckTargetDeltaByStat = 109,
+    CheckTargetDeltaByStat = 689,
     /// <summary>自身に対する指定属性の威力を含む指定カテゴリーの達成値に倍率を掛けて扱う。</summary>
-    IncomingElementCategoryResult = 110,
+    IncomingElementCategoryResult = 690,
     /// <summary>自身が与える威力に倍率を掛ける。</summary>
-    OutgoingPowerFactor = 111,
+    OutgoingPowerFactor = 691,
     /// <summary>ターンごとの上限回数まで、指定した2スキルのリソース消費を固定値にする。</summary>
-    PerTurnNamedSkillCostReplacement = 112,
+    PerTurnNamedSkillCostReplacement = 692,
     /// <summary>指定カテゴリーによる被ダメージに倍率を掛ける。</summary>
-    CategoryIncomingDamage = 113,
+    CategoryIncomingDamage = 693,
     /// <summary>指定カテゴリーに対するカウンターの達成値に倍率を掛ける。</summary>
-    CounterResultByCategory = 114,
+    CounterResultByCategory = 694,
     /// <summary>指定カテゴリーの目標値に倍率を掛ける。</summary>
-    CategoryTargetFactor = 115,
+    CategoryTargetFactor = 695,
     /// <summary>指定した2カテゴリーの目標値に倍率を掛ける。</summary>
-    TwoCategoryTargetFactor = 116,
+    TwoCategoryTargetFactor = 696,
     /// <summary>自身に付与される指定状態のスタック数に倍率を掛ける。</summary>
-    IncomingStackCountMultiplier = 117,
+    IncomingStackCountMultiplier = 697,
     /// <summary>指定属性による被ダメージに、指定の能力値を倍率として掛ける。</summary>
-    SingleElementDamageFromStat = 118,
+    SingleElementDamageFromStat = 698,
     /// <summary>指定した2属性のいずれかによる被ダメージに、指定の能力値を倍率として掛ける。</summary>
-    EitherElementDamageFromStat = 119,
+    EitherElementDamageFromStat = 699,
     /// <summary>指定カテゴリーに対する防御行動の発動に失敗した場合、与ダメージに倍率を掛ける。</summary>
-    FailedDefenseOutgoingDamage = 120,
+    FailedDefenseOutgoingDamage = 700,
     /// <summary>自身が使った持続型回復アイテムの効果ターンを、使用対象を問わず増減する。</summary>
-    RecoveryItemDuration = 121,
+    RecoveryItemDuration = 701,
     /// <summary>指定した3能力値による判定の達成値に倍率を掛ける。</summary>
-    SeveralStatChecksFactor = 122,
+    SeveralStatChecksFactor = 702,
     /// <summary>指定した3カテゴリーの達成値に補正を加える。</summary>
-    CategoryListCheckAddition = 123,
+    CategoryListCheckAddition = 703,
     /// <summary>状態の効果として自身の指定能力値に補正を加える。</summary>
-    StateBonusAddition = 124,
+    StateBonusAddition = 704,
     /// <summary>状態の効果として自身の指定能力値に倍率を掛ける。</summary>
-    StateStatFactor = 125,
+    StateStatFactor = 705,
     /// <summary>状態の効果として自身の指定能力値を所定の値として扱う。</summary>
-    FixedStatValue = 126,
+    FixedStatValue = 706,
     /// <summary>このターン中の被ダメージに倍率を掛ける。</summary>
-    IncomingDamageThisTurn = 127,
+    IncomingDamageThisTurn = 707,
     /// <summary>対象が指定状態のとき、付与するスタック数に倍率を掛ける。</summary>
-    TargetStateStackFactor = 128,
+    TargetStateStackFactor = 708,
     /// <summary>指定した2カテゴリーによる武器威力に倍率を掛ける。</summary>
-    CategoryPairWeaponPower = 129,
+    CategoryPairWeaponPower = 709,
     /// <summary>自身のカウンター効果の発動ロールの目標値に倍率を掛ける。</summary>
-    CounterTargetFactor = 130,
+    CounterTargetFactor = 710,
     /// <summary>自身のカウンター効果で消費するリソース量を増減する。</summary>
-    CounterResourceCostDelta = 131,
+    CounterResourceCostDelta = 711,
     /// <summary>味方全員の防御点に固定値を加える。</summary>
-    AlliesFlatDefense = 132,
+    AlliesFlatDefense = 712,
     /// <summary>自身が指定カテゴリーを習得するための決意消費を軽減する。</summary>
-    CategoryLearnCostReduction = 133,
+    CategoryLearnCostReduction = 713,
     /// <summary>該当カテゴリーのクラススキルの習得に必要な決意に倍率を掛ける。</summary>
-    ClassCategoryLearnCostFactor = 134,
+    ClassCategoryLearnCostFactor = 714,
     /// <summary>相手が参照する達成値を、複数の発動ロールの合計に係数を掛けた値にする。</summary>
-    OpposedResultFromRollTotal = 135,
+    OpposedResultFromRollTotal = 715,
     /// <summary>指定部位が空いているとき、獲得するスタック数を置き換える。</summary>
-    ReplaceStacksIfSlotEmpty = 136,
+    ReplaceStacksIfSlotEmpty = 716,
     /// <summary>次の指定回数だけ、両カテゴリーに合う行動の威力と消費リソースに個別の倍率を掛ける。</summary>
-    NextDoubleCategoryPowerCost = 137,
+    NextDoubleCategoryPowerCost = 717,
     /// <summary>必要な状態を持ち、除外対象の状態を持たないとき、行動の達成値と能力値による目標値を補正する。</summary>
-    MountedRangedRollBonuses = 138,
+    MountedRangedRollBonuses = 718,
     /// <summary>カウンター効果で指定カテゴリーの威力に倍率を掛ける。</summary>
-    CounterCategoryPower = 139,
+    CounterCategoryPower = 719,
     /// <summary>この攻撃を指定カテゴリーの応答の選択対象から除く。</summary>
-    ProhibitResponseTarget = 140,
+    ProhibitResponseTarget = 720,
     /// <summary>スタンバイフェーズで自身の行為判定の達成値に倍率を掛ける。</summary>
-    StandbySelfCheckFactor = 141,
+    StandbySelfCheckFactor = 721,
     /// <summary>指定の出目をアメイジングとし、達成値と指定カテゴリーの威力に倍率を掛ける。</summary>
-    AmazingRollBonus = 142,
+    AmazingRollBonus = 722,
     /// <summary>対象の指定カテゴリーの発動ロールの達成値を増減する。</summary>
-    TriggerCategoryResultDelta = 143,
+    TriggerCategoryResultDelta = 723,
     /// <summary>自身への指定カテゴリーに対するカウンター宣言時の達成値に倍率を掛ける。</summary>
-    CounterToIncomingCategoryFactor = 144,
+    CounterToIncomingCategoryFactor = 724,
     /// <summary>ドロップロールの達成値に倍率を掛ける。</summary>
-    DropRollFactor = 145,
+    DropRollFactor = 725,
     /// <summary>指定したいずれかの武器を選んで対象カテゴリーを発動するとき、被ダメージに倍率を掛ける。</summary>
-    IncomingWithSelectedWeapons = 146,
+    IncomingWithSelectedWeapons = 726,
     /// <summary>指定したいずれかの武器を選ぶ対象カテゴリーの行動で、目標値を増やし威力に倍率を掛ける。</summary>
-    SelectedWeaponsTargetAndPower = 147,
+    SelectedWeaponsTargetAndPower = 727,
     /// <summary>指定カテゴリー以外のすべての行為判定で達成値を増減する。</summary>
-    CheckDeltaExceptCategory = 148,
+    CheckDeltaExceptCategory = 728,
     /// <summary>この攻撃に指定カテゴリーで応答する際、追加の発動ロールでの成功を要求する。</summary>
-    RequireAdditionalSuccessfulResponses = 149,
+    RequireAdditionalSuccessfulResponses = 729,
     /// <summary>対象の達成値に倍率を掛ける。</summary>
-    TargetResultFactor = 150,
+    TargetResultFactor = 730,
     /// <summary>効果を宣言して消費するリソース量に倍率を掛ける。</summary>
-    DeclarationResourceCostFactor = 151,
+    DeclarationResourceCostFactor = 731,
     /// <summary>対象のHPが最大値の半分以下なら威力に倍率を掛ける。</summary>
-    PowerAtHalfTargetHP = 152,
+    PowerAtHalfTargetHP = 732,
     /// <summary>キャラクター以外に対する威力に倍率を掛ける。</summary>
-    NonCharacterPowerFactor = 153,
+    NonCharacterPowerFactor = 733,
     /// <summary>自身に対する判定が指定能力値を使う場合、対象の達成値に倍率を掛けた値を任意で参照できる。</summary>
-    OptionalIncomingStatResultFactor = 154,
+    OptionalIncomingStatResultFactor = 734,
     /// <summary>指定したいずれかの発生元から該当カテゴリーの行動を受けると、被ダメージを一定量減らす。</summary>
-    TwoSourcesIncomingReduction = 155,
+    TwoSourcesIncomingReduction = 735,
     /// <summary>指定属性の威力から受けるダメージに倍率を掛ける。</summary>
-    ElementDamageTakenFactor = 156,
+    ElementDamageTakenFactor = 736,
     /// <summary>指定状態の付与スタック数を指定値に置き換える。</summary>
-    SetGrantedStackCount = 157,
+    SetGrantedStackCount = 737,
     /// <summary>指定能力値の上昇量を置き換える。</summary>
-    ReplaceStatBonusIncrease = 158,
+    ReplaceStatBonusIncrease = 738,
     /// <summary>スタンバイフェーズで対象の行為判定の達成値に倍率を掛ける。</summary>
-    StandbyTargetCheckFactor = 159,
+    StandbyTargetCheckFactor = 739,
     /// <summary>式で求めた値を威力に加える。</summary>
-    AddPowerFormula = 160,
-    /// <summary>対象が指定状態なら、他のキャラクターが参照する達成値に倍率を掛ける。</summary>
-    TargetStateCheckFactor = 161,
+    AddPowerFormula = 740,
     /// <summary>自身が指定状態でない場合に達成値を増減する。</summary>
-    ResultWhenLackingState = 162,
+    ResultWhenLackingState = 742,
     /// <summary>指示された行動の発動ロールの達成値を増減する。</summary>
-    OrderedActionResultDelta = 163,
+    OrderedActionResultDelta = 743,
     /// <summary>そのスパイク段階で変更される効果がないことを明示する。</summary>
-    NoSpikeChange = 165,
+    NoSpikeChange = 745,
     /// <summary>種族能力値ボーナスの指定された順番の項目に割合を加える。</summary>
-    IncreaseRacialBonusByPosition = 166,
+    IncreaseRacialBonusByPosition = 746,
     /// <summary>このスパイク段階で指定名のスキルを習得する。</summary>
-    LearnNamedSkillAtRank = 167,
+    LearnNamedSkillAtRank = 747,
     /// <summary>パッシブ効果で追加習得できる種族スキル数を置き換える。</summary>
-    SetAdditionalRacialSkillCount = 168,
+    SetAdditionalRacialSkillCount = 748,
     /// <summary>パッシブ効果で味方の防御点に加える値を置き換える。</summary>
-    SetPartyDefenseBonus = 169,
+    SetPartyDefenseBonus = 749,
     /// <summary>アクティブ効果で与える指定リソースダメージの値を置き換える。</summary>
-    SetResourceDamageAtRank = 170,
+    SetResourceDamageAtRank = 750,
     /// <summary>この発動ロールの達成値に倍率を掛ける。</summary>
-    SetActivationResultFactor = 171,
+    SetActivationResultFactor = 751,
     /// <summary>重症ロールを行う基準となるリソースの下限値を置き換える。</summary>
-    SetInjuryResourceThreshold = 172,
+    SetInjuryResourceThreshold = 752,
     /// <summary>指定状態による威力上昇の倍率を置き換える。</summary>
-    SetStatePowerIncrease = 173,
+    SetStatePowerIncrease = 753,
     /// <summary>指定カテゴリーによる武器威力を別の式に置き換える。</summary>
-    SetWeaponCategoryPower = 174,
+    SetWeaponCategoryPower = 754,
     /// <summary>このスキルが消費する2種類のリソースの量を置き換える。</summary>
-    SetTwoResourceCosts = 175,
+    SetTwoResourceCosts = 755,
     /// <summary>指定名の召喚体などの発動ロールを置き換える。</summary>
-    SetEntityActivationRoll = 176,
+    SetEntityActivationRoll = 756,
     /// <summary>アクティブ効果による指定リソースの回復量を置き換える。</summary>
-    SetActiveResourceRecovery = 177,
+    SetActiveResourceRecovery = 757,
     /// <summary>指定状態から与えるダメージを置き換える。</summary>
-    SetNamedStateDamage = 178,
+    SetNamedStateDamage = 758,
     /// <summary>パッシブ効果で無視できる防御点の値を置き換える。</summary>
-    SetDefenseIgnoredAtRank = 180,
+    SetDefenseIgnoredAtRank = 760,
     /// <summary>自身の指定リソースの最大値に倍率を掛ける。</summary>
-    MaxResourceMultiplier = 182,
+    MaxResourceMultiplier = 762,
     /// <summary>指定名のスキルから受けるダメージに倍率を掛ける。</summary>
-    IncomingNamedSkillFactor = 183,
+    IncomingNamedSkillFactor = 763,
     /// <summary>指定カテゴリーで与えるダメージに倍率を掛ける。</summary>
-    OutgoingCategoryDamage = 184,
+    OutgoingCategoryDamage = 764,
     /// <summary>同じ接近グループの接近状態の人物と、指定カテゴリーから受けるダメージに倍率を掛ける。</summary>
-    MeleeOrCategoryIncomingDamage = 185,
+    MeleeOrCategoryIncomingDamage = 765,
     /// <summary>指定カテゴリーの発動ロールの目標値に倍率を掛ける。</summary>
-    ActionCategoryActivationTargetFactor = 186,
+    ActionCategoryActivationTargetFactor = 766,
     /// <summary>付与者の指定カテゴリーの行動から受けるダメージに倍率を掛ける。</summary>
-    IncomingFromApplier = 187,
+    IncomingFromApplier = 767,
     /// <summary>自身と同じ接近グループの対象に対する該当カテゴリーの威力に倍率を掛ける。</summary>
-    SameMeleeCategoryPower = 188,
+    SameMeleeCategoryPower = 768,
     /// <summary>戦闘開始から指定ターン目に、該当カテゴリーの達成値と威力にそれぞれ倍率を掛ける。</summary>
-    BattleOpeningActionAndPower = 189,
+    BattleOpeningActionAndPower = 769,
     /// <summary>戦闘終了まで自身の被ダメージに倍率を掛ける。</summary>
-    BattleUntilEndIncomingFactor = 190,
+    BattleUntilEndIncomingFactor = 770,
     /// <summary>自身のターンにスタック数に応じてリソースを失い、スキルの2種の消費リソースに倍率を掛ける。</summary>
-    StackCostAndTurnLoss = 191,
+    StackCostAndTurnLoss = 771,
     /// <summary>スタックが2つの最大値から求めた閾値を超えると、指定カテゴリーの宣言を禁止する。</summary>
-    HPThresholdBlocksAction = 192,
+    HPThresholdBlocksAction = 772,
     /// <summary>スタックが2つのリソース最大値から求めた閾値を超えると、すべての宣言を禁止する。</summary>
-    CombinedResourceThresholdBlock = 193,
+    CombinedResourceThresholdBlock = 773,
     /// <summary>指定カテゴリーから受ける特定リソースのダメージに倍率を掛ける。</summary>
-    SelectedDefenseResourceFactor = 194,
+    SelectedDefenseResourceFactor = 774,
     /// <summary>指定名のスキルの威力を指定倍率で引き上げる。</summary>
-    StackScaleNamedSkill = 195,
+    StackScaleNamedSkill = 775,
     /// <summary>指定能力値による達成値に倍率を掛ける。</summary>
-    CheckByAbilityFactor = 196,
+    CheckByAbilityFactor = 776,
     /// <summary>指定カテゴリーによる達成値に倍率を掛ける。</summary>
-    CheckByCategoryFactor = 197,
+    CheckByCategoryFactor = 777,
     /// <summary>指定環境で能力値に倍率を掛け、指定能力値による判定の達成値も増減する。</summary>
-    BonusesInNamedEnvironment = 198,
+    BonusesInNamedEnvironment = 778,
     /// <summary>指定の2カテゴリーを受けたとき、被ダメージに倍率を掛ける。</summary>
-    TakeCategoryPairDamage = 199,
+    TakeCategoryPairDamage = 779,
     /// <summary>指定カテゴリーの発動ロールによる達成値に倍率を掛ける。</summary>
-    RollByCategoryActivation = 200,
+    RollByCategoryActivation = 780,
     /// <summary>自身の指定能力値に補正値を加える。</summary>
-    StatFlatBonus = 201,
+    StatFlatBonus = 781,
     /// <summary>味方が規定人数以上なら、戦闘終了時に味方全員の4種類のリソースを最大値の指定割合だけ回復する。</summary>
-    PartyBattleEndResourceRecovery = 202,
+    PartyBattleEndResourceRecovery = 782,
     /// <summary>指定したいずれかの武器で2カテゴリーに該当する行動を発動すると、対象の防御点を指定点数だけ無視する。</summary>
-    TwoWeaponsArmorPiercing = 203,
+    TwoWeaponsArmorPiercing = 783,
     /// <summary>指定した2カテゴリーの装備を併用すると、自身のリソース最大値に固定値を加える。</summary>
-    ArmorSetMaxResource = 204,
+    ArmorSetMaxResource = 784,
     /// <summary>指定武器を選択したスキルで、該当種族への指定カテゴリーの威力に倍率を掛ける。</summary>
-    EffectAgainstRaceByWeapon = 205,
+    EffectAgainstRaceByWeapon = 785,
     /// <summary>採取・特殊行動・進行ロール・ダンジョン攻略報酬で指定の出目をアメイジングとし、複数回の効果を得る。</summary>
-    ExtraRewardsOnAmazing = 206,
-    /// <summary>対象の回避目標値を指定量だけ増減する。</summary>
-    SetTargetResponseThreshold = 207,
+    ExtraRewardsOnAmazing = 786,
     /// <summary>対象の2種類のリソースをそれぞれの最大値の指定割合だけ回復する。</summary>
-    HealMaxResourcePair = 208,
+    HealMaxResourcePair = 788,
     /// <summary>アクティブ効果によるアイテムの獲得個数を増減する。</summary>
-    CraftQuantityRankBonus = 209,
+    CraftQuantityRankBonus = 789,
     /// <summary>指定期間内に該当カテゴリーを繰り返し発動すると、発動回数に従って威力倍率が上限まで段階的に上がる。</summary>
-    RepeatCategoryPowerProgression = 210,
+    RepeatCategoryPowerProgression = 790,
     /// <summary>パッシブ効果の威力上昇が始まる発動回数と、段階別の倍率を置き換える。</summary>
-    SetRepeatPowerProgression = 211,
+    SetRepeatPowerProgression = 791,
     /// <summary>スタックに応じて自身のリソース最大値に段階別の減少倍率を適用する。</summary>
-    StackMaxResourceProgression = 212,
+    StackMaxResourceProgression = 792,
     /// <summary>スタックに応じて該当カテゴリーの威力に段階別の上昇倍率を適用する。</summary>
-    StackPowerProgression = 213,
+    StackPowerProgression = 793,
     /// <summary>指定部位が空いているときのスタック獲得量を指定式に置き換える。</summary>
-    EmptySlotStackFormula = 214,
+    EmptySlotStackFormula = 794,
     /// <summary>指定スタック数以上を残して戦闘を終えたときの、状態による任意のリソース回復を設定する。</summary>
-    SetStateBattleEndStackRecovery = 215,
+    SetStateBattleEndStackRecovery = 795,
     /// <summary>自身の防御点に係数を掛けた分だけ、指定の防御点を得る。</summary>
-    DefenseFromDefenseFactor = 217,
+    DefenseFromDefenseFactor = 797,
     /// <summary>指定したいずれかの武器を選んで該当カテゴリーを発動するとき、威力に倍率を掛ける。</summary>
-    EitherSelectedWeaponCategoryPower = 218,
+    EitherSelectedWeaponCategoryPower = 798,
     /// <summary>エンカウントフェーズに行う指定ロールの達成値に倍率を掛ける。</summary>
-    EncounterStatRollFactor = 219,
+    EncounterStatRollFactor = 799,
     /// <summary>対象の指定リソースの減少量を置き換える。</summary>
-    ReplaceResourceLoss = 220,
+    ReplaceResourceLoss = 800,
     /// <summary>指定カテゴリーの消費リソースを変更し、代わりに獲得するスタック量に倍率を掛ける。</summary>
-    SetItemCostAndStackGain = 221,
+    SetItemCostAndStackGain = 801,
     /// <summary>変数xと指定係数による式で、このダメージに対する軽減倍率を補正する。</summary>
-    ScaleDamageReductionByVariable = 222,
+    ScaleDamageReductionByVariable = 802,
     /// <summary>指定カテゴリーで消費するリソースを一定量減らす。</summary>
-    ReducedCategoryCost = 223,
+    ReducedCategoryCost = 803,
     /// <summary>このスキルの発動ロールの達成値を増減する。</summary>
-    SetActivationRollBonus = 224,
+    SetActivationRollBonus = 804,
     /// <summary>指定状態によるリソース減少の値を置き換える。</summary>
-    SetStateResourceLossRatio = 225,
+    SetStateResourceLossRatio = 805,
     /// <summary>次の指定回数だけ、対象が指定能力値を参照するときの達成値を補正する。</summary>
-    NextStatResultPenalty = 226,
+    NextStatResultPenalty = 806,
     /// <summary>アクティブ効果のダメージと、2種類のリソースを減らす割合を置き換える。</summary>
-    SetDamageAndResourcesPercent = 227,
+    SetDamageAndResourcesPercent = 807,
     /// <summary>指定カテゴリーの行動で消費するリソース量を増減する。</summary>
-    CategoryCostOffset = 228,
+    CategoryCostOffset = 808,
     /// <summary>指定カテゴリーによる自傷ダメージに倍率を掛ける。</summary>
-    CategorySelfDamageScale = 229,
+    CategorySelfDamageScale = 809,
     /// <summary>指定した状態の付与スタック数を置き換える。</summary>
-    ReplaceStackQuantity = 230,
+    ReplaceStackQuantity = 810,
     /// <summary>付与するスタック数に倍率を掛ける。</summary>
-    StackGrantMultiplier = 231,
+    StackGrantMultiplier = 811,
     /// <summary>自身が指定カテゴリーの対象になるとき、発動者の目標値を増減する。</summary>
-    IncomingCategoryTargetRollOffset = 232,
+    IncomingCategoryTargetRollOffset = 812,
     /// <summary>指定名のスキルの習得条件を満たした扱いにする。</summary>
-    QualifyNamedSkill = 233,
+    QualifyNamedSkill = 813,
     /// <summary>自身の指定属性Bに倍率を掛ける。</summary>
-    ElementBonusScale = 234,
+    ElementBonusScale = 814,
     /// <summary>対象がメインフェーズ開始時に指定上限まで先に行動を宣言できるようにする。</summary>
-    AdvanceActionWithCap = 235,
+    AdvanceActionWithCap = 815,
     /// <summary>味方から付与されたバフの効果値に倍率を掛ける。</summary>
-    AllyBuffFactor = 236,
+    AllyBuffFactor = 816,
     /// <summary>指定リソースの消費量を固定値にする。</summary>
-    SetResourceCostFixed = 237,
+    SetResourceCostFixed = 817,
     /// <summary>対象の目標値を指定量だけ増減する。</summary>
-    TargetThresholdOffset = 238,
+    TargetThresholdOffset = 818,
     /// <summary>この攻撃へのカウンターは発動ロールを複数回行い、最も低い達成値を使う。</summary>
-    CounterRollUseLowest = 239,
+    CounterRollUseLowest = 819,
     /// <summary>指定カテゴリーによる状態のスタック付与量とリソース回復量に倍率を掛ける。</summary>
-    CategoryStackAndRecoveryScale = 240,
+    CategoryStackAndRecoveryScale = 820,
     /// <summary>指定カテゴリーを含むエリアで目標値に倍率を掛ける。</summary>
-    AreaTargetMultiplier = 241,
+    AreaTargetMultiplier = 821,
     /// <summary>指定状態による遅延攻撃のスキル値を置き換える。</summary>
-    SetDelayedStateSkillValue = 242,
-    /// <summary>指定能力値を用いる行為判定の達成値に倍率を掛ける。</summary>
-    StatRollFactorForAction = 243,
+    SetDelayedStateSkillValue = 822,
+    /// <summary>指定した能力値による行為判定の達成値に倍率を掛ける。対象能力値を順に指定し、末尾に倍率を置く。</summary>
+    StatRollFactorForAction = 823,
     /// <summary>パッシブ効果で指定能力値に加える上昇量を置き換える。</summary>
-    ReplacePassiveStatBonus = 244,
+    ReplacePassiveStatBonus = 824,
     /// <summary>自身の指定カテゴリーによる達成値に倍率を掛ける。</summary>
-    CategoryAchievementScale = 245
+    CategoryAchievementScale = 825,
+    // action category, result factor, power factor
+    /// <summary>この武器を選んで行う指定カテゴリーの行為の達成値と威力に、それぞれ倍率を掛ける。</summary>
+    ModifySelectedWeaponAction = 827,
+    // actor, action category, factor
+    /// <summary>指定カテゴリーの行為によって対象が受けるダメージに倍率を掛ける。</summary>
+    MultiplyIncomingDamage = 828,
+    // actor, encounter phase, item category
+    /// <summary>指定エンカウントフェーズに指定カテゴリーのアイテムの使用を宣言できる。</summary>
+    AllowItemUse = 829,
+    // actor, action category, factor
+    /// <summary>対象が行う指定カテゴリーの行為の威力に倍率を掛ける。</summary>
+    MultiplyActionPower = 830,
+    // actor, action category, state, amount
+    /// <summary>対象が指定カテゴリーの行為を発動した時に、指定状態のスタックを得る。</summary>
+    GainStateStacksOnAction = 831,
+    /// <summary>この武器を選択したスキルに限り、指定の条件と数値で判定・威力・防御点などを補正する。</summary>
+    SelectedWeaponRule = 832,
+    /// <summary>条件に応じて適用する補正や許可の種類と、対象・倍率などの引数を保持する。</summary>
+    RuleModifier = 833,
+    /// <summary>指定のイベント・条件を満たした時に適用する効果を保持する。</summary>
+    ConditionalRule = 834,
+    /// <summary>条件に応じて振るダイスの式、出目の範囲と対応する報酬や付与状態を表す。</summary>
+    RollTable = 835
 }
-[Serializable]
-public class OverrideDefinition
-{
-    public EffectType Type;
-    // 空なら効果種別に従う。複数トリガーはORであり、同じイベントには1回だけ適用します。
-    public List<TriggerDefinition> Triggers = new List<TriggerDefinition>();
-    public List<OverrideContent> Contents = new List<OverrideContent>();
-}
-[Serializable]
-public class OverrideContent
-{
-    public OverrideContentType Type;
-    public List<string> Parameters = new List<string>();
-}
+/// <summary>効果一つの種類と引数。適用元の名前・欄・発動条件は親データが保持する。</summary>
 [Serializable]
 public class EffectContent
 {

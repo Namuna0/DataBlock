@@ -7,6 +7,50 @@ using UnityEngine;
 internal sealed class RulebookImportTests
 {
     [Test]
+    public void EquipmentCsv_SkipsDraftsButRetainsWeaponOnlyItemsAndReportsUnsupportedRules()
+    {
+        const string item = "《飾り》\n〈装備アイテム〉\n【レアリティ】Common\n【サイズ】小\n【装備効果】";
+        const string thrown = "《小石》\n〈投擲武器〉\n【レアリティ】Common\n【サイズ】小\n【武器威力】[スキル値]*0.5";
+        string csv = string.Join(",", new[] {
+            "名前だけ", item, item + "防御点+1\n???", item + "？？？", thrown,
+            item + "\n――――――――\n???", item + "未対応の効果文。"
+        }.Select(text => "\"" + text + "\""));
+        var cells = RulebookCsv.Read(new StringReader(csv)).ToList();
+        CollectionAssert.AreEqual(new[] { 5, 6, 7 }, cells.Select(cell => cell.Column));
+        Assert.That(((EquipmentTextData)cells[0].Data).Equipment.WeaponPowerFormula, Is.EqualTo("[スキル値]*0.5"));
+        Assert.That(((EquipmentTextData)cells[1].Data).Equipment.Flavor, Is.EqualTo("???"));
+        Assert.That(cells[2].Error, Does.Contain("未対応の装備効果"));
+    }
+
+
+    [Test]
+    public void EquipmentCsv_KeepsLocalEffectsAndCoordinatesOnExport()
+    {
+        string Entry(string name, int bonus) => "\"《" + name + "》\n〈装備アイテム, 盾〉\n【レアリティ】Common\n" +
+            "【グレード】☆\n【価値】3ジルダ\n【装備部位】片手\n【サイズ】中\n【耐久最大値】5\n" +
+            "【装備効果】《守り》：防御点+" + bonus + "\n――――――――\nこの盾には、紋章がある。\"";
+        var cells = RulebookCsv.Read(new StringReader("名称だけ," + Entry("甲", 2) + "\r\n" + Entry("乙", 5))).ToList();
+        Assert.That(cells.Select(c => (c.Row, c.Column)), Is.EqualTo(new[] { (1, 2), (2, 1) }));
+        var main = new StringWriter();
+        var summons = new StringWriter();
+        var states = new StringWriter();
+        new DataBlockJsonExport().WriteCsv(main, summons, states, cells);
+        var records = System.Text.Json.Nodes.JsonNode.Parse(main.ToString()).AsArray();
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var cell = cells[i];
+            Assert.That(cell.Error, Is.Null);
+            Assert.That(EquipmentTextConverter.Normalize(cell.BuildText()), Is.EqualTo(cell.BuildText()));
+            Assert.That((string)records[i]["kind"], Is.EqualTo("equipment"));
+            var group = records[i]["data"]["Equipment"]["EffectGroups"][0];
+            Assert.That((string)group["Name"], Is.EqualTo("守り"));
+            Assert.That((string)group["Effects"][0]["Parameters"][3], Is.EqualTo(i == 0 ? "+2" : "+5"));
+        }
+        Assert.That(states.ToString(), Is.EqualTo("[]"));
+        Assert.That(summons.ToString(), Is.EqualTo("[]"));
+    }
+
+    [Test]
     public void RulebookExamples_RoundTripThroughJsonAndText()
     {
         string path = Path.Combine(Application.dataPath, "DataBlock/Editor/Tests/Fixtures/RulebookCells.csv");
@@ -119,7 +163,7 @@ internal sealed class RulebookImportTests
         var data = SkillTextConverter.Parse(header + attack + spike);
         Assert.That(data.Skill.Effects.Single().Contents.Single().Type, Is.EqualTo(EffectContentType.GroupedElementWeaponAttack));
         var modifiers = data.Skill.Overrides.SelectMany(e => e.Contents).ToArray();
-        Assert.That(modifiers.Select(c => c.Type), Is.EqualTo(new[] { OverrideContentType.SetSkillValue, OverrideContentType.SetAttackComponent }));
+        Assert.That(modifiers.Select(c => c.Type), Is.EqualTo(new[] { EffectContentType.SetSkillValue, EffectContentType.SetAttackComponent }));
         Assert.That(modifiers[0].Parameters, Is.EqualTo(new[] { "34" }));
         string built = SkillTextConverter.Build(data);
         Assert.That(SkillTextConverter.Normalize(built), Is.EqualTo(built));

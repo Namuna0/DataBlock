@@ -1,63 +1,46 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
     [Flags]
     private enum AttackParts { None = 0, Power = 1, SkillValue = 2, AttributePower = 4, Weapon = Power | SkillValue, ElementalWeapon = Weapon | AttributePower }
 
-    private sealed class SkillTextRule
+    private sealed class SkillTextRule : DataBlockSentencePattern
     {
-        public readonly EffectContentType Content;
+        public readonly EffectContentType Type;
         public readonly AttackParts Attack;
-        public readonly OverrideContentType Modifier;
+        public readonly bool IsOverride;
         public readonly ConditionType ConditionKind;
         public readonly bool State;
         public readonly EffectType Section;
-        public readonly string Template;
-        public readonly string Pattern;
-        private readonly string prefix;
-        public readonly int Count;
 
-        public SkillTextRule(EffectContentType content, bool state, EffectType section, AttackParts attack, string template, params string[] parameters)
-            : this(content, OverrideContentType.None, state, section, template, parameters) { Attack = attack; }
-        public SkillTextRule(OverrideContentType modifier, bool state, EffectType section, string template, params string[] parameters)
-            : this(EffectContentType.None, modifier, state, section, template, parameters) { }
+        public SkillTextRule(EffectContentType type, bool state, EffectType section, AttackParts attack,
+            bool isOverride, string template, params string[] parameters) : base(type.ToString(), template, parameters)
+        {
+            Type = type;
+            State = state;
+            Section = section;
+            Attack = attack;
+            IsOverride = isOverride;
+        }
+
         public SkillTextRule(ConditionType condition, string template, params string[] parameters)
-            : this(EffectContentType.None, OverrideContentType.None, false, EffectType.None, template, parameters) { ConditionKind = condition; }
-
-        public string[] Read(string text)
+            : base(condition.ToString(), template, parameters)
         {
-            if (!text.StartsWith(prefix, StringComparison.Ordinal)) return null;
-            Match match = M(text, Pattern);
-            return match.Success ? Enumerable.Range(0, Count).Select(i => match.Groups["p" + i].Value).ToArray() : null;
+            ConditionKind = condition;
         }
 
-        private SkillTextRule(EffectContentType content, OverrideContentType modifier, bool state, EffectType section, string template, string[] parameters)
-        {
-            Content = content; Modifier = modifier; State = state; Section = section; Template = template; Count = parameters.Length;
-            string literal = template.TrimEnd('。');
-            int index = literal.IndexOf('{');
-            prefix = index < 0 ? literal : literal.Substring(0, index);
-            string pattern = Regex.Escape(literal);
-            for (int i = 0; i < parameters.Length; i++)
-                pattern = pattern.Replace(Regex.Escape("{" + i + "}"), "(?<p" + i + ">" + parameters[i] + ")");
-            Pattern = "^" + pattern + "。?$";
-        }
         public string Write(List<string> parameters)
         {
-            string[] p = Args(parameters, Count, Content != EffectContentType.None ? Content.ToString() : Modifier.ToString());
-            string result = string.Format(CultureInfo.InvariantCulture, Template, p.Cast<object>().ToArray());
-            Match match = M(result, Pattern);
-            Require(match.Success && Enumerable.Range(0, Count).All(i => match.Groups["p" + i].Value == p[i]));
-            if (Modifier == OverrideContentType.ThisSkillCriticalRange)
+            string[] p = Args(parameters, ParameterCount, Key);
+            string result = base.Write(p);
+            if (Type == EffectContentType.ThisSkillCriticalRange)
                 Require(Number(p[0], 1, "下限") <= Number(p[1], 1, "上限") && Number(p[1], 1, "上限") <= 100);
-            if (Content == EffectContentType.ExecuteAfterAttackDamage) Require(Number(p[0], 0, "HP割合") <= 100);
-            if (Content == EffectContentType.ExtraCountersPerSkill) Require(Number(p[2], 1, "同一対象回数") <= Number(p[1], 1, "宣言回数"));
-            if (Content == EffectContentType.UnmodifiableMaximumResourceDamage) Require(Number(p[1], 1, "最大値割合") <= 100);
+            if (Type == EffectContentType.ExecuteAfterAttackDamage) Require(Number(p[0], 0, "HP割合") <= 100);
+            if (Type == EffectContentType.ExtraCountersPerSkill) Require(Number(p[2], 1, "同一対象回数") <= Number(p[1], 1, "宣言回数"));
+            if (Type == EffectContentType.UnmodifiableMaximumResourceDamage) Require(Number(p[1], 1, "最大値割合") <= 100);
             return result;
         }
     }
@@ -93,11 +76,11 @@ public static partial class SkillTextConverter
 
         public void Add(EffectContentType type, AttackParts attack, string template, params string[] parameters)
         {
-            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, attack, template, parameters));
+            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, attack, false, template, parameters));
         }
-        public void Add(OverrideContentType type, string template, params string[] parameters)
+        public void AddOverride(EffectContentType type, string template, params string[] parameters)
         {
-            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, template, parameters));
+            foreach (var section in sections) rules.Add(new SkillTextRule(type, state, section, AttackParts.None, true, template, parameters));
         }
     }
 
@@ -120,14 +103,30 @@ public static partial class SkillTextConverter
     private static readonly List<SkillTextRule> SemanticTextRules = BuildSemanticRules();
     private static readonly ILookup<(bool, EffectType), SkillTextRule> RulesBySection = SemanticTextRules.ToLookup(r => (r.State, r.Section));
     private static readonly ILookup<(bool, EffectContentType), SkillTextRule> ContentRules = SemanticTextRules
-        .Where(r => r.Content != EffectContentType.None).ToLookup(r => (r.State, r.Content));
+        .Where(r => !r.IsOverride).ToLookup(r => (r.State, r.Type));
     private static readonly Dictionary<EffectContentType, AttackParts> ActiveAttackParts = SemanticTextRules
-        .Where(r => !r.State && r.Section == EffectType.Active && r.Attack != AttackParts.None).ToDictionary(r => r.Content, r => r.Attack);
-    private static readonly ILookup<(bool, EffectType, OverrideContentType), SkillTextRule> ModifierRules = SemanticTextRules
-        .Where(r => r.Modifier != OverrideContentType.None).ToLookup(r => (r.State, r.Section, r.Modifier));
+        .Where(r => !r.State && r.Section == EffectType.Active && r.Attack != AttackParts.None).ToDictionary(r => r.Type, r => r.Attack);
+    private static readonly ILookup<(bool, EffectType, EffectContentType), SkillTextRule> ModifierRules = SemanticTextRules
+        .Where(r => r.IsOverride).ToLookup(r => (r.State, r.Section, r.Type));
 
     private static EffectType RuleStage(EffectType type) => type == EffectType.ThirdSpike ? EffectType.SecondSpike : type;
-    private static bool IsRuleSpike(OverrideContentType type) => ModifierRules.Contains((false, EffectType.SecondSpike, type));
+    private static bool IsRuleSpike(EffectContentType type) => ModifierRules.Contains((false, EffectType.SecondSpike, type));
+
+    private static readonly SkillTextRule[] CommonSentenceRules = SemanticTextRules
+        .Where(rule => !rule.IsOverride && !IsSpikeStage(rule.Section))
+        .ToArray();
+
+    private static EffectContent ReadCommonSentenceRule(string text)
+    {
+        foreach (SkillTextRule rule in CommonSentenceRules)
+        {
+            string[] parameters = rule.Read(text);
+            if (parameters == null) continue;
+            rule.Write(parameters.ToList());
+            return Content(rule.Type, parameters);
+        }
+        return null;
+    }
 
     private static bool ReadSemanticRule(SkillBody skill, StateDefinition state, EffectType type, string text)
     {
@@ -136,12 +135,12 @@ public static partial class SkillTextConverter
             string[] p = rule.Read(text);
             if (p == null) continue;
             rule.Write(p.ToList());
-            if (rule.Content != EffectContentType.None)
+            if (!rule.IsOverride)
             {
-                if (state != null) AddStateEffect(state, NoTriggers(), Content(rule.Content, p));
-                else AddSkillEffect(skill, type, Content(rule.Content, p));
+                if (state != null) AddStateEffect(state, NoTriggers(), Content(rule.Type, p));
+                else AddSkillEffect(skill, type, Content(rule.Type, p));
             }
-            else AddOverride(state != null ? state.Overrides : skill.Overrides, type, NoTriggers(), Change(rule.Modifier, p));
+            else AddOverride(state != null ? state.Overrides : skill.Overrides, type, NoTriggers(), Change(rule.Type, p));
             return true;
         }
         return false;
@@ -152,7 +151,7 @@ public static partial class SkillTextConverter
         SkillTextRule rule = ContentRules[(state, content.Type)].FirstOrDefault();
         return rule == null ? null : rule.Write(content.Parameters);
     }
-    private static string SemanticRuleOverrideText(OverrideDefinition effect, OverrideContent content, bool state)
+    private static string SemanticRuleOverrideText(EffectDefinition effect, EffectContent content, bool state)
     {
         if (content == null || effect == null) return null;
         SkillTextRule rule = ModifierRules[(state, RuleStage(effect.Type), content.Type)].FirstOrDefault();

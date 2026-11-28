@@ -39,21 +39,21 @@ public static partial class SkillTextConverter
         {
             if (!skill.Effects.SelectMany(x => x.Contents).Any(x => x.Type == EffectContentType.DeclareSelectedSkill)) continue;
             Require(!skill.Effects.SelectMany(x => x.Contents).Any(x => x.Type == EffectContentType.SkillAttack || x.Type == EffectContentType.WeaponAttack));
-            foreach (var content in skill.Overrides.Where(x => x.Type == EffectType.Critical && x.Triggers.Count == 0).SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.MultiplyPower))
-                content.Type = OverrideContentType.MultiplyDeclaredSkillPower;
+            foreach (var content in skill.Overrides.Where(x => x.Type == EffectType.Critical && x.Triggers.Count == 0).SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.MultiplyPower))
+                content.Type = EffectContentType.MultiplyDeclaredSkillPower;
         }
     }
 
     private static void ValidateAppliedStateModifiers(SkillTextData data)
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices))
-        foreach (var change in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.SetStateDamageMultiplier))
+        foreach (var change in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.SetStateDamageMultiplier))
         {
             var p = Args(change.Parameters, 3, "SetStateDamageMultiplier");
             StateDefinition state = data.States.SingleOrDefault(x => x.Name == p[0]);
             Require(state != null && state.Overrides.Count == 1 && state.Overrides[0].Contents.Count == 1);
             var value = state.Overrides[0].Contents[0];
-            Require(value.Type == OverrideContentType.MultiplyDamageTaken && Args(value.Parameters, 2, "MultiplyDamageTaken")[0] == p[1]);
+            Require(value.Type == EffectContentType.MultiplyDamageTaken && Args(value.Parameters, 2, "MultiplyDamageTaken")[0] == p[1]);
             Require(Matches(StateTriggers(state, state.Overrides[0].Triggers), Trigger(TriggerTiming.IncomingDamage)));
             Require(skill.Effects.SelectMany(x => x.Contents).Any(x => x.Type == EffectContentType.ApplyState && x.Parameters[1] == p[0]));
         }
@@ -62,7 +62,7 @@ public static partial class SkillTextConverter
     private static void CompleteAreaProgressModifiers(SkillTextData data)
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices).Concat(data.Summons))
-        foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.OptionalAreaProgressReduction))
+        foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.OptionalAreaProgressReduction))
         {
             if (content.Parameters.Count == 4 && content.Parameters[1] == "Unspecified" && content.Parameters[2] == "Unspecified")
             { content.Parameters[1] = "Any"; content.Parameters[2] = content.Parameters[0]; }
@@ -72,7 +72,7 @@ public static partial class SkillTextConverter
     private static void ValidateOptionalSpikeStateReferences(SkillTextData data)
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices).Concat(data.Summons))
-        foreach (var content in skill.Overrides.Where(e => e != null && e.Contents != null).SelectMany(e => e.Contents).Where(c => c != null && c.Type == OverrideContentType.OptionalSpikeState))
+        foreach (var content in skill.Overrides.Where(e => e != null && e.Contents != null).SelectMany(e => e.Contents).Where(c => c != null && c.Type == EffectContentType.OptionalSpikeState))
         {
             var p = Args(content.Parameters, 5, "OptionalSpikeState");
             Require(data.States.Count(s => s.Name == p[3]) == 1);
@@ -107,10 +107,10 @@ public static partial class SkillTextConverter
     {
         foreach (var skill in new[] { data.Skill }.Concat(data.Skill.Choices))
         {
-            foreach (var change in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.SetDelayedStateSkillValue))
+            foreach (var change in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.SetDelayedStateSkillValue))
                 Require(data.States.Any(s => s.Name == change.Parameters[0] && s.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ReceiveDelayedEnemyTurnAttack)) &&
                     skill.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ApplyState && c.Parameters[1] == change.Parameters[0]));
-            foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.MultiplyStateAttackPower))
+            foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.MultiplyStateAttackPower))
             {
                 var p = Args(content.Parameters, 2, "MultiplyStateAttackPower");
                 Require(data.States.Any(x => x.Name == p[0] && x.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.DelayedStateAttack)));
@@ -118,7 +118,7 @@ public static partial class SkillTextConverter
             }
             foreach (var content in skill.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.ApplySelectedSkillState))
                 Require(data.States.Any(x => x.Name == content.Parameters[1] && x.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ProhibitSelectedSkill)));
-            foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.SetStateControlLimit))
+            foreach (var content in skill.Overrides.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.SetStateControlLimit))
             {
                 Require(data.States.Any(x => x.Name == content.Parameters[0] && x.Effects.SelectMany(e => e.Contents).Count(c => c.Type == EffectContentType.GrantActionControl) == 1));
                 Require(skill.Effects.SelectMany(x => x.Contents).Any(x => x.Type == EffectContentType.ApplyState && x.Parameters[1] == content.Parameters[0]));
@@ -136,20 +136,20 @@ public static partial class SkillTextConverter
                 .Where(c => c.Type == EffectContentType.ApplyState).Select(c => c.Parameters[1])
                 .Where(n => data.States.Any(s => s.Name == n && s.Effects.SelectMany(e => e.Contents).Any(c => c.Type == EffectContentType.ReceiveDelayedEnemyTurnAttack))).Distinct().ToList();
             if (delayed.Count == 1 && !skill.Effects.SelectMany(e => e.Contents).Any(HasRuleSkillValue))
-                foreach (var spike in skill.Overrides.Where(o => IsSpikeStage(o.Type) && o.Triggers.Count == 0).SelectMany(o => o.Contents).Where(c => c.Type == OverrideContentType.SetSkillValue))
+                foreach (var spike in skill.Overrides.Where(o => IsSpikeStage(o.Type) && o.Triggers.Count == 0).SelectMany(o => o.Contents).Where(c => c.Type == EffectContentType.SetSkillValue))
                 {
-                    spike.Type = OverrideContentType.SetDelayedStateSkillValue;
+                    spike.Type = EffectContentType.SetDelayedStateSkillValue;
                     spike.Parameters.Insert(0, delayed[0]);
                 }
             var names = skill.Effects.Where(e => e.Type == EffectType.Active).SelectMany(e => e.Contents)
                 .Where(c => c.Type == EffectContentType.ApplyState && data.States.Any(s => s.Name == c.Parameters[1] && s.Effects.SelectMany(e => e.Contents).Any(x => x.Type == EffectContentType.DelayedStateAttack)))
                 .Select(c => c.Parameters[1]).ToList();
             if (names.Count == 0) continue;
-            foreach (var content in skill.Overrides.Where(x => x.Type == EffectType.Critical && x.Triggers.Count == 0).SelectMany(x => x.Contents).Where(x => x.Type == OverrideContentType.MultiplyPower))
+            foreach (var content in skill.Overrides.Where(x => x.Type == EffectType.Critical && x.Triggers.Count == 0).SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.MultiplyPower))
             {
                 Require(names.Count == 1 && !skill.Effects.SelectMany(x => x.Contents).Any(x => x.Type == EffectContentType.SkillAttack || x.Type == EffectContentType.WeaponAttack));
                 string factor = Args(content.Parameters, 1, "MultiplyPower")[0];
-                content.Type = OverrideContentType.MultiplyStateAttackPower;
+                content.Type = EffectContentType.MultiplyStateAttackPower;
                 content.Parameters = new List<string> { names[0], factor };
             }
         }
