@@ -59,9 +59,50 @@ public static partial class SkillTextConverter
         return text;
     }
 
+    // Match the result before splitting its body into sentences. All effects on this line share the same roll.
+    private static Match RollResultPrefix(string text)
+    {
+        if (text.StartsWith("追加ロール", StringComparison.Ordinal))
+            return M(text, @"^追加ロール(?<id>[0-9]+)の出目が(?<range>[0-9]+(?:[～〜][0-9]+)?)の時[、,]\s*");
+        if (text.StartsWith("-", StringComparison.Ordinal) || text.StartsWith("－", StringComparison.Ordinal))
+            return M(text, @"^[-－]\s*(?<range>[0-9]+(?:[～〜][0-9]+)?)[：:]\s*");
+        return Match.Empty;
+    }
+
+    private static bool ReadRollResult(SkillBody skill, EffectType type, string statement)
+    {
+        Match prefix = RollResultPrefix(statement);
+        if (!prefix.Success) return false;
+        // Equipment-modification tables have their own result rows and dice.
+        if (ReadSemanticRule(skill, null, type, statement)) return true;
+        string rollId = prefix.Groups["id"].Value;
+        if (rollId.Length == 0)
+        {
+            var roll = skill.Effects.Where(e => e.Type == type).SelectMany(e => e.Contents).LastOrDefault(c => c.Type == EffectContentType.RollDice);
+            if (roll == null) throw new InvalidOperationException("出目分岐の前に追加ダイスロールを指定してください。");
+            rollId = RollDiceArgs(roll.Parameters)[0];
+        }
+        string body = Need(statement.Substring(prefix.Length).Trim(), "出目分岐の効果");
+        int first = skill.Effects.Count;
+        int overrides = skill.Overrides.Count;
+        var rewards = Split(body, ",");
+        if (rewards.All(reward => M(reward, @"^《[^》]+》(☆[1-9][0-9]*)?×[0-9]+$").Success))
+            foreach (string reward in rewards) ReadSkillLine(skill, type, reward + "獲得");
+        else
+            ReadSkillLine(skill, type, body);
+
+        if (first == skill.Effects.Count || overrides != skill.Overrides.Count || skill.Effects.Skip(first).Any(effect => effect.Triggers.Count != 0))
+            throw new InvalidOperationException("追加ロールの出目分岐には通常の効果を指定してください。");
+        string range = prefix.Groups["range"].Value.Replace('〜', '～');
+        foreach (var effect in skill.Effects.Skip(first))
+            effect.Triggers = On(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, rollId, range)));
+        return true;
+    }
+
     private static void ReadSkillLine(SkillBody skill, EffectType type, string text)
     {
         string statement = Unbullet(text);
+        if (IsOrdinary(type) && ReadRollResult(skill, type, statement)) return;
         if (type != EffectType.Roleplay) statement = NormalizeEffectSentence(statement);
         var inlineRoll = M(statement, @"^(?:さらに)?ダイスロール([1-9][0-9]*d[1-9][0-9]*)を行い、([0-9]+(?:～[0-9]+)?)が出た場合、(.+)$");
         if (IsOrdinary(type) && inlineRoll.Success)
@@ -199,37 +240,6 @@ public static partial class SkillTextConverter
             if (!IsOrdinary(type)) throw new InvalidOperationException("効果種別を指定してください。");
             if (TryReadPassiveSkillLine(skill, type, body)) continue;
             var triggers = NoTriggers();
-            Match branch = M(body, @"^[-－]\s*([0-9]+(?:[～〜][0-9]+)?)[：:]\s*(.+)$");
-            if (branch.Success)
-            {
-                EffectContent roll = skill.Effects.Where(x => x.Type == type).SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.RollDice);
-                if (roll == null) throw new InvalidOperationException("出目分岐の前に追加ダイスロールを指定してください。");
-                string[] rollArgs = RollDiceArgs(roll.Parameters);
-                triggers.Add(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, rollArgs[0], branch.Groups[1].Value.Replace('〜', '～'))));
-                body = branch.Groups[2].Value;
-            }
-            else
-            {
-                branch = M(body, @"^追加ロール([0-9]+)の出目が([0-9]+(?:～[0-9]+)?)の時[、,]\s*(.+)$");
-                if (branch.Success)
-                {
-                    triggers.Add(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, branch.Groups[1].Value, branch.Groups[2].Value)));
-                    body = branch.Groups[3].Value;
-                }
-            }
-            if (triggers.Count > 0)
-            {
-                int before = skill.Effects.Count;
-                var rewards = Split(body, ",");
-                if (rewards.All(reward => M(reward, @"^《[^》]+》(☆[1-9][0-9]*)?×[0-9]+$").Success))
-                    foreach (string reward in rewards) ReadSkillLine(skill, type, reward + "獲得");
-                else ReadSkillLine(skill, type, body);
-                var added = skill.Effects.Skip(before).ToList();
-                if (added.Count == 0 || added.Any(effect => effect.Triggers.Count != 0))
-                    throw new InvalidOperationException("追加ロールの出目分岐には通常の効果を指定してください。");
-                foreach (var effect in added) effect.Triggers = new List<TriggerDefinition>(triggers);
-                continue;
-            }
             if (ReadSkillOverride(skill, type, body)) continue;
             if (body.TrimEnd('。') == "防御点はそれぞれに適用される")
             {

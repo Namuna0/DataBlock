@@ -14,13 +14,16 @@ public sealed class RulebookCell
     public object Data { get; }
     public string Error { get; }
 
-    internal RulebookCell(int row, int column, string name, object data, string error)
+    public string ExclusionReason { get; }
+
+    internal RulebookCell(int row, int column, string name, object data, string error, string exclusionReason = null)
     {
         Row = row;
         Column = column;
         Name = name;
         Data = data;
         Error = error;
+        ExclusionReason = exclusionReason;
     }
 
     public string BuildText()
@@ -31,7 +34,7 @@ public sealed class RulebookCell
         if (Data is CharacterProfileData profile) return SkillTextConverter.BuildProfile(profile);
         if (Data is SiegeWeaponData siege) return SkillTextConverter.BuildSiegeWeapon(siege);
         if (Data is EquipmentTextData equipment) return EquipmentTextConverter.Build(equipment);
-        throw new InvalidOperationException(Error);
+        throw new InvalidOperationException(Error ?? ExclusionReason);
     }
 }
 
@@ -42,7 +45,8 @@ public static class RulebookCsv
 
     // Read one CSV record at a time. Embedded quotes, commas and newlines belong to the cell.
     // The editor requests a yield for skipped fields too, so a sparse sheet can be read in bounded batches.
-    public static IEnumerable<RulebookCell> Read(TextReader reader, bool yieldSkippedFields = false)
+    public static IEnumerable<RulebookCell> Read(TextReader reader, bool yieldSkippedFields = false,
+        Action<RulebookCell> onExcluded = null)
     {
         if (reader == null) throw new ArgumentNullException(nameof(reader));
         int row = 1, column = 1;
@@ -62,7 +66,7 @@ public static class RulebookCsv
             }
             if (ch == ',' || ch == '\r' || ch == '\n' || ch < 0)
             {
-                var cell = ParseCell(field.ToString(), row, column);
+                var cell = ParseCell(field.ToString(), row, column, onExcluded);
                 if (cell != null || yieldSkippedFields) yield return cell;
                 if (ch < 0) yield break;
                 if (ch == ',') column++;
@@ -81,7 +85,7 @@ public static class RulebookCsv
         }
     }
 
-    private static RulebookCell ParseCell(string source, int row, int column)
+    private static RulebookCell ParseCell(string source, int row, int column, Action<RulebookCell> onExcluded)
     {
         if (string.IsNullOrWhiteSpace(source)) return null;
         if (source.IndexOf('\n') < 0 && source.IndexOf('\r') < 0 && source.Contains("【レアリティ】"))
@@ -92,22 +96,40 @@ public static class RulebookCsv
         if (lines.Length == 0) return null;
         bool prize = lines[0].StartsWith("-", StringComparison.Ordinal) && lines.Any(line => line.StartsWith("【景品ロール】", StringComparison.Ordinal));
         var title = DataBlockText.GetRegex(@"^《([^《》]+)》(☆[1-9][0-9]*)?$").Match(lines[0]);
-        if (!title.Success && !prize) return null;
+        RulebookCell Exclude(string label, string reason)
+        {
+            onExcluded?.Invoke(new RulebookCell(row, column, label, null, null, reason));
+            return null;
+        }
+        if (!title.Success && !prize)
+        {
+            if (lines[0].StartsWith("《", StringComparison.Ordinal) && lines.Skip(1).Any(s => s.StartsWith("【")))
+                return Exclude(lines[0], "先頭の《名称》が空欄、または形式が不正です。");
+            return null;
+        }
         string name = prize ? lines[0].Trim('-').Trim() : title.Groups[1].Value;
-        bool enemy = lines.Skip(1).FirstOrDefault(s => s.StartsWith("【", StringComparison.Ordinal))
-            ?.StartsWith("【危険度】", StringComparison.Ordinal) == true;
-        string filterText = enemy ? lines.Skip(1).FirstOrDefault(s => s.StartsWith("〈", StringComparison.Ordinal)) ?? "" : source;
-        if ((filterText.Contains("秘匿") || filterText.Contains("兵器")) && !IncludedNames.Contains(name)) return null;
-        bool profile = lines.Any(s => s.StartsWith("【種族能力値ボーナス】") || s.StartsWith("【クラス能力値】")) ||
-                       lines.Skip(1).Take(1).Any(s => s == "〈種族〉" || s.StartsWith("〈種族,"));
-        bool siege = lines.Skip(1).Take(1).Any(s => s == "〈兵器〉" || s.StartsWith("〈兵器,"));
-        string categories = lines.Skip(1).FirstOrDefault(s => s.Length > 0) ?? "";
+        var body = lines.Skip(1).Where(s => s.Length > 0);
+        string categories = body.FirstOrDefault() ?? "";
         bool hasCategories = categories.StartsWith("〈", StringComparison.Ordinal);
+        var metadata = body.Skip(1).TakeWhile(s => s.StartsWith("【", StringComparison.Ordinal) &&
+            !s.Contains("効果】") && !s.StartsWith("【行動】") && !s.StartsWith("【特性】") && !s.StartsWith("【説明】"));
+        bool enemy = hasCategories && metadata.Any(s => s.StartsWith("【危険度】", StringComparison.Ordinal));
+        string filterText = enemy ? categories : source;
+        if ((filterText.Contains("秘匿") || filterText.Contains("兵器")) && !IncludedNames.Contains(name))
+            return Exclude(name, "「秘匿」または「兵器」の除外条件に該当します。");
+        bool profile = lines.Any(s => s.StartsWith("【種族能力値ボーナス】") || s.StartsWith("【クラス能力値】")) ||
+                       categories == "〈種族〉" || categories.StartsWith("〈種族,");
+        bool siege = categories == "〈兵器〉" || categories.StartsWith("〈兵器,");
         bool equipment = hasCategories && (lines.Any(line => line.StartsWith("【装備部位】") || line.StartsWith("【装備効果】") || line.StartsWith("【武器威力】")) ||
             DataBlockText.GetRegex(@"(?:^〈|[,、]\s*)(?:装備アイテム|投擲武器|ファミリアカード)(?=[,、〉])").IsMatch(categories));
         bool itemRecord = hasCategories && lines.Any(line => line.StartsWith("【レアリティ】", StringComparison.Ordinal));
-        if (!equipment && !itemRecord && title.Groups[2].Success) return null;
-        if (!prize && !enemy && !equipment && !itemRecord && IsSkillDraft(lines, profile || siege)) return null;
+        if (!equipment && !itemRecord && title.Groups[2].Success)
+            return Exclude(name, "グレード指定に対応する装備またはアイテムの項目がありません。");
+        if (!prize && !enemy && !equipment && !itemRecord)
+        {
+            string reason = SkillDraftReason(lines, profile || siege);
+            if (reason != null) return Exclude(name, reason);
+        }
         try
         {
             object data;
@@ -117,15 +139,27 @@ public static class RulebookCsv
             else if (siege) data = SkillTextConverter.ParseSiegeWeapon(source);
             else if (equipment)
             {
-                if (lines.Any(DataBlockText.GetRegex(@"^(?:【[^】]+】\s*)?[?？]{3,}[。.]?$").IsMatch)) return null;
+                if (lines.Any(DataBlockText.GetRegex(@"^(?:【[^】]+】\s*)?[?？]{3,}[。.]?$").IsMatch))
+                    return Exclude(name, "未確定を示す疑問符が装備本文に残っています。");
                 var item = EquipmentTextConverter.Parse(source, csvCell: true);
                 var definition = item.Equipment;
-                if (string.IsNullOrWhiteSpace(definition.Flavor) && string.IsNullOrEmpty(definition.WeaponPowerFormula) &&
+                bool noEffect = string.IsNullOrWhiteSpace(definition.Flavor) && string.IsNullOrEmpty(definition.WeaponPowerFormula) &&
                     definition.WeaponModes.Count == 0 && definition.EffectGroups.Count == 0 && definition.Skills.Count == 0 &&
-                    definition.States.Count == 0 && definition.GradeAdjustments.Count == 0) return null;
+                    definition.States.Count == 0 && definition.GradeAdjustments.Count == 0;
+                if (noEffect && lines.Any(s => s == "【装備効果】" || s == "【設置効果】" || s == "【パッシブ効果】"))
+                    return Exclude(name, "装備の効果欄が空欄です。");
+                if (noEffect && definition.EquipSlots.Count == 0 && definition.EquipRequirements.Count == 0 &&
+                    definition.Value.Kind == EquipmentValueKind.Unspecified && definition.MaxDurability == 0 &&
+                    definition.RequiredSpace == 0 && definition.Grade == 0 && string.IsNullOrEmpty(definition.SpecialGrade))
+                    return Exclude(name, "装備の基本見出しだけで、装備部位・価値・効果などの記載がありません。");
                 data = item;
             }
-            else if (itemRecord) data = ItemTextConverter.Parse(source);
+            else if (itemRecord)
+            {
+                Action<string, string> skipped = null;
+                if (onExcluded != null) skipped = (choice, reason) => Exclude(name + " / " + choice, reason);
+                data = ItemTextConverter.Parse(source, skipped);
+            }
             else data = SkillTextConverter.Parse(source);
             return new RulebookCell(row, column, name, data, null);
         }
@@ -135,16 +169,17 @@ public static class RulebookCsv
         }
     }
 
-    private static bool IsSkillDraft(string[] lines, bool hasDefinition)
+    private static string SkillDraftReason(string[] lines, bool hasDefinition)
     {
-        if (!hasDefinition && !lines.Any(s => s.StartsWith("【") && (s.IndexOf("効果】", StringComparison.Ordinal) >= 0 || s.StartsWith("【説明】")))) return true;
+        if (!hasDefinition && !lines.Any(s => s.StartsWith("【") && (s.IndexOf("効果】", StringComparison.Ordinal) >= 0 || s.StartsWith("【説明】"))))
+            return "スキルの効果または説明が未記入です。";
         // An unfinished row may have a title and valid headings. A missing target,
         // an empty element branch or a dangling conditional still makes it a draft.
         if (lines.Any(s => s == "この" || (s.StartsWith("【発動ロール】") && s.EndsWith("目標値")) ||
-            (s.StartsWith("- ") && s.TrimEnd('：', ':').Length == 3 && "火水風電冷土光闇".Contains(s.Substring(2, 1))))) return true;
-        if (lines.Any(s => s == "【説明】下記の効果を一つ選んで実行する。") && !lines.Any(s => s.StartsWith("●"))) return true;
+            (s.StartsWith("- ") && s.TrimEnd('：', ':').Length == 3 && "火水風電冷土光闇".Contains(s.Substring(2, 1))))) return "目標値・属性分岐・効果の記述が未完成です。";
+        if (lines.Any(s => s == "【説明】下記の効果を一つ選んで実行する。") && !lines.Any(s => s.StartsWith("●"))) return "選択式の説明に対応する選択肢がありません。";
         string last = lines.LastOrDefault(s => s.Length > 0 && !s.StartsWith("```"));
-        if (last != null && (last.EndsWith("を受けた時") || last.EndsWith("を受けた時、"))) return true;
-        return false;
+        if (last != null && (last.EndsWith("を受けた時") || last.EndsWith("を受けた時、"))) return "発動条件に続く効果が未記入です。";
+        return null;
     }
 }

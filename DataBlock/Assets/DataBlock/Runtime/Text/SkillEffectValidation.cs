@@ -167,11 +167,31 @@ public static partial class SkillTextConverter
     private static void ValidateRandomRolls(SkillBody skill)
     {
         var rolls = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (EffectContent content in skill.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.RollDice))
+        int lowest = 0;
+        long highest = 0;
+        foreach (EffectContent content in skill.Effects.SelectMany(x => x.Contents))
         {
-            string[] p = RollDiceArgs(content.Parameters); Number(p[0], 1, "追加ロール番号");
-            if (rolls.ContainsKey(p[0])) throw new InvalidOperationException("追加ロール番号が重複しています：" + p[0]);
-            rolls.Add(p[0], p[1]);
+            switch (content.Type)
+            {
+                case EffectContentType.RollDice:
+                    string[] p = RollDiceArgs(content.Parameters);
+                    Number(p[0], 1, "追加ロール番号");
+                    if (rolls.ContainsKey(p[0])) throw new InvalidOperationException("追加ロール番号が重複しています：" + p[0]);
+                    rolls.Add(p[0], p[1]);
+                    break;
+                case EffectContentType.RollNamedRewardTable:
+                    string[] dice = content.Parameters[1].Split('d');
+                    lowest = Number(dice[0], 1, "ダイス個数");
+                    highest = (long)lowest * Number(dice[1], 1, "ダイス面数");
+                    break;
+                case EffectContentType.RewardTableItemRange:
+                case EffectContentType.ClassifiedRewardTableItem:
+                    if (lowest == 0) throw new InvalidOperationException("出目の前に報酬表のダイスを指定してください。");
+                    int first = Number(content.Parameters[0], lowest, "報酬表の出目の下限");
+                    int last = Number(content.Parameters[1], first, "報酬表の出目の上限");
+                    if (last > highest) throw new InvalidOperationException("報酬表の出目は" + lowest + "～" + highest + "で指定してください。");
+                    break;
+            }
         }
         foreach (EffectDefinition effect in skill.Effects.Where(x => x.Triggers.Count == 1 && x.Triggers[0].Timing == TriggerTiming.RandomResult))
         {

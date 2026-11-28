@@ -1,6 +1,9 @@
 #if UNITY_EDITOR
 using System.Linq;
 using NUnit.Framework;
+using System.Reflection;
+using System.Text.Json.Nodes;
+using UnityEditor;
 using UnityEngine;
 
 internal sealed class ItemTextConverterTests
@@ -45,7 +48,7 @@ internal sealed class ItemTextConverterTests
     {
         var item = RoundTrip("《報酬箱》\n〈アイテム〉\n【レアリティ】Rare\n【アクティブ効果】1d6のダイスロールを行う。\n" +
             "- 2～4：《木片》×1, 《小石》×3\n- 5～6：ペット《子鳥》×1").Item;
-        var effects = item.Skills.Single().Skill.Effects;
+        var effects = item.OwnSkills.Single().Skill.Effects;
         var grants = effects.Where(e => e.Contents.Single().Type == EffectContentType.GrantItem).ToArray();
         Assert.That(grants.Select(e => e.Contents.Single().Parameters[2]), Is.EqualTo(new[] { "1", "3" }));
         foreach (var effect in grants)
@@ -58,7 +61,7 @@ internal sealed class ItemTextConverterTests
     {
         var item = RoundTrip("《網》\n〈道具〉\n【レアリティ】Rare\n【発動ロール】1d100 目標値50\n" +
             "【失敗効果】自身は50の捕獲HPダメージを受ける。").Item;
-        var content = item.Skills.Single().Skill.Effects.Single().Contents.Single();
+        var content = item.OwnSkills.Single().Skill.Effects.Single().Contents.Single();
         Assert.That(content.Type, Is.EqualTo(EffectContentType.ResourceDamage));
         Assert.That(content.Parameters, Is.EqualTo(new[] { "Self", "捕獲HP", "50" }));
     }
@@ -105,14 +108,54 @@ internal sealed class ItemTextConverterTests
     {
         const string header = "《同名》\n〈道具〉\n【レアリティ】Rare\n";
         const string grant = "●スキル：《同名》\n【アクティブ効果】自身のHPを10回復する。";
-        Assert.That(RoundTrip(header + grant).Item.HasOwnSkill, Is.False);
+        Assert.That(RoundTrip(header + grant).Item.OwnSkills, Is.Empty);
         var data = RoundTrip(header + "【アクティブ効果】自身のHPを20回復する。\n" + grant);
-        Assert.That(data.Item.HasOwnSkill, Is.True);
-        Assert.That(data.Item.Skills.Count, Is.EqualTo(2));
+        Assert.That(data.Item.OwnSkills.Count, Is.EqualTo(1));
+        Assert.That(data.Item.Skills.Count, Is.EqualTo(1));
         data.Item.Name = "改名";
         var renamed = RoundTrip(ItemTextConverter.Build(data)).Item;
-        Assert.That(renamed.Skills[0].Skill.Name, Is.EqualTo("改名"));
-        Assert.That(renamed.Skills[1].Skill.Name, Is.EqualTo("同名"));
+        Assert.That(renamed.OwnSkills.Single().Skill.Name, Is.EqualTo("改名"));
+        Assert.That(renamed.Skills.Single().Skill.Name, Is.EqualTo("同名"));
+    }
+
+    [Test]
+    public void InspectorCanReorderSameCategorySkillsIndependentlyOfTheItemEffect()
+    {
+        var gameObject = new GameObject("ItemInspectorTest");
+        Editor editor = null;
+        try
+        {
+            var block = gameObject.AddComponent<ItemDataBlock>();
+            block.Data = ItemTextConverter.Parse("《見本》\n〈道具〉\n【レアリティ】Rare\n" +
+                "【アクティブ効果】自身のHPを21回復する。\n自身は《守護》状態になる。\n守護効果：防御点+1\n" +
+                "●スキル：《見本》\n〈道具〉\n【アクティブ効果】自身のHPを7回復する。\n" +
+                "●スキル：《予備》\n〈道具〉\n【アクティブ効果】自身のHPを3回復する。");
+            editor = Editor.CreateEditor(block);
+            var serialized = editor.serializedObject;
+            serialized.FindProperty("Data.Item.Skills").MoveArrayElement(1, 0);
+            serialized.FindProperty("Data.Item.Name").stringValue = "改名";
+            serialized.ApplyModifiedProperties();
+            var run = typeof(ItemDataBlockEditor).GetMethod("Run", BindingFlags.Instance | BindingFlags.NonPublic);
+            run.Invoke(editor, new object[] { 2 });
+            var text = (string)typeof(ItemDataBlockEditor).GetField("_text", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(editor);
+            var rebuilt = ItemTextConverter.Parse(text).Item;
+            Assert.That(rebuilt.OwnSkills.Single().Skill.Name, Is.EqualTo("改名"));
+            Assert.That(rebuilt.OwnSkills.Single().Skill.Effects.SelectMany(e => e.Contents)
+                .Single(c => c.Type == EffectContentType.RestoreResource).Parameters.Last(), Is.EqualTo("21"));
+            Assert.That(rebuilt.Skills.Select(s => s.Skill.Name), Is.EqualTo(new[] { "予備", "見本" }));
+            run.Invoke(editor, new object[] { 3 });
+            var preview = ((ItemDataBlockEditor)editor).JsonPreview;
+            var json = JsonNode.Parse(preview.Main)["Item"];
+            Assert.That(json["OwnSkills"][0].AsObject().ContainsKey("States"), Is.False);
+            Assert.That((string)JsonNode.Parse(preview.States)[0]["Name"], Is.EqualTo("守護"));
+            Assert.That((string)json["OwnSkills"][0]["Skill"]["Name"], Is.EqualTo("改名"));
+            Assert.That(json["Skills"].AsArray().Select(s => (string)s["Skill"]["Name"]), Is.EqualTo(new[] { "予備", "見本" }));
+        }
+        finally
+        {
+            if (editor != null) Object.DestroyImmediate(editor);
+            Object.DestroyImmediate(gameObject);
+        }
     }
 
     [Test]

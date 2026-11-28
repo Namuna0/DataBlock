@@ -39,7 +39,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.ResourceAfterDelay, "付与されてから{0}ターン後、自身の{1}は{2}される。", RulePositivePattern, RuleResourcePattern, RuleSignedPattern);
         rules.Add(EffectContentType.LoseResourcesOnActiveExceptRace, "自身が〈{0}〉以外なら、アクティブ効果を発動する度に{1}を{2}失い、最大{3}の{4}%のダメージを受ける。", RuleNamePattern, RuleResourcePattern, RuleSignedPattern, RuleResourcePattern, RulePositivePattern);
         rules.Add(EffectContentType.RemoveOnSuccessfulCategoryRoll, "〈{0}〉による発動ロールの目標値{1}を達成することで、この効果は解除される。", RuleNamePattern, RulePositivePattern);
-        rules.Add(EffectContentType.GainDefenseFormula, "自身は防御点{0}を得る。", ArithmeticPattern);
+        RegisterDefenseGain(rules);
         rules.Add(EffectContentType.DamageIncomingCategoryUser, "自身へ〈{0}〉を発動した対象にさらに{1}のダメージを与える。", RuleNamePattern, ArithmeticPattern);
         rules.Add(EffectContentType.ActionBonusFromStack, "自身の行為判定は+[スタック]×{0}加算される。", RulePositivePattern);
         rules.Add(EffectContentType.RemoveAfterActionRoll, "行為判定の後、この効果は解除される。");
@@ -185,7 +185,6 @@ public static partial class SkillTextConverter
         rules.AddOverride(EffectContentType.CategoryDamageTakenFactor, "自身が〈{0}〉によって受けるダメージを{1}倍にする。", RuleNamePattern, RuleFactorPattern);
         rules.AddOverride(EffectContentType.CombinedCategoryPower, "自身は〈{0}〉かつ〈{1}〉による威力は×{2}倍される。", RuleNamePattern, RuleNamePattern, RuleFactorPattern);
         rules.Add(EffectContentType.EquippedWeaponEquivalent, "自身は常に〈{0}〉を装備している物と同等の扱いとなり、武器威力({1})を扱うことが出来る。", RuleNamePattern, RuleFormulaPattern);
-        rules.Add(EffectContentType.GrantCalculatedDefense, "自身は防御点{0}を得る。", RuleFormulaPattern);
         rules.Add(EffectContentType.RandomAttackDeclaration, "自身の攻撃スキルをランダムに一つ選ぶ、その後自身を含む選択可能な対象をランダムに選択して発動する。");
         rules.Add(EffectContentType.RandomTargetSelection, "自身は対象を選択する際、自身を除く選択可能な対象全てからランダムに{0}体決定する必要があります。", RulePositivePattern);
         rules.Add(EffectContentType.PreventResourceRecovery, "自身は{0}を回復することができなくなる。", RuleResourcePattern);

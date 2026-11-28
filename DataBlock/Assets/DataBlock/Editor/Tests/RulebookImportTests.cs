@@ -24,6 +24,35 @@ internal sealed class RulebookImportTests
 
 
     [Test]
+    public void CsvKeepsReorderedEnemyMetadataAndEquipmentWithoutEffects()
+    {
+        const string enemy = "《番鳥》\n〈一般エネミー, 動物〉\n【HP最大値】100\n【危険度】☆";
+        const string coat = "《上着》\n〈装備アイテム, 衣服〉\n【レアリティ】Common\n【価値】15ジルダ\n【装備部位】胴体\n【サイズ】小\n【耐久最大値】5";
+        string csv = "\"" + enemy + "\",\"" + coat + "\"";
+        var cells = RulebookCsv.Read(new StringReader(csv)).ToList();
+        Assert.That(cells.Count, Is.EqualTo(2));
+        Assert.That(cells[0].BuildText(), Is.EqualTo(EnemyTextConverter.Build(EnemyTextConverter.Parse(enemy))));
+        Assert.That(cells[1].BuildText(), Is.EqualTo(EquipmentTextConverter.Build(EquipmentTextConverter.Parse(coat))));
+    }
+
+    [Test]
+    public void CsvReportsExclusionsWithCoordinatesAndKeepsCompletedRecipeChoices()
+    {
+        const string partial = "《試験書》\n〈レシピアイテム〉\n【レアリティ】Common\n【説明】下記の効果を一つ選んで実行する。\n" +
+            "●材料待ち\n【消費リソース】《》×1\n【アクティブ効果】《器》×1を獲得。\n" +
+            "●完成品\n【アクティブ効果】《器》×1を獲得。";
+        string csv = "見出し,,《題名のみ》\r\n\"《未公開》\n〈秘匿〉\n【アクティブ効果】何もなし。\",\"" + partial + "\"";
+        var exclusions = new System.Collections.Generic.List<RulebookCell>();
+        var cells = RulebookCsv.Read(new StringReader(csv), onExcluded: exclusions.Add).ToList();
+        var result = (ItemTextData)cells.Single().Data;
+        Assert.That(result.Item.Skills.Select(s => s.Skill.Name), Is.EqualTo(new[] { "完成品" }));
+        Assert.That(exclusions.Select(s => (s.Row, s.Column)), Is.EqualTo(new[] { (1, 3), (2, 1), (2, 2) }));
+        Assert.That(exclusions.Select(s => s.Name), Is.EqualTo(new[] { "題名のみ", "未公開", "試験書 / 材料待ち" }));
+        Assert.That(exclusions.All(s => s.Data == null && !string.IsNullOrEmpty(s.ExclusionReason)), Is.True);
+        Assert.That(RulebookCsv.Read(new StringReader(csv), yieldSkippedFields: true).Count(c => c == null), Is.EqualTo(4));
+    }
+
+    [Test]
     public void EquipmentCsv_KeepsLocalEffectsAndCoordinatesOnExport()
     {
         string Entry(string name, int bonus) => "\"《" + name + "》\n〈装備アイテム, 盾〉\n【レアリティ】Common\n" +
@@ -193,7 +222,7 @@ internal sealed class RulebookImportTests
         const string cell = "\"《観察》\n【ロールプレイ効果】観察する。\"";
         try
         {
-            File.WriteAllText(path, new string(',', 32) + string.Join(",", Enumerable.Repeat(cell, 65)));
+            File.WriteAllText(path, new string(',', 32) + string.Join(",", Enumerable.Repeat(cell, 65)) + ",《草案》");
             File.WriteAllText(broken, cell + ",\"未完");
             window.LoadFile(path);
             window.ReadNextBatch();
@@ -212,6 +241,7 @@ internal sealed class RulebookImportTests
             window.LoadFile(path);
             for (int i = 0; i <= 97 && !window.CanExport; i++) window.ReadNextBatch();
             Assert.That(window.SuccessCount, Is.EqualTo(65));
+            Assert.That(window.ExclusionCount, Is.EqualTo(1));
             Assert.That(window.CanExport, Is.True);
             window.LoadFile(path);
             window.ReadNextBatch();

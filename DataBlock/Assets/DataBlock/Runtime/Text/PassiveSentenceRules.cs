@@ -1,5 +1,13 @@
 public static partial class SkillTextConverter
 {
+    private static void RegisterDefenseGain(RuleSection rules)
+    {
+        // 参照式は《状態名》を含むことがあり、手入力では乗算記号「×」なども使う。
+        rules.Add(EffectContentType.GrantCalculatedDefense, "自身は防御点{0}を得る。",
+            "(?:" + ArithmeticPattern + "|" + RuleFormulaPattern + ")");
+        rules.Add(EffectContentType.GrantCalculatedDefense, "自身は{0}の防御点を得る。", RulePositivePattern);
+    }
+
     private static void RegisterPassiveRules(RuleSection rules)
     {
         RegisterTraitRules(rules);
@@ -67,7 +75,7 @@ public static partial class SkillTextConverter
         rules.AddOverride(EffectContentType.InjuryRollThreshold, "自身の重症ロールは{0}が{1}を下回った時に行われる。", RuleResourcePattern, @"[0-9]+");
         rules.AddOverride(EffectContentType.EmptySlotDefensePerStack, "自身が〈{0}〉に何も装備していない場合、《{1}》スタックの{2}倍の防御点が加算される。", RuleNamePattern, RuleNamePattern, RuleFactorPattern);
         rules.Add(EffectContentType.EquippedWeaponEquivalent, "自身は常に〈{0}〉を装備している物と同等の扱いとなり、武器威力({1})を扱うことが出来る。", RuleNamePattern, RuleFormulaPattern);
-        rules.Add(EffectContentType.GrantCalculatedDefense, "自身は防御点{0}を得る。", RuleFormulaPattern);
+        RegisterDefenseGain(rules);
         rules.Add(EffectContentType.RequireDestinationArea, "エリアの移動先に〈{0}〉エリアが含まれない戦闘エリアへ移動する事が出来ない。", RuleNamePattern);
         rules.Add(EffectContentType.OptionalRaceCategory, "あなたは任意で自身の種族を〈{0}〉として扱っても良い。", RuleNamePattern);
         rules.AddOverride(EffectContentType.OwnStateCategoryResult, "自身が《{0}》状態の時、〈{1}〉スキルによる達成値は{2}される。", RuleNamePattern, RuleNamePattern, RuleSignedPattern);

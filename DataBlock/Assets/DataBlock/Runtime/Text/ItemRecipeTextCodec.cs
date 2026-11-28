@@ -16,7 +16,7 @@ public static partial class ItemTextConverter
         return text.StartsWith("◆") || (text.StartsWith("●") && !text.EndsWith("。"));
     }
 
-    internal static List<SkillTextData> ParseRecipeChoices(string text, out string flavor)
+    internal static List<SkillTextData> ParseRecipeChoices(string text, out string flavor, Action<string, string> reportSkipped)
     {
         string[] lines = text.Replace("\r\n", "\n").Replace('\r', '\n').Trim().Split('\n');
         if (lines.Length == 0 || lines[0].Trim() != RecipeDescription)
@@ -53,11 +53,24 @@ public static partial class ItemTextConverter
                 project = new SkillTextData();
                 project.Skill.Name = name.Groups[1].Value.Trim();
                 choices.Add(project);
+                continue;
             }
-            if (body.Length == 0) continue;
+            string choiceName = name.Groups[1].Value.Trim();
+            if (body.Length == 0)
+            {
+                reportSkipped?.Invoke(choiceName, "選択肢の本文が空欄です。");
+                continue;
+            }
             string normalized = NormalizeRecipeBody(body);
-            if (normalized.Split(new[] { RecipeDivider }, StringSplitOptions.None)[0].Contains("《》")) continue;
-            var source = "《" + name.Groups[1].Value.Trim() + "》\n" + (set ? "〈セット効果〉\n" : "") + normalized;
+            string missing = normalized.Split(new[] { RecipeDivider }, StringSplitOptions.None)[0]
+                .Split('\n').FirstOrDefault(line => line.Contains("《》"));
+            if (missing != null)
+            {
+                string reason = missing.StartsWith("【消費リソース】") ? "材料名が空欄です。" : "効果に指定する名前が空欄です。";
+                reportSkipped?.Invoke(choiceName, reason);
+                continue;
+            }
+            var source = "《" + choiceName + "》\n" + (set ? "〈セット効果〉\n" : "") + normalized;
             try
             {
                 var entry = SkillTextConverter.Parse(source);
@@ -176,15 +189,17 @@ public static partial class ItemTextConverter
 
     private static string NormalizeIngredients(string text)
     {
-        text = RecipePattern(@"〈([^〈》〉]+)》×").Replace(text, "〈$1〉×");
-        text = text.Replace(". ", ", ").Replace("かつ", "").Replace("アイテム〈", "〈");
-        text = RecipePattern(@"(?<=[0-9》〉])\s+(?=[《〈A-Z])").Replace(text, ", ");
-        return RecipePattern(@"(《[^》]+》(?:または《[^》]+》)*|〈[^〉]+〉)(?:×([0-9]+))?").Replace(text, m =>
+        // 先に名前全体を読み取ることで、括弧内の「かつ」や空白が区切りになるのを防ぐ。
+        var parts = RecipePattern(@"(?<token>《[^》]*》(?:または《[^》]*》)*|〈[^〉《》]*〉|〈[^〈〉《》]+》(?=×))(?:×(?<amount>[0-9]+))?|(?<separator>\. |(?:[,、]\s*)?かつ\s*|(?<=[0-9》〉])\s+(?=[《〈A-Z]))|アイテム(?=〈)");
+        return parts.Replace(text, part =>
         {
-            string token = m.Groups[1].Value, amount = m.Groups[2].Success ? m.Groups[2].Value : "1";
-            if (token.Contains("または")) return token + "×" + amount;
+            if (!part.Groups["token"].Success) return part.Groups["separator"].Success ? ", " : "";
+            string token = part.Groups["token"].Value;
+            string amount = part.Groups["amount"].Success ? part.Groups["amount"].Value : "1";
+            if (token.Contains("》または《")) return token + "×" + amount;
+            char close = token[0] == '《' ? '》' : '〉';
             var names = token.Substring(1, token.Length - 2).Split(',', '、');
-            return string.Join(", ", names.Select(n => token[0] + n.Trim() + token[token.Length - 1] + "×" + amount));
+            return string.Join(", ", names.Select(name => token[0] + name.Trim() + close + "×" + amount));
         });
     }
 

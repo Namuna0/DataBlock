@@ -26,6 +26,28 @@ internal sealed class SkillArchitectureTests
         return data.Skill.Effects.SelectMany(x => x.Contents);
     }
 
+    [TestCase("防御点[生命B]*2", "[生命B]*2")]
+    [TestCase("防御点[《強化》スタック]*3", "[《強化》スタック]*3")]
+    [TestCase("防御点[生命B]×3", "[生命B]×3")]
+    [TestCase("17の防御点", "17")]
+    public void DefenseGainUsesOneEffectAcrossSkillStateEquipmentAndItem(string amount, string formula)
+    {
+        string sentence = "自身は" + amount + "を得る。";
+        var skill = RoundTrip(Source("【パッシブ効果】" + sentence));
+        var state = RoundTrip(Source("【アクティブ効果】自身は《加護》状態になる。", "加護効果〈身体〉：" + sentence));
+        var item = ItemTextConverter.Parse("《護符》\n〈アイテム〉\n【レアリティ】Rare\n【パッシブ効果】" + sentence);
+        var gear = EquipmentTextConverter.Parse("《盾》\n〈装備アイテム, 盾〉\n【レアリティ】Rare\n【サイズ】小\n【装備効果】" + sentence);
+        Assert.That(ItemTextConverter.Normalize(ItemTextConverter.Build(item)), Is.EqualTo(ItemTextConverter.Build(item)));
+        Assert.That(EquipmentTextConverter.Normalize(EquipmentTextConverter.Build(gear)), Is.EqualTo(EquipmentTextConverter.Build(gear)));
+        var effects = new[] { Contents(skill).Single(), state.States.Single().Effects.Single().Contents.Single(),
+            Contents(item.Item.OwnSkills.Single()).Single(), gear.Equipment.EffectGroups.Single().Effects.Single() };
+        foreach (var effect in effects)
+        {
+            Assert.That(effect.Type, Is.EqualTo(EffectContentType.GrantCalculatedDefense));
+            Assert.That(effect.Parameters, Is.EqualTo(new[] { formula }));
+        }
+    }
+
     [Test]
     public void DistinguishAllEnemyDamageFromConditionalHealingCount()
     {

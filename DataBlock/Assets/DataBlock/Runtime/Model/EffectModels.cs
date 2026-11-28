@@ -1098,8 +1098,6 @@ public enum EffectContentType
     RemoveOnSuccessfulCategoryRoll = 468,
     /// <summary>自身と同じ接近グループのキャラクターを、武器威力と2属性の属性威力の合計で攻撃する。</summary>
     MeleeGroupElementWeaponAttack = 469,
-    /// <summary>指定式の防御点を自身に加える。</summary>
-    GainDefenseFormula = 470,
     /// <summary>自身に指定カテゴリーの行動を発動した相手に追加ダメージを与える。</summary>
     DamageIncomingCategoryUser = 471,
     /// <summary>自身の行為判定にスタック数と係数の積を加算する。</summary>
@@ -2324,8 +2322,6 @@ public enum EffectContentType
     ApplierControlsActions = 1357,
     /// <summary>〈指定名〉によって自身の指定リソースが0になる時、《指定名》状態を解除して指定リソースが全回復する。</summary>
     OnCategoryDepletionRecover = 1358,
-    /// <summary>自身は指定数の防御点を得る。</summary>
-    GainFlatDefense = 1359,
     /// <summary>ターン開始時、自身の《指定名》状態を解除する。</summary>
     RemoveNamedStateOnTurnStart = 1360,
     /// <summary>自身の指定リソース及び指定リソース最大値は×指定倍率倍される。</summary>

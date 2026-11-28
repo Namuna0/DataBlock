@@ -31,6 +31,36 @@ internal sealed class RecipeTextConverterTests
     }
 
     [Test]
+    public void IngredientConnectorsOnlySeparateNamesOutsideBrackets()
+    {
+        var item = ItemTextConverter.Parse(Book +
+            "●汁物\n【消費リソース】《かつお節》×2かつアイテム〈かつお〉、かつMP-3, 《素材1 A. B》×1\n" +
+            "【アクティブ効果】自身のHPを1回復する。");
+        var costs = item.Item.Skills.Single().Skill.Costs;
+        Assert.That(costs.Select(c => c.Resource), Is.EqualTo(new[] { "かつお節", "かつお", "MP", "素材1 A. B" }));
+        Assert.That(costs.Select(c => c.Amount), Is.EqualTo(new[] { 2, 1, 3, 1 }));
+        Assert.That(JsonUtility.ToJson(ItemTextConverter.Parse(ItemTextConverter.Build(item))), Is.EqualTo(JsonUtility.ToJson(item)));
+    }
+
+    [TestCase("- 7～2：《品》")]
+    [TestCase("- 2～13：《品》")]
+    [TestCase("- 1：道具《品》")]
+    public void PrizeTableRejectsImpossibleDiceRanges(string row)
+    {
+        Assert.Throws<System.InvalidOperationException>(() => SkillTextConverter.Parse(
+            "-景品箱-\n【消費アイテム】《券》×1\n【景品ロール】2d6\n" + row));
+    }
+
+    [Test]
+    public void PrizeTableCanAwardMoreThanOnePrizeOnTheSameResult()
+    {
+        const string text = "-景品箱-\n【消費アイテム】《券》×1\n【景品ロール】2d6\n" +
+            "- 2～8：《品》\n- 5～12：道具《道具》";
+        var data = SkillTextConverter.Parse(text);
+        Assert.That(SkillTextConverter.Normalize(SkillTextConverter.Build(data)), Is.EqualTo(SkillTextConverter.Build(data)));
+    }
+
+    [Test]
     public void StateExpiryAndFlavorBelongToTheRecipeThatDeclaredThem()
     {
         var item = ItemTextConverter.Parse(Book +

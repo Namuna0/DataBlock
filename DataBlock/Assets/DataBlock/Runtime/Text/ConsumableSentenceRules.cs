@@ -50,6 +50,8 @@ public static partial class SkillTextConverter
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i].Trim();
+            line = RegexReplace(line, @"^([0-9]+(?:～[0-9]+)?：)(?=自身は)", "- $1");
+            Match branchPrefix = RollResultPrefix(Unbullet(line));
             var allRolls = M(line, @"^(【発動ロール】([1-9][0-9]*)回(?:連続)?[：:].+目標値[0-9]+)(?:すべて|全て)達成。?$");
             if (allRolls.Success && i + 1 < lines.Length && lines[i + 1].TrimStart().StartsWith("【アクティブ効果】", StringComparison.Ordinal))
             {
@@ -83,7 +85,6 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^(【[^】]+】)?自身は永続的に《([^》]+)》状態になる。?$", "$1自身へ永続的に《$2》状態を付与する。");
             line = RegexReplace(line, @"自身は《([^》]+)》かつ《([^》]+)》状態になる。?$", "自身は《$1》状態になる。\n自身は《$2》状態になる。");
             line = RegexReplace(line, @"^(?:さらに)?ダイスロール([0-9]+d[0-9]+)を行う。?$", "$1のダイスロールを行う。");
-            line = RegexReplace(line, @"^([0-9]+(?:～[0-9]+)?：)(?=自身は)", "- $1");
             line = RegexReplace(line, @"(?<=：)([A-Z]+)\+([0-9]+)回復。?$", "$1$2回復。");
             line = RegexReplace(line, @"^(-\s*[0-9]+(?:～[0-9]+)?[：:]\s*)称号《([^》]+)》を獲得する。?$", "$1自身は称号《$2》を獲得する。");
             line = RegexReplace(line, @"([1-9][0-9]*d[1-9][0-9]*)で([0-9]+)を出すと([A-Z]+)([-+][0-9]+)$",
@@ -102,12 +103,14 @@ public static partial class SkillTextConverter
             {
                 string[] resources = Regex.Split(many.Groups[2].Value, @"(?:と|,\s*)");
                 string prefix = many.Groups[1].Value;
-                bool branch = M(prefix, @"^[-－]\s*[0-9]+(?:～[0-9]+)?：$").Success;
-                line = prefix + string.Join("\n" + (branch ? prefix : ""), resources.Select(resource => "自身の" + resource + "を" + many.Groups[3].Value + "回復する。"));
+                line = prefix + string.Join("\n", resources.Select(resource => "自身の" + resource + "を" + many.Groups[3].Value + "回復する。"));
             }
             line = RegexReplace(line, @"^([-－]\s*[0-9]+(?:～[0-9]+)?：)自身の([A-Z]+)と([A-Z]+)は([0-9]+)減少する。?$",
-                "$1自身の$2を-$4変化させる。\n$1自身の$3を-$4変化させる。");
-            result.AddRange(line.Split('\n'));
+                "$1自身の$2を-$4変化させる。\n自身の$3を-$4変化させる。");
+            var expanded = line.Split('\n');
+            result.Add(expanded[0]);
+            for (int j = 1; j < expanded.Length; j++)
+                result.Add(branchPrefix.Value + expanded[j]);
         }
         return result.ToArray();
     }

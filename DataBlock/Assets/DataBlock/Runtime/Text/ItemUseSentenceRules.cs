@@ -75,7 +75,6 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.AllElementBonusScale, "自身の属性値Bは×{0}倍される。", RuleFactorPattern);
         rules.Add(EffectContentType.ApplierControlsActions, "自身のターン、行動と選択対象は付与者によって選択される。");
         rules.Add(EffectContentType.OnCategoryDepletionRecover, "〈{0}〉によって自身の{1}が0になる時、《{2}》状態を解除して{3}が全回復する。", RuleNamePattern, RuleResourcePattern, RuleNamePattern, RuleResourcePattern);
-        rules.Add(EffectContentType.GainFlatDefense, "自身は{0}の防御点を得る。", RulePositivePattern);
         rules.Add(EffectContentType.RemoveNamedStateOnTurnStart, "ターン開始時、自身の《{0}》状態を解除する。", RuleNamePattern);
         rules.Add(EffectContentType.ResourcePairMaximumScale, "自身の{0}及び{1}最大値は×{2}倍される。", RuleResourcePattern, RuleResourcePattern, RuleFactorPattern);
         rules.Add(EffectContentType.SkillCategoryDamageFactor, "自身の〈{0}〉スキルによるダメージは×{1}倍される。", RuleNamePattern, RuleFactorPattern);

@@ -11,12 +11,14 @@ public static partial class ItemTextConverter
     private static bool IsDivider(string line) => M(line.Trim(), @"^―{5,}[。.]?$").Success;
     private static bool IsGrantedSkill(string line) => M(line, @"^●スキル[：:]\s*《[^》]+》$").Success;
 
-    public static ItemTextData Parse(string text)
+    public static ItemTextData Parse(string text) => Parse(text, null);
+
+    internal static ItemTextData Parse(string text, Action<string, string> reportSkipped)
     {
         var blocks = Blocks(text);
         if (blocks.Count != 1) throw new InvalidOperationException("アイテムは1件ずつセットしてください。");
-        var data = ParseOne(blocks[0]);
-        foreach (var entry in data.Item.Skills.Concat(data.Item.Traits))
+        var data = ParseOne(blocks[0], reportSkipped);
+        foreach (var entry in data.Item.OwnSkills.Concat(data.Item.Skills).Concat(data.Item.Traits))
         {
             SkillTextConverter.OrderEmbeddedEffects(entry.Skill);
             foreach (var choice in entry.Skill.Choices) SkillTextConverter.OrderEmbeddedEffects(choice);
@@ -39,7 +41,7 @@ public static partial class ItemTextConverter
         return DataBlockText.ReadBlocks(source, "アイテム", keepFences: false);
     }
 
-    private static ItemTextData ParseOne(string source)
+    private static ItemTextData ParseOne(string source, Action<string, string> reportSkipped = null)
     {
         string[] lines = source.Trim().Split('\n');
         int index = 0;
@@ -99,7 +101,7 @@ public static partial class ItemTextConverter
                 SkillTextConverter.AddConditions(item.DeclarationConditions, line.Substring("【宣言条件】".Length));
                 index++;
             }
-            item.Skills = ParseRecipeChoices(string.Join("\n", lines.Skip(index)).Trim(), out item.Flavor);
+            item.Skills = ParseRecipeChoices(string.Join("\n", lines.Skip(index)).Trim(), out item.Flavor, reportSkipped);
             return data;
         }
         int separator = Array.FindLastIndex(lines, IsDivider);
@@ -173,8 +175,7 @@ public static partial class ItemTextConverter
         }
         if (use.Length != 0)
         {
-            item.HasOwnSkill = true;
-            item.Skills.Add(SkillTextConverter.Parse("《" + item.Name + "》\n" + EquipmentTextConverter.CategoryText(item.Categories) + "\n" + use));
+            item.OwnSkills.Add(SkillTextConverter.Parse("《" + item.Name + "》\n" + EquipmentTextConverter.CategoryText(item.Categories) + "\n" + use));
         }
         if (actions >= 0)
         {
@@ -203,9 +204,18 @@ public static partial class ItemTextConverter
         }
     }
 
+    public static SkillTextData GetOwnSkill(ItemDefinition item)
+    {
+        if (item.OwnSkills == null || item.OwnSkills.Count > 1 ||
+            (item.OwnSkills.Count == 1 && (item.OwnSkills[0]?.Skill == null || IsRecipe(item))))
+            throw new InvalidOperationException("レシピ書の本体効果は空欄にし、他のアイテムの本体効果は1件まで指定してください。");
+        return item.OwnSkills.FirstOrDefault();
+    }
+
     public static string Build(ItemTextData data)
     {
         var item = data?.Item ?? throw new InvalidOperationException("アイテムデータがありません。");
+        var primary = GetOwnSkill(item);
         var sb = new StringBuilder();
         sb.AppendLine("```");
         sb.AppendLine("《" + Need(item.Name, "アイテム名") + "》" + (item.VariantGrade > 0 ? "☆" + item.VariantGrade : ""));
@@ -225,16 +235,12 @@ public static partial class ItemTextConverter
         }
         else
         {
-            if (item.HasOwnSkill && item.Skills.Count == 0) throw new InvalidOperationException("本体の効果が指定されていません。");
-            var primary = item.HasOwnSkill ? item.Skills[0] : null;
             bool shop = item.InstalledEffect && primary != null && primary.Skill.Effects.SelectMany(e => e.Contents)
                 .Any(c => c.Type == EffectContentType.ShopInHousing);
             if (item.Stock.Count > 0 && !shop) throw new InvalidOperationException("在庫を設定する店舗の設置効果がありません。");
             if (primary != null)
             {
-                string[] skill = EnemyTextConverter.SkillBodyText(primary).Split('\n');
-                int start = skill.Length > 1 && skill[1].StartsWith("〈", StringComparison.Ordinal) ? 2 : 1;
-                string text = string.Join("\n", skill.Skip(start)).TrimStart();
+                string text = SkillTextConverter.Build(primary, includeHeading: false).Trim();
                 if (item.InstalledEffect && text.StartsWith("【パッシブ効果】", StringComparison.Ordinal))
                     text = "【設置効果】" + text.Substring("【パッシブ効果】".Length);
                 sb.AppendLine(text);
@@ -256,7 +262,7 @@ public static partial class ItemTextConverter
                 sb.AppendLine("【行動】");
                 foreach (var rule in item.Actions) sb.AppendLine("●" + EnemyTextConverter.ActionText(rule));
             }
-            foreach (var skill in item.Skills.Skip(item.HasOwnSkill ? 1 : 0))
+            foreach (var skill in item.Skills)
             {
                 sb.AppendLine();
                 if (item.Actions.Count == 0) sb.Append("●スキル：");

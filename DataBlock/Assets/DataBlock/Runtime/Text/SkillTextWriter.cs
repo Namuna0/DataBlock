@@ -131,10 +131,13 @@ public static partial class SkillTextConverter
         if (texts.Count == 1) sb.AppendLine(header + texts[0]);
         else { sb.AppendLine(header); foreach (string text in texts) sb.AppendLine(Bullet + text); }
     }
-    private static void WriteSkill(StringBuilder sb, SkillBody skill, List<FormulaStat> stats = null)
+    private static void WriteSkill(StringBuilder sb, SkillBody skill, List<FormulaStat> stats = null, bool includeCategories = true)
     {
-        string categories = CategoryText(skill.Categories);
-        if (categories.Length > 0) sb.AppendLine(categories);
+        if (includeCategories)
+        {
+            string categories = CategoryText(skill.Categories);
+            if (categories.Length > 0) sb.AppendLine(categories);
+        }
         WriteConditions(sb, "習得条件", skill.AcquisitionConditions, false);
         if (stats != null)
         {
@@ -194,7 +197,9 @@ public static partial class SkillTextConverter
         body.Effects = body.Effects.OrderBy(effect => Array.IndexOf(DisplayOrder, effect.Type)).ToList();
     }
 
-    public static string Build(SkillTextData data)
+    public static string Build(SkillTextData data) => Build(data, includeHeading: true);
+
+    internal static string Build(SkillTextData data, bool includeHeading)
     {
         if (data == null || data.Skill == null || data.Summons == null || data.States == null || data.Skill.Choices == null || data.Skill.Choices.Any(x => x == null) || data.Summons.Any(x => x == null) || data.States.Any(x => x == null)) throw new InvalidOperationException("スキル・子スキル・召喚・状態がnullです。");
         if (data.Skill.Choices.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.Summons.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.States.GroupBy(x => x.Name).Any(x => x.Count() > 1)) throw new InvalidOperationException("子スキル・召喚・状態の名前が重複しています。");
@@ -204,7 +209,12 @@ public static partial class SkillTextConverter
         ValidateAppliedStateModifiers(data);
         ValidateOptionalSpikeStateReferences(data);
         var sb = new StringBuilder();
-        sb.AppendLine("```"); sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》"); WriteSkill(sb, data.Skill);
+        if (includeHeading)
+        {
+            sb.AppendLine("```");
+            sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》");
+        }
+        WriteSkill(sb, data.Skill, includeCategories: includeHeading);
         if (data.Skill.Choices.Count > 0)
         {
             sb.AppendLine("【説明】" + Description);
@@ -223,7 +233,8 @@ public static partial class SkillTextConverter
             foreach (string text in texts) sb.AppendLine((texts.Count > 1 ? Bullet : "") + text);
         }
         if (!string.IsNullOrEmpty(data.Skill.Flavor)) { sb.AppendLine(Separator); sb.AppendLine(data.Skill.Flavor.Replace("\r\n", "\n").Replace("\r", "\n")); }
-        sb.Append("```"); return sb.ToString().Replace("\r\n", "\n");
+        if (includeHeading) sb.Append("```");
+        return sb.ToString().Replace("\r\n", "\n");
     }
 
     private static void ValidateSummons(SkillTextData data)

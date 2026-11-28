@@ -60,9 +60,9 @@ public sealed class ItemDefinition
     public List<ItemGradeAdjustment> GradeAdjustments = new List<ItemGradeAdjustment>();
     public List<EnemyActionRule> Actions = new List<EnemyActionRule>();
     public List<SkillTextData> Traits = new List<SkillTextData>();
-    // 有効ならSkillsの先頭がアイテム本体の使用・所持・設置効果。付属スキルの名称とも区別する。
-    public bool HasOwnSkill;
-    // 本体の使用効果に続く付属スキル、またはレシピ書の選択肢。
+    // アイテム本体の使用・所持・設置効果。効果のあるアイテムだけ1件を保持する。
+    public List<SkillTextData> OwnSkills = new List<SkillTextData>();
+    // 付属スキル、またはレシピ書の選択肢。
     public List<SkillTextData> Skills = new List<SkillTextData>();
     [TextArea(3, 10)] public string Flavor = "";
 }

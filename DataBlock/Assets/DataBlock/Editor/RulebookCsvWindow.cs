@@ -13,6 +13,7 @@ internal sealed class RulebookCsvWindow : EditorWindow
     private IEnumerator<RulebookCell> import;
     private string importError;
     internal int SuccessCount { get; private set; }
+    internal int ExclusionCount { get; private set; }
     internal bool CanExport => import == null && SuccessCount > 0;
     private string fileName = "";
     private Vector2 scroll;
@@ -36,7 +37,7 @@ internal sealed class RulebookCsvWindow : EditorWindow
             EditorGUILayout.LabelField("読み込み中", cells.Count + "件処理済み");
             if (GUILayout.Button("読み込みを中止")) { ClearImport(); return; }
         }
-        EditorGUILayout.LabelField(fileName, "変換成功 " + SuccessCount + "件 / 要確認 " + (cells.Count - SuccessCount) + "件");
+        EditorGUILayout.LabelField(fileName, "変換成功 " + SuccessCount + "件 / 要確認 " + (cells.Count - SuccessCount - ExclusionCount) + "件 / 除外 " + ExclusionCount + "件");
         if (cells.Count == 0) return;
         using (new EditorGUILayout.HorizontalScope())
         {
@@ -49,11 +50,11 @@ internal sealed class RulebookCsvWindow : EditorWindow
         for (int i = page * 10; i < Math.Min(cells.Count, (page + 1) * 10); i++)
         {
             var cell = cells[i];
-            if (GUILayout.Button(cell.Row + "行 " + cell.Column + "列　" + cell.Name + (cell.Error == null ? "" : "　要確認")))
+            if (GUILayout.Button(cell.Row + "行 " + cell.Column + "列　" + cell.Name + (cell.ExclusionReason != null ? "　除外" : cell.Error == null ? "" : "　要確認")))
             {
                 selected = i;
                 jsonPreview = null;
-                preview = cell.Error ?? cell.BuildText();
+                preview = cell.ExclusionReason ?? cell.Error ?? cell.BuildText();
                 scroll = Vector2.zero;
             }
         }
@@ -85,10 +86,10 @@ internal sealed class RulebookCsvWindow : EditorWindow
         EditorApplication.update += ReadNextBatch;
     }
 
-    private static IEnumerable<RulebookCell> ReadFile(string path)
+    private IEnumerable<RulebookCell> ReadFile(string path)
     {
         using (var reader = new StreamReader(path, new UTF8Encoding(false, true), true))
-            foreach (var cell in RulebookCsv.Read(reader, yieldSkippedFields: true)) yield return cell;
+            foreach (var cell in RulebookCsv.Read(reader, yieldSkippedFields: true, onExcluded: AddCell)) yield return cell;
     }
 
     internal void ReadNextBatch()
@@ -101,12 +102,7 @@ internal sealed class RulebookCsvWindow : EditorWindow
             {
                 if (!import.MoveNext()) { StopReading(); break; }
                 var cell = import.Current;
-                if (cell != null)
-                {
-                    cells.Add(cell);
-                    if (cell.Error == null) SuccessCount++;
-                    if (cells.Count == 1) preview = cell.Error ?? cell.BuildText();
-                }
+                if (cell != null) AddCell(cell);
                 if (EditorApplication.timeSinceStartup >= deadline) break;
             }
         }
@@ -117,6 +113,14 @@ internal sealed class RulebookCsvWindow : EditorWindow
             importError = message;
         }
         Repaint();
+    }
+
+    private void AddCell(RulebookCell cell)
+    {
+        cells.Add(cell);
+        if (cell.ExclusionReason != null) ExclusionCount++;
+        else if (cell.Data != null) SuccessCount++;
+        if (cells.Count == 1) preview = cell.ExclusionReason ?? cell.Error ?? cell.BuildText();
     }
 
     private void StopReading()
@@ -130,7 +134,7 @@ internal sealed class RulebookCsvWindow : EditorWindow
     {
         StopReading();
         cells.Clear();
-        SuccessCount = page = selected = 0;
+        SuccessCount = ExclusionCount = page = selected = 0;
         fileName = preview = "";
         jsonPreview = null;
         scroll = Vector2.zero;

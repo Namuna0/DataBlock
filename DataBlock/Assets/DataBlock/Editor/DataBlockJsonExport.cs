@@ -102,8 +102,16 @@ internal sealed class DataBlockJsonExport
                 States.Extract(equipment, "States", (string)equipment["Name"], row, column);
                 foreach (var skill in equipment["Skills"].AsArray()) SplitSkill(skill.AsObject());
                 break;
-            case ItemTextData _:
+            case ItemTextData itemData:
                 var item = root["Item"].AsObject();
+                if (ItemTextConverter.GetOwnSkill(itemData.Item) != null)
+                {
+                    var own = item["OwnSkills"][0].AsObject();
+                    // 本体の名前とカテゴリーは、アイテム自体の改名・再分類に追従する。
+                    own["Skill"]["Name"] = (string)item["Name"];
+                    own["Skill"]["Categories"] = item["Categories"].DeepClone();
+                    SplitSkill(own);
+                }
                 foreach (var trait in item["Traits"].AsArray()) SplitSkill(trait.AsObject());
                 foreach (var skill in item["Skills"].AsArray()) SplitSkill(skill.AsObject());
                 break;

@@ -361,6 +361,31 @@ internal sealed class SkillTextConverterTests
         Assert.That(parsed.Skill.Effects.SelectMany(x => x.Contents).Count(x => x.Type == EffectContentType.WeaponAttack), Is.EqualTo(2));
     }
 
+    [TestCase("- 1～2：")]
+    [TestCase("追加ロール1の出目が1～2の時、")]
+    public void RandomResult_AppliesToEverySentenceOnItsLine(string prefix)
+    {
+        var data = SkillTextConverter.Parse("《抽選》\n【アクティブ効果】1d6のダイスロールを行う。\n" +
+            prefix + "自身のHPを10回復する。さらに自身のMPを20回復する。\n自身のSPを3回復する。");
+        var effects = data.Skill.Effects.Skip(1).ToArray();
+        Assert.That(effects.Select(e => e.Contents.Single().Parameters[1]), Is.EqualTo(new[] { "HP", "MP", "SP" }));
+        foreach (var effect in effects.Take(2))
+            Assert.That(effect.Triggers.Single().Conditions.And.Single().Parameters, Is.EqualTo(new[] { "1", "1～2" }));
+        Assert.That(effects.Last().Triggers, Is.Empty);
+        var rebuilt = SkillTextConverter.Build(data);
+        Assert.That(UnityEngine.JsonUtility.ToJson(SkillTextConverter.Parse(rebuilt)), Is.EqualTo(UnityEngine.JsonUtility.ToJson(data)));
+    }
+
+    [Test]
+    public void RandomResult_SplitStateApplicationsKeepTheRollCondition()
+    {
+        var data = SkillTextConverter.Parse("《抽選》\n【アクティブ効果】1d6のダイスロールを行う。\n" +
+            "- 2：自身は《青》かつ《赤》状態になる。");
+        var applied = data.Skill.Effects.Skip(1).ToArray();
+        Assert.That(applied.Select(e => e.Contents.Single().Parameters[1]), Is.EqualTo(new[] { "青", "赤" }));
+        Assert.That(applied.All(e => e.Triggers.Single().Conditions.And.Single().Parameters.SequenceEqual(new[] { "1", "2" })), Is.True);
+    }
+
     [Test]
     public void RandomResult_AllowsMultipleEffectsForTheSameOutcome()
     {
