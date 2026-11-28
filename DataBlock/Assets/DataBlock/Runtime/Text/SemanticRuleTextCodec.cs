@@ -97,6 +97,9 @@ public static partial class SkillTextConverter
         RegisterCounterRules(new RuleSection(rules, false, EffectType.Counter));
         RegisterPassiveRules(new RuleSection(rules, false, EffectType.Passive));
         RegisterFailureRules(new RuleSection(rules, false, EffectType.Failure));
+        RegisterCombatActionRules(new RuleSection(rules, false, EffectType.Active, EffectType.Counter));
+        RegisterCombatOutcomeRules(new RuleSection(rules, false, EffectType.Success, EffectType.Failure, EffectType.Critical));
+        RegisterCombatStateRules(new RuleSection(rules, true, EffectType.Passive));
         return rules;
     }
 

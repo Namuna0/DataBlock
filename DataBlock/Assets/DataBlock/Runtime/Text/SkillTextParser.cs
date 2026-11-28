@@ -108,6 +108,11 @@ public static partial class SkillTextConverter
                     if (current.Categories.Count > 0) throw new InvalidOperationException("カテゴリー行が重複しています。");
                     current.Categories = Categories(line); continue;
                 }
+                // A bare state heading belongs to a state already referenced by this skill.
+                var shortState = M(line, @"^([^〈〉《》【】：:。]+)[：:](.+)$");
+                if (shortState.Success && current.Effects.SelectMany(e => e.Contents)
+                    .Any(c => c.Parameters.Contains(shortState.Groups[1].Value)))
+                    line = shortState.Groups[1].Value + "効果：" + shortState.Groups[2].Value;
                 if (TryStateHeader(line, out var definedState, out string stateBody))
                 {
                     RegisterState(definedState);
@@ -150,6 +155,7 @@ public static partial class SkillTextConverter
                         case SkillField.Mp: ReadCosts(current, "MP-" + Number(body, 0, "MP消費")); break;
                         case SkillField.Cooldown:
                             if (M(body, @"^戦闘中[0-9]+度だけ$").Success) { AddConditions(current.DeclarationConditions, body); break; }
+                            if (body == "∞ターン") { current.CooldownTurns = -1; break; }
                             Match cooldown = M(body, @"^([0-9]+)ターン$");
                             if (!cooldown.Success) throw new InvalidOperationException("クールタイムは1ターンの形式です。");
                             current.CooldownTurns = Number(cooldown.Groups[1].Value, 0, "クールタイム"); break;
@@ -176,12 +182,12 @@ public static partial class SkillTextConverter
                             }
                             var representative = M(body, @"^代表([1-9][0-9]*)名が(.+)$");
                             if (representative.Success) body = representative.Groups[2].Value;
-                            if (body == "自動成功")
+                            if (body.TrimEnd('。') == "自動成功")
                             {
                                 current.Roll = new DiceRollDefinition { Count = 1, Formula = "自動成功" };
                                 break;
                             }
-                            Match roll = M(body, @"^(?:([0-9]+)回(?:連続)?[：:]\s*)?(.+?)\s+目標値(.+)$");
+                            Match roll = M(body, @"^(?:([0-9]+)回(?:連続)?[：:]\s*)?(.+?)(?:\s*目標値\s*|\s+(?=\[対象の達成値\]$))(.+)$");
                             if (!roll.Success) throw new InvalidOperationException("発動ロールは「式 目標値30」の形式です。");
                             current.Roll = new DiceRollDefinition { Count = roll.Groups[1].Success ? Number(roll.Groups[1].Value, 1, "回数") : 1, Formula = roll.Groups[2].Value.Trim(), Target = roll.Groups[3].Value.Trim(),
                                 RepresentativeCount = representative.Success ? Number(representative.Groups[1].Value, 1, "代表人数") : 0 }; break;

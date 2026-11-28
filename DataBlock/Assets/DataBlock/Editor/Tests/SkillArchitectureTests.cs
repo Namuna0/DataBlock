@@ -26,6 +26,71 @@ internal sealed class SkillArchitectureTests
         return data.Skill.Effects.SelectMany(x => x.Contents);
     }
 
+    [Test]
+    public void DistinguishAllEnemyDamageFromConditionalHealingCount()
+    {
+        var data = RoundTrip("《試験》\n【アクティブ効果】敵全体へ17+2d100のMPダメージを与える。\n"
+            + "この効果の対象にHPが-5以下のキャラクターが含まれる場合、\n対象1体につき自身のSPとACTを13回復する。");
+        var contents = Contents(data).ToArray();
+        Assert.That(contents.Select(c => c.Type), Is.EqualTo(new[] { EffectContentType.ResourceDamage, EffectContentType.RecoverPerTargetWhenResourceLow }));
+        Assert.That(contents[0].Parameters, Is.EqualTo(new[] { "AllEnemies", "MP", "17+2d100" }));
+        Assert.That(contents[1].Parameters, Is.EqualTo(new[] { "HP", "-5", "SP", "ACT", "13" }));
+    }
+
+    [Test]
+    public void StateModifiersKeepTheirResourceAndActionCategories()
+    {
+        var data = RoundTrip("《試験》\n【アクティブ効果】対象は3ターンの間《試験状態》状態になる。\n"
+            + "試験状態効果〈マインド〉：自身がMPダメージを受ける時、そのMPダメージは×1.3倍される。\n"
+            + "さらに自身の〈攻撃〉及び〈魔法〉による達成値は×0.8倍される。");
+        var modifiers = data.States.Single().Overrides.SelectMany(e => e.Contents).ToArray();
+        Assert.That(modifiers[0].Parameters, Is.EqualTo(new[] { "Self", "自身が受けるMPダメージ", "Multiply", "1.3" }));
+        Assert.That(modifiers[1].Parameters, Is.EqualTo(new[] { "攻撃, 魔法", "0.8" }));
+    }
+
+    [Test]
+    public void MixedElementAttacks_KeepBothPowerFormulasAndTargetScope()
+    {
+        var data = RoundTrip(Source("【アクティブ効果】全ての敵キャラクターに2d100*2の威力と75の水かつ土属性威力で攻撃する。"));
+        var attack = Contents(data).Single();
+        Assert.That(attack.Type, Is.EqualTo(EffectContentType.CombinedPowerAttack));
+        Assert.That(attack.Parameters, Is.EqualTo(new[] { "全ての敵キャラクター", "2d100*2", "75", "水かつ土" }));
+    }
+
+    [Test]
+    public void IndividualAndRepeatedAttacks_HaveDistinctRollSemantics()
+    {
+        var data = RoundTrip(Source("【アクティブ効果】対象個別に100+(1d2-1)*50の威力で攻撃する。",
+            "対象を3回連続で2d100の威力で攻撃する。"));
+        var attacks = Contents(data).ToArray();
+        Assert.That(attacks.Select(x => x.Type), Is.EqualTo(new[] { EffectContentType.IndividualTargetAttack, EffectContentType.RepeatedPowerAttack }));
+        Assert.That(attacks[0].Parameters, Is.EqualTo(new[] { "100+(1d2-1)*50" }));
+        Assert.That(attacks[1].Parameters, Is.EqualTo(new[] { "3", "2d100" }));
+    }
+
+    [Test]
+    public void RetaliationKeepsTheAttackerSeparateFromThePowerFormula()
+    {
+        var data = RoundTrip(Source("【カウンター効果】自身を攻撃した対象を150+1d100の威力で攻撃する。"));
+        var attack = Contents(data).Single();
+        Assert.That(attack.Type, Is.EqualTo(EffectContentType.AttackIncomingAttacker));
+        Assert.That(attack.Parameters, Is.EqualTo(new[] { "150+1d100" }));
+    }
+
+    [Test]
+    public void InjuriesAndResponseCosts_KeepTheConditionAndActingSide()
+    {
+        var data = RoundTrip(Source("【アクティブ効果】対象を100の威力で攻撃する。",
+            "この攻撃によって対象を《試験状態》状態にした場合。",
+            "判定ロールの結果は必ず《試験結果》となる。",
+            "この攻撃に対してのカウンター効果を宣言する場合、消費リソースのSPは+2される。"));
+        var effects = Contents(data).ToArray();
+        Assert.That(effects[1].Type, Is.EqualTo(EffectContentType.SetRollOnInflictingState));
+        Assert.That(effects[1].Parameters, Is.EqualTo(new[] { "試験状態", "判定", "試験結果" }));
+        Assert.That(effects[2].Type, Is.EqualTo(EffectContentType.ResponseResourceCostDelta));
+        Assert.That(effects[2].Parameters, Is.EqualTo(new[] { "SP", "+2" }));
+    }
+
     [TestCase("キャラクターを4体まで選択して宣言可能。（重複不可）", "キャラクターを4体まで選択（重複不可）")]
     [TestCase("自身が〈攻撃〉を受けた時、宣言可能。", "自身が〈攻撃〉を受けた時")]
     [TestCase("1ターンに2回まで, 敵または味方のターンの終了時に宣言可能。", "1ターンに2回まで, 敵または味方のターンの終了時")]

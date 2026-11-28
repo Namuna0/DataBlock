@@ -59,6 +59,9 @@ internal sealed class RulebookCsvWindow : EditorWindow
         }
         var current = cells[selected];
         GUILayout.Label("《" + current.Name + "》", EditorStyles.boldLabel);
+        if (current.Data is EnemyTextData enemy)
+            foreach (string warning in EnemyTextConverter.ReferenceWarnings(enemy.Enemy))
+                EditorGUILayout.HelpBox(warning, MessageType.Warning);
         using (new EditorGUI.DisabledScope(current.Data == null))
         using (new EditorGUILayout.HorizontalScope())
         {

@@ -5,134 +5,253 @@ using System.Text.RegularExpressions;
 
 public static partial class EnemyTextConverter
 {
-    private static EnemyActionRule ParseAction(string text)
+    private static List<EnemyActionRule> ParseActions(IEnumerable<string> lines)
     {
-        Match reaction = Match(text, @"^あらゆる自身への〈([^〉]+)〉に対して《([^》]+)》を発動する。?$");
-        if (reaction.Success)
+        var actions = new List<EnemyActionRule>();
+        var group = new List<string>();
+        foreach (string raw in lines)
         {
-            return new EnemyActionRule
+            string line = raw.Trim();
+            if (line.Length == 0) continue;
+            bool bullet = line.StartsWith("●", StringComparison.Ordinal) || line.StartsWith("・", StringComparison.Ordinal);
+            if (bullet) line = line.Substring(1).Trim();
+            bool named = TryNameHeader(line, out string name);
+            if ((bullet || named) && group.Count > 0)
             {
-                Timing = EnemyActionTiming.Reaction,
-                SkillName = Need(reaction.Groups[2].Value, "行動スキル名"),
-                AllConditions = new List<EnemyActionCondition>
-                {
-                    NewActionCondition(EnemyActionConditionType.IncomingAction, reaction.Groups[1].Value)
-                }
-            };
+                actions.Add(ReadActionGroup(group));
+                group.Clear();
+            }
+            if (named)
+            {
+                actions.Add(new EnemyActionRule { Timing = EnemyActionTiming.Listed, SkillName = name });
+                continue;
+            }
+            group.Add(line);
         }
+        if (group.Count > 0) actions.Add(ReadActionGroup(group));
+        return actions;
+    }
 
-        Match turn = Match(text,
-            @"^毎ターン([0-9]+)回、(.+)、(同じ接近グループの選択可能なランダムな敵|選択可能なランダムな敵)に《([^》]+)》を発動する。?$");
-        if (!turn.Success) throw new InvalidOperationException("未対応の行動文です：" + text);
-
-        string conditionText = turn.Groups[2].Value;
-        bool hasAnd = conditionText.Contains("、かつ");
-        bool hasOr = conditionText.Contains("、または");
-        if (hasAnd && hasOr) throw new InvalidOperationException("行動条件で「かつ」と「または」は混在できません。");
-
-        string separator = hasOr ? "、または" : "、かつ";
-        List<EnemyActionCondition> conditions = conditionText.Split(new[] { separator }, StringSplitOptions.None)
-            .Select(ParseActionCondition).ToList();
-        if (conditions.Count == 0) throw new InvalidOperationException("行動条件がありません。");
-
-        var rule = new EnemyActionRule
+    private static EnemyActionRule ReadActionGroup(List<string> lines)
+    {
+        var rule = new EnemyActionRule();
+        string head = lines[0];
+        int firstBranch = 1;
+        if (lines.Count > 1 && head == "スタンバイフェーズ" && lines[1].StartsWith("《", StringComparison.Ordinal))
         {
-            Timing = EnemyActionTiming.Turn,
-            UsesPerTurn = Number(turn.Groups[1].Value, 1, "毎ターンの発動回数"),
-            TargetSelector = turn.Groups[3].Value.StartsWith("同じ接近グループ", StringComparison.Ordinal)
-                ? EnemyActionTargetSelector.RandomSelectableEnemyInMeleeGroup
-                : EnemyActionTargetSelector.RandomSelectableEnemy,
-            SkillName = Need(turn.Groups[4].Value, "行動スキル名")
-        };
-        if (hasOr) rule.AnyConditions.AddRange(conditions);
-        else rule.AllConditions.AddRange(conditions);
+            head += "、" + lines[1];
+            firstBranch++;
+        }
+        ReadActionStep(rule, head, rule);
+        for (int i = firstBranch; i < lines.Count; i++)
+        {
+            string line = lines[i].TrimStart('-', ' ');
+            var branch = new EnemyActionBranch();
+            Match range = Match(line, @"^([0-9]+)(?:[～~]([0-9]+))?[：:]\s*");
+            if (range.Success)
+            {
+                branch.MinimumRoll = Number(range.Groups[1].Value, 1, "分岐の出目");
+                branch.MaximumRoll = range.Groups[2].Success ? Number(range.Groups[2].Value, branch.MinimumRoll, "分岐の出目") : branch.MinimumRoll;
+                line = line.Substring(range.Length);
+            }
+            ReadActionStep(branch, line, null);
+            rule.Branches.Add(branch);
+        }
+        ValidateActionBranches(rule);
         return rule;
     }
 
-    private static EnemyActionCondition ParseActionCondition(string text)
+    private static void ReadActionStep(EnemyActionStep step, string text, EnemyActionRule rule)
     {
-        text = text.Trim();
-        Match state = Match(text, @"^《([^》]+)》状態ではない時$");
-        if (state.Success) return NewActionCondition(EnemyActionConditionType.OwnState, state.Groups[1].Value, true);
-        state = Match(text, @"^《([^》]+)》状態の時$");
-        if (state.Success) return NewActionCondition(EnemyActionConditionType.OwnState, state.Groups[1].Value);
-        if (text == "同じ接近グループに選択可能な敵が居ない場合")
-            return NewActionCondition(EnemyActionConditionType.NoSelectableEnemyInMeleeGroup);
-        throw new InvalidOperationException("未対応の行動条件です：" + text);
+        text = text.Trim().Replace("》　状態", "》状態").Replace("のからの、自身への", "からの自身への");
+        if (text.EndsWith("（重複しない）", StringComparison.Ordinal))
+        {
+            step.DistinctTargets = true;
+            text = text.Substring(0, text.Length - "（重複しない）".Length);
+        }
+        var skill = Match(text, @"(?:([0-9]+)回連続で)?《([^《》]+)》(アイテム)?を(?:([0-9]+)回)?発動する。?$");
+        var idle = Match(text, @"(?:何もしない|行動なし)。?$");
+        var roll = Match(text, @"ダイスロール([1-9][0-9]*d[1-9][0-9]*)$");
+        if (skill.Success)
+        {
+            step.SkillName = Token(skill.Groups[2].Value, "行動スキル名", "《》");
+            step.UseItem = skill.Groups[3].Success;
+            step.Consecutive = skill.Groups[1].Success;
+            if (step.Consecutive || skill.Groups[4].Success)
+                step.RepeatCount = Number(skill.Groups[step.Consecutive ? 1 : 4].Value, 1, "繰り返し回数");
+            text = text.Substring(0, skill.Index);
+        }
+        else if (idle.Success) { step.DoNothing = true; text = text.Substring(0, idle.Index); }
+        else if (rule != null && roll.Success) { rule.BranchRoll = roll.Groups[1].Value; text = text.Substring(0, roll.Index); }
+        else if (rule == null) throw new InvalidOperationException("分岐に行動がありません：" + text);
+
+        if (rule != null) text = ReadActionTiming(rule, text);
+        text = text.Replace("または同じ接近グループに選択可能な敵が居ない場合、接近状態ではない時",
+                "接近状態ではない時、または同じ接近グループに選択可能な敵が居ない場合")
+            .Replace("時または同じ", "時、または同じ").Replace("状態かつ《", "状態の時、かつ《")
+            .Replace("減少しているまたは〈", "減少している、または〈");
+        text = Replace(text, @"(居ない場合は|味方が居ない時は|に対して)(?=選択可能な|ランダムな)", "$1、");
+        string[] clauses = text.Split(new[] { '、' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < clauses.Length; i++)
+        {
+            string clause = clauses[i].Trim();
+            bool any = clause.StartsWith("または", StringComparison.Ordinal) ||
+                (i + 1 < clauses.Length && clauses[i + 1].TrimStart().StartsWith("または", StringComparison.Ordinal));
+            clause = Replace(clause, "^(または|かつ)", "");
+            if (TryActionCondition(clause, out var condition)) (any ? step.AnyConditions : step.AllConditions).Add(condition);
+            else if (i == clauses.Length - 1) ReadActionTarget(step, clause);
+            else throw new InvalidOperationException("未対応の行動条件です：" + clause);
+        }
+        if (rule != null)
+        {
+            if (rule.AllConditions.Concat(rule.AnyConditions).Any(IsReaction) && (rule.Timing == EnemyActionTiming.Conditional || rule.Timing == EnemyActionTiming.Turn))
+                rule.Timing = EnemyActionTiming.Reaction;
+            if (rule.DoNothing && rule.Timing == EnemyActionTiming.Conditional && clauses.Length == 0) rule.Timing = EnemyActionTiming.None;
+        }
+    }
+
+    private static string ReadActionTiming(EnemyActionRule rule, string text)
+    {
+        rule.Timing = EnemyActionTiming.Conditional;
+        var turn = Match(text, @"(?:^|、)(?:チームで)?毎ターン([1-9][0-9]*(?:d[1-9][0-9]*(?:\+[0-9]+)?)?)回(まで)?(?:、|,\s*)?");
+        if (!turn.Success && text.StartsWith("スタンバイフェーズ及び", StringComparison.Ordinal))
+            turn = Match(text, @"毎ターン([1-9][0-9]*)回(まで)?、?");
+        if (turn.Success)
+        {
+            rule.Timing = EnemyActionTiming.Turn;
+            rule.TeamLimit = turn.Value.Contains("チームで");
+            rule.UpToUsesPerTurn = turn.Groups[2].Success;
+            if (turn.Groups[1].Value.Contains("d")) rule.UsesPerTurnFormula = turn.Groups[1].Value;
+            else rule.UsesPerTurn = Number(turn.Groups[1].Value, 1, "毎ターンの発動回数");
+            text = text.Remove(turn.Index, turn.Length).Insert(turn.Index, "、");
+        }
+        if (text.StartsWith("スタンバイフェーズ", StringComparison.Ordinal))
+        {
+            rule.Timing = text.StartsWith("スタンバイフェーズ及び", StringComparison.Ordinal) ? EnemyActionTiming.StandbyAndTurn : EnemyActionTiming.Standby;
+            text = Replace(text, "^スタンバイフェーズ(?:及び)?", "");
+        }
+        else if (text.StartsWith("エンカウントフェーズ", StringComparison.Ordinal))
+        {
+            rule.Timing = EnemyActionTiming.Encounter;
+            text = text.Substring("エンカウントフェーズ".Length);
+        }
+        var battle = Match(text, @"^(?:戦闘開始から)?([1-9][0-9]*)ターン目(以降|開始時)?");
+        if (battle.Success)
+        {
+            rule.BattleTurn = Number(battle.Groups[1].Value, 1, "戦闘ターン");
+            if (battle.Groups[2].Value != "以降") rule.Timing = battle.Groups[2].Value == "開始時" ? EnemyActionTiming.BattleTurnStart : EnemyActionTiming.BattleTurn;
+            text = text.Substring(battle.Length);
+        }
+        var limit = Match(text, @"^戦闘中([1-9][0-9]*)度だけ");
+        if (limit.Success)
+        {
+            rule.UsesPerBattle = Number(limit.Groups[1].Value, 1, "戦闘中の制限回数");
+            text = text.Substring(limit.Length);
+        }
+        return text.Trim('、', ' ');
+    }
+
+    private static IEnumerable<string> ActionSkillNames(EnemyActionRule action)
+    {
+        if (action == null || action.Branches == null) throw new InvalidOperationException("行動または行動分岐が空です。");
+        return new EnemyActionStep[] { action }.Concat(action.Branches)
+            .Where(step => step != null && !step.UseItem && !string.IsNullOrEmpty(step.SkillName)).Select(step => step.SkillName);
+    }
+
+    private static void ValidateActionBranches(EnemyActionRule rule)
+    {
+        if (rule.Branches == null) throw new InvalidOperationException("行動分岐が空です。");
+        bool rolled = !string.IsNullOrEmpty(rule.BranchRoll);
+        bool hasAction = !string.IsNullOrEmpty(rule.SkillName) || rule.DoNothing;
+        if (!hasAction && rule.Branches.Count == 0 || hasAction && rolled)
+            throw new InvalidOperationException("行動または行動分岐を指定してください。");
+        if (rolled && !Match(rule.BranchRoll, @"^[1-9][0-9]*d[1-9][0-9]*$").Success) throw new InvalidOperationException("行動分岐のダイス式が不正です。");
+        int min = 0;
+        long max = 0;
+        if (rolled)
+        {
+            string[] dice = rule.BranchRoll.Split('d');
+            min = Number(dice[0], 1, "ダイス数");
+            max = (long)min * Number(dice[1], 1, "ダイス面数");
+        }
+        for (int i = 0; i < rule.Branches.Count; i++)
+        {
+            var branch = rule.Branches[i];
+            if (branch == null || (string.IsNullOrEmpty(branch.SkillName) && !branch.DoNothing) || (branch.MinimumRoll != 0 && (!rolled || branch.MinimumRoll < min || branch.MaximumRoll > max)) ||
+                (rolled && i == 0 && branch.MinimumRoll == 0) || branch.MaximumRoll < branch.MinimumRoll ||
+                (branch.MinimumRoll == 0 && branch.MaximumRoll != 0)) throw new InvalidOperationException("行動分岐の出目範囲が不正です。");
+            if (branch.MinimumRoll > 0 && rule.Branches.Take(i).Any(other => other.MinimumRoll > 0 && other.MinimumRoll <= branch.MaximumRoll && branch.MinimumRoll <= other.MaximumRoll))
+                throw new InvalidOperationException("行動分岐の出目が重複しています。");
+        }
     }
 
     private static string ActionText(EnemyActionRule action)
     {
         if (action == null) throw new InvalidOperationException("行動がnullです。");
-        if (action.AllConditions == null || action.AnyConditions == null)
-            throw new InvalidOperationException("行動条件を初期化してください。");
-        if (action.AllConditions.Any(x => x == null) || action.AnyConditions.Any(x => x == null))
-            throw new InvalidOperationException("行動条件にnullがあります。");
-        string skillName = Token(action.SkillName, "行動スキル名", "《》");
-
-        if (action.Timing == EnemyActionTiming.Reaction)
+        ValidateActionBranches(action);
+        var prefix = new List<string>();
+        string quota = action.UsesPerTurn > 0 ? action.UsesPerTurn.ToString() : action.UsesPerTurnFormula ?? "";
+        if (action.UsesPerTurn < 0 || action.UsesPerBattle < 0 || action.BattleTurn < 0 || (action.UsesPerTurn > 0 && !string.IsNullOrEmpty(action.UsesPerTurnFormula)) ||
+            (quota.Length > 0 && !Match(quota, @"^[1-9][0-9]*(?:d[1-9][0-9]*(?:\+[0-9]+)?)?$").Success))
+            throw new InvalidOperationException("行動の回数指定が不正です。");
+        bool turnQuota = quota.Length > 0;
+        bool hasTrigger = action.AllConditions != null && action.AnyConditions != null &&
+            action.AllConditions.Concat(action.AnyConditions).Any(IsReaction);
+        bool expectedQuota = action.Timing == EnemyActionTiming.Turn || action.Timing == EnemyActionTiming.StandbyAndTurn;
+        bool fixedTurn = action.Timing == EnemyActionTiming.BattleTurn || action.Timing == EnemyActionTiming.BattleTurnStart;
+        if (!Enum.IsDefined(typeof(EnemyActionTiming), action.Timing) || (expectedQuota && !turnQuota) ||
+            (turnQuota && !expectedQuota && action.Timing != EnemyActionTiming.Reaction) ||
+            ((action.UpToUsesPerTurn || action.TeamLimit) && !turnQuota) ||
+            (fixedTurn && action.BattleTurn == 0) || (action.BattleTurn > 0 && !fixedTurn && !turnQuota) ||
+            ((action.Timing == EnemyActionTiming.Conditional || action.Timing == EnemyActionTiming.Turn || action.Timing == EnemyActionTiming.Reaction)
+                && (action.Timing == EnemyActionTiming.Reaction) != hasTrigger))
+            throw new InvalidOperationException("行動のタイミング・回数と条件が一致しません。");
+        if (action.Timing == EnemyActionTiming.Listed || action.Timing == EnemyActionTiming.None)
         {
-            if (action.UsesPerTurn != 0 || action.TargetSelector != EnemyActionTargetSelector.None ||
-                action.AnyConditions.Count != 0 || action.AllConditions.Count != 1 ||
-                action.AllConditions[0].Type != EnemyActionConditionType.IncomingAction ||
-                action.AllConditions[0].Negated)
-                throw new InvalidOperationException("反応行動は、自身への行動カテゴリー1件だけを条件にしてください。");
-            return "あらゆる自身への〈" + Token(action.AllConditions[0].Value, "反応する行動カテゴリー", "〈〉") +
-                   "〉に対して《" + skillName + "》を発動する。";
+            if (action.AllConditions == null || action.AllConditions.Count > 0 || action.AnyConditions == null || action.AnyConditions.Count > 0 ||
+                action.UsesPerBattle != 0 || action.Branches.Count > 0 || action.UseItem || action.RepeatCount != 1 || action.Consecutive ||
+                ActionTargetText(action).Length > 0 || action.DoNothing != (action.Timing == EnemyActionTiming.None) ||
+                action.DoNothing != string.IsNullOrEmpty(action.SkillName))
+                throw new InvalidOperationException("名前のみ・行動なしの記述には追加条件を指定できません。");
+            return action.DoNothing ? "何もしない。" : "《" + Token(action.SkillName, "行動スキル名", "《》") + "》";
         }
-
-        if (action.Timing != EnemyActionTiming.Turn)
-            throw new InvalidOperationException("未対応の行動タイミングです：" + action.Timing);
-        if (action.UsesPerTurn < 1) throw new InvalidOperationException("毎ターンの発動回数は1以上にしてください。");
-        if (action.AllConditions.Count != 0 && action.AnyConditions.Count != 0)
-            throw new InvalidOperationException("行動のAND条件とOR条件は同時に指定できません。");
-        if (action.AllConditions.Count == 0 && action.AnyConditions.Count < 2)
-            throw new InvalidOperationException("毎ターン行動にはAND条件1件以上、またはOR条件2件以上が必要です。");
-        if (action.AllConditions.Any(x => x.Type == EnemyActionConditionType.IncomingAction) ||
-            action.AnyConditions.Any(x => x.Type == EnemyActionConditionType.IncomingAction))
-            throw new InvalidOperationException("IncomingAction条件は反応行動だけに指定できます。");
-
-        string target;
-        switch (action.TargetSelector)
+        if (action.UsesPerBattle > 0) prefix.Add("戦闘中" + action.UsesPerBattle + "度だけ");
+        if (action.BattleTurn > 0)
+            prefix.Add("戦闘開始から" + action.BattleTurn + "ターン目" +
+                (action.Timing == EnemyActionTiming.BattleTurnStart ? "開始時" : action.Timing == EnemyActionTiming.BattleTurn ? "" : "以降"));
+        if (action.Timing == EnemyActionTiming.Encounter) prefix.Add("エンカウントフェーズ");
+        if (action.Timing == EnemyActionTiming.Standby) prefix.Add("スタンバイフェーズ");
+        if (quota.Length > 0)
+            prefix.Add((action.Timing == EnemyActionTiming.StandbyAndTurn ? "スタンバイフェーズ及び" : "") + (action.TeamLimit ? "チームで" : "") +
+                "毎ターン" + quota + "回" + (action.UpToUsesPerTurn ? "まで" : ""));
+        string result = ActionStepText(action, prefix, !string.IsNullOrEmpty(action.BranchRoll) ? "ダイスロール" + action.BranchRoll : "");
+        foreach (var branch in action.Branches)
         {
-            case EnemyActionTargetSelector.RandomSelectableEnemy:
-                target = "選択可能なランダムな敵";
-                break;
-            case EnemyActionTargetSelector.RandomSelectableEnemyInMeleeGroup:
-                target = "同じ接近グループの選択可能なランダムな敵";
-                break;
-            default:
-                throw new InvalidOperationException("毎ターン行動の対象選択が不正です：" + action.TargetSelector);
+            string range = branch.MinimumRoll == 0 ? "" : branch.MinimumRoll +
+                (branch.MaximumRoll == branch.MinimumRoll ? "" : "～" + branch.MaximumRoll) + "：";
+            result += "\n" + (range.Length > 0 || string.IsNullOrEmpty(action.BranchRoll) ? "- " : "") + range + ActionStepText(branch, new List<string>(), "");
         }
-
-        bool isOr = action.AnyConditions.Count != 0;
-        IEnumerable<EnemyActionCondition> conditions = isOr ? action.AnyConditions : action.AllConditions;
-        string conditionText = string.Join(isOr ? "、または" : "、かつ", conditions.Select(ActionConditionText));
-        return "毎ターン" + action.UsesPerTurn + "回、" + conditionText + "、" + target + "に《" + skillName + "》を発動する。";
+        return result;
     }
 
-    private static string ActionConditionText(EnemyActionCondition condition)
+    private static string ActionStepText(EnemyActionStep step, List<string> prefix, string execution)
     {
-        switch (condition.Type)
-        {
-            case EnemyActionConditionType.OwnState:
-                string stateName = Token(condition.Value, "状態名", "《》");
-                if (stateName.Contains("、または") || stateName.Contains("、かつ"))
-                    throw new InvalidOperationException("行動条件の状態名に「、または」「、かつ」は使用できません。");
-                return "《" + stateName + "》状態" + (condition.Negated ? "ではない時" : "の時");
-            case EnemyActionConditionType.NoSelectableEnemyInMeleeGroup:
-                if (condition.Negated || !string.IsNullOrWhiteSpace(condition.Value))
-                    throw new InvalidOperationException("接近グループ対象なし条件には値や否定を指定できません。");
-                return "同じ接近グループに選択可能な敵が居ない場合";
-            case EnemyActionConditionType.IncomingAction:
-                throw new InvalidOperationException("IncomingAction条件は反応行動として出力してください。");
-            default:
-                throw new InvalidOperationException("未対応の行動条件種別です：" + condition.Type);
-        }
-    }
-
-    private static EnemyActionCondition NewActionCondition(EnemyActionConditionType type, string value = "", bool negated = false)
-    {
-        return new EnemyActionCondition { Type = type, Value = value, Negated = negated };
+        if (step.AllConditions == null || step.AnyConditions == null || step.AnyConditions.Count == 1 || step.RepeatCount < 1)
+            throw new InvalidOperationException("行動の条件または回数が不正です。");
+        if (string.IsNullOrEmpty(step.SkillName) && (step.UseItem || step.RepeatCount != 1 || step.Consecutive) ||
+            step.DoNothing && !string.IsNullOrEmpty(step.SkillName)) throw new InvalidOperationException("実行する行動の指定が不正です。");
+        prefix.AddRange(step.AllConditions.Select(ActionConditionText));
+        if (step.AnyConditions.Count > 0) prefix.Add(string.Join("、または", step.AnyConditions.Select(ActionConditionText)));
+        string target = ActionTargetText(step);
+        if (target.Length > 0) prefix.Add(target);
+        if (step.DoNothing) execution = "何もしない。";
+        else if (!string.IsNullOrEmpty(step.SkillName))
+            execution = (step.Consecutive ? step.RepeatCount + "回連続で" : "") + "《" + Token(step.SkillName, "行動スキル名", "《》") + "》" +
+                (step.UseItem ? "アイテム" : "") + "を" + (!step.Consecutive && step.RepeatCount != 1 ? step.RepeatCount + "回" : "") + "発動する。";
+        if (prefix.Count == 0) return execution;
+        string last = prefix[prefix.Count - 1];
+        bool connect = !execution.StartsWith("ダイスロール", StringComparison.Ordinal) &&
+            (target.Length > 0 || last.EndsWith("に対して", StringComparison.Ordinal));
+        return string.Join("、", prefix) + (connect ? "" : "、") + execution;
     }
 }

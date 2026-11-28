@@ -288,7 +288,7 @@ public enum EffectContentType
     /// <summary>選択したスキルの使用を禁止する。</summary>
     ProhibitSelectedSkill = 57, // Self, SelectedSkill
     /// <summary>対象の指定リソースにダメージを与える。</summary>
-    ResourceDamage = 58, // Target, resource, formula
+    ResourceDamage = 58, // Target or AllEnemies, resource, formula
     /// <summary>与えたリソースダメージに応じて、自身の指定リソースを回復する。</summary>
     RestoreFromResourceDamage = 59, // Self, source resource, restored resource, multiplier, ThisResolution
     /// <summary>付与者が対象を味方として扱い、ターンごとの上限内でその行動を宣言する。</summary>
@@ -1821,7 +1821,293 @@ public enum EffectContentType
     /// <summary>指定のイベント・条件を満たした時に適用する効果を保持する。</summary>
     ConditionalRule = 834,
     /// <summary>条件に応じて振るダイスの式、出目の範囲と対応する報酬や付与状態を表す。</summary>
-    RollTable = 835
+    RollTable = 835,
+    /// <summary>何も起こらない結果を表す。</summary>
+    NoEffect = 840,
+    /// <summary>対象範囲を選び、通常威力と属性威力を個別の式から求めて攻撃する。</summary>
+    CombinedPowerAttack = 841,
+    /// <summary>対象ごとに威力を個別に算出して攻撃する。</summary>
+    IndividualTargetAttack = 842,
+    /// <summary>指定した回数だけ同じ威力式による攻撃を繰り返す。</summary>
+    RepeatedPowerAttack = 843,
+    /// <summary>カウンターの宣言者に追加のロールと目標値の達成を要求する。</summary>
+    RequireCounterCheck = 844,
+    /// <summary>発動対象の指定リソースに、式で算出したダメージを与える。</summary>
+    DamageActivationTargetPool = 845,
+    /// <summary>名前を参照して指定数のモンスターを召喚する。</summary>
+    SummonEnemy = 846,
+    /// <summary>この攻撃で対象に指定状態を付与した場合、指定ロールの結果を固定する。</summary>
+    SetRollOnInflictingState = 847,
+    /// <summary>この攻撃に対する他の効果の適用を禁止する。</summary>
+    PreventAttackEffects = 848,
+    /// <summary>全ての味方が次の指定回数に行う、該当カテゴリーの行為の威力に倍率を適用する。</summary>
+    NextAllyCategoryPower = 849,
+    /// <summary>全ての敵に指定ターン数の状態を付与する。</summary>
+    ApplyTimedStateAllEnemies = 850,
+    /// <summary>この攻撃の被ダメージ計算に用いる防御点に倍率を適用する。</summary>
+    AttackDefenseFactor = 851,
+    /// <summary>自身を対象とする選択を取り消す。</summary>
+    CancelSelfSelection = 852,
+    /// <summary>対象の状態を解除し、最大リソースに対する割合で回復して蘇生する。</summary>
+    ReviveTargetWithResourcePercent = 853,
+    /// <summary>戦闘エリア内のプレイヤーキャラクターが行う次の進行ロールを所定回数増減する。</summary>
+    AreaProgressRollDelta = 854,
+    /// <summary>敵が対象に付与した指定カテゴリーの状態をランダムに一つ解除する。</summary>
+    RemoveRandomEnemyAppliedCategory = 855,
+    /// <summary>指定リソースへの威力を式で求めて攻撃する。</summary>
+    ResourcePowerAttack = 856,
+    /// <summary>指定ターンの経過後、対象を指定した属性の威力で攻撃する。</summary>
+    DelayedElementAttack = 857,
+    /// <summary>対象の指定カテゴリーの発動を失敗させる。</summary>
+    FailTargetCategory = 858,
+    /// <summary>対象のリソース最大値に対する割合を攻撃の威力とする。</summary>
+    AttackWithTargetMaxPercent = 859,
+    /// <summary>対象を自身と同じ接近グループに移動させる。</summary>
+    MoveTargetToOwnGroup = 860,
+    /// <summary>指定カテゴリーから自身が受けるダメージを式の値だけ軽減する。</summary>
+    ReduceIncomingCategoryDamage = 861,
+    /// <summary>対象の指定リソースに、式で算出したダメージを複数回連続で与える。</summary>
+    RepeatedResourceDamage = 862,
+    /// <summary>戦闘中の全てのキャラクターに称号を付与する。</summary>
+    AwardBattleTitle = 863,
+    /// <summary>列挙されたカテゴリーの効果を無効にする。</summary>
+    CancelCategories = 864,
+    /// <summary>名前で指定されたキャラクターを復活させる。</summary>
+    ReviveNamedCharacter = 865,
+    /// <summary>名前で選んだ味方に指定スキルを発動させる。</summary>
+    AllyUsesSkill = 866,
+    /// <summary>対象の代わりに自身がアクティブ効果を受ける。</summary>
+    InterceptActiveEffect = 867,
+    /// <summary>この攻撃で指定ロールが発生した場合、自身のリソースを0にして状態を付与する。</summary>
+    DefeatSelfOnInjuryRoll = 868,
+    /// <summary>与えたダメージの指定割合を自身のリソースとして回復する。</summary>
+    HealFractionOfDamage = 869,
+    /// <summary>対象と全ての味方を同じ接近グループの接近状態にする。</summary>
+    EngageTargetWithAllAllies = 870,
+    /// <summary>対象が所持する指定サイズのアイテムを、指定個数ランダムに奪う。</summary>
+    StealRandomItemBySize = 871,
+    /// <summary>対象の次のターン開始時に指定リソースを増減する。</summary>
+    NextTargetTurnResourceDelta = 872,
+    /// <summary>明示された対象範囲の全員を、指定属性の威力で攻撃する。</summary>
+    ElementAttackWithScope = 873,
+    /// <summary>自身のターン開始時に指定リソースへのダメージを受ける。</summary>
+    TurnStartPoolDamage = 874,
+    /// <summary>指定カテゴリーを持たないアクティブスキルの使用を禁止する。</summary>
+    ProhibitActiveExceptCategory = 875,
+    /// <summary>指定カテゴリーの対象を、自身以外の選択可能なキャラクターからランダムに選ぶ。</summary>
+    RandomOtherCharacterForCategory = 876,
+    /// <summary>効果の適用後、この状態のスタック数を0にする。</summary>
+    ClearStacksAfterEffect = 877,
+    /// <summary>自身の行動宣言を禁止する。</summary>
+    ProhibitAllActions = 878,
+    /// <summary>ターン開始時に獲得する指定リソースの量を増減する。</summary>
+    TurnStartResourceGainDelta = 879,
+    /// <summary>二つのカテゴリーが両方該当するとき、威力に固定値を加算する。</summary>
+    PowerOffsetForBothCategories = 880,
+    /// <summary>自身のターン開始時、付与時に選んだ対象を通常威力と属性威力で攻撃する。</summary>
+    SelectedTargetMixedAttackAtTurnStart = 881,
+    /// <summary>自身にスキルを発動した相手を指定属性の威力で攻撃する。</summary>
+    RetaliateWithElement = 882,
+    /// <summary>自身が列挙されたカテゴリーを宣言できなくなる。</summary>
+    ProhibitCategoryDeclarations = 883,
+    /// <summary>自身が列挙されたカテゴリーを永続的に宣言できなくなる。</summary>
+    PermanentlyProhibitCategories = 884,
+    /// <summary>付与から指定ターン経過後、自身のリソースを0にして指定状態を付与する。</summary>
+    DefeatAfterStateTurns = 885,
+    /// <summary>スタックが指定数以上なら、ターン開始時にダメージを受ける。</summary>
+    TurnStartDamageAtStacks = 886,
+    /// <summary>敵を選ぶ際、選択可能な敵からランダムに対象を決める。</summary>
+    RandomSelectableEnemy = 887,
+    /// <summary>いずれかの指定部位に装備しているアイテムの参照を禁止する。</summary>
+    BlockEquipmentSlotReference = 888,
+    /// <summary>この状態の保持者を指定カテゴリーの対象として選べなくする。</summary>
+    PreventCategoryTargeting = 889,
+    /// <summary>自身の防御点を指定値にする。</summary>
+    SetOwnDefense = 890,
+    /// <summary>次に発動する指定スキルの威力に倍率を掛ける。</summary>
+    NextNamedSkillPower = 891,
+    /// <summary>対象に指定状態がある場合、この宣言への指定カテゴリーの応答を禁止する。</summary>
+    PreventResponsesForTargetState = 892,
+    /// <summary>自身に付与された全ての状態を解除する。</summary>
+    PurgeOwnStates = 893,
+    /// <summary>指定カテゴリーで応答する場合、攻撃に選んだ武器の耐久を0にして装備を解除する。</summary>
+    DisarmRespondingWeapon = 894,
+    /// <summary>達成値が指定値以上なら、対象に指定ターン数の状態を付与する。</summary>
+    TimedTargetStateAtCheck = 895,
+    /// <summary>達成値が指定値以上なら、対象に指定状態を付与する。</summary>
+    TargetStateAtCheck = 896,
+    /// <summary>対象が指定状態なら、威力に倍率を掛ける。</summary>
+    PowerFactorAtTargetState = 897,
+    /// <summary>指定数のモンスターを召喚して発動者と接近させる。</summary>
+    SummonAndEngageCaster = 898,
+    /// <summary>次のターン開始時に自身が戦闘から離脱する。</summary>
+    ExitNextTurn = 899,
+    /// <summary>自身による効果の宣言を禁止する。</summary>
+    ProhibitEffectDeclaration = 900,
+    /// <summary>指定カテゴリーの達成値を増減する。</summary>
+    CategoryResultOffset = 901,
+    /// <summary>自身が指定状態になったとき、この効果を解除する。</summary>
+    EndOnGainingState = 902,
+    /// <summary>自身のターン開始時に指定リソースを増減する。</summary>
+    TurnStartResourceOffset = 903,
+    /// <summary>このターン中のクリティカルまたはファンブル判定の出目を増減する。</summary>
+    ThresholdDeltaForTurn = 904,
+    /// <summary>自身に対する指定の二つの状態を無効にする。</summary>
+    NegateOwnStates = 905,
+    /// <summary>自身と対象の間で、指定した二つのリソースをそれぞれ交換する。</summary>
+    SwapResourcesWithTarget = 906,
+    /// <summary>対象の指定リソースに、通常威力と属性威力から算出するダメージを与える。</summary>
+    MixedPowerPoolDamage = 907,
+    /// <summary>指定スキルの威力に式で求めた倍率を掛ける。</summary>
+    NamedSkillPowerFormulaFactor = 908,
+    /// <summary>ダメージを受けるとこの状態を解除する。</summary>
+    EndWhenDamaged = 909,
+    /// <summary>この攻撃にカウンターを宣言する相手の消費リソースを増減する。</summary>
+    ResponseResourceCostDelta = 910,
+    /// <summary>自身を攻撃した相手に、式から求めた威力で反撃する。</summary>
+    AttackIncomingAttacker = 911,
+
+    /// <summary>戦闘開始時に指定量のリソースを失う。</summary>
+    BattleStartResourceLoss = 950,
+    /// <summary>スタンバイフェーズに敵が行う判定の目標値を増減する。</summary>
+    StandbyEnemyCheckDifficulty = 951,
+    /// <summary>同名の効果の重複適用を防ぐ。</summary>
+    SameNameDoesNotStack = 952,
+    /// <summary>種族と人数の条件を満たすパーティーが指定アイテムを渡すと戦闘を終了する。</summary>
+    EndBattleOnSoloPartyGift = 953,
+    /// <summary>種族と人数の条件を満たすパーティーが指定称号を習得している場合に戦闘を終了する。</summary>
+    EndBattleOnSoloPartyTitle = 954,
+    /// <summary>指定の称号を習得する。</summary>
+    LearnNamedTitle = 955,
+    /// <summary>自身の行動直前に自身の状態をすべて解除する。</summary>
+    ClearAllStatesBeforeActing = 956,
+    /// <summary>指定した属性威力による被ダメージをゼロにする。</summary>
+    ImmuneToElementDamage = 957,
+    /// <summary>毎ターン、指定したリソースを回復する。</summary>
+    RecoverEachTurn = 958,
+    /// <summary>指定名のエンティティが場にいる間、指定カテゴリーの攻撃による被ダメージを式の分だけ軽減する。</summary>
+    ReduceDamagePerPresentEntity = 959,
+    /// <summary>指定ターンの開始時に別のエンティティに変身する。</summary>
+    TransformAtTurnStart = 960,
+    /// <summary>指定の分類を持つ攻撃を受けたとき、被ダメージに倍率を適用する。</summary>
+    IncomingTaggedActionDamageFactor = 961,
+    /// <summary>指定リソースが閾値以下に達したとき、プレイヤーの勝利とする。</summary>
+    PlayerWinsAtResourceThreshold = 962,
+    /// <summary>指定リソースへのダメージを受けなくする。</summary>
+    IgnoreResourceDamage = 963,
+    /// <summary>自身に向けられた指定カテゴリーの行為を、達成値が閾値以下なら無効にする。</summary>
+    CancelLowResultIncomingCategory = 964,
+    /// <summary>指定の特性が無効な間、自身の能力値を指定値にする。</summary>
+    SetStatWhenTraitInactive = 965,
+    /// <summary>自身の能力値やリソース最大値を指定値にする。</summary>
+    SetOwnStatToValue = 966,
+    /// <summary>一つのスキルへのカウンター回数を増やす。戦闘中の使用回数に制限がある。</summary>
+    BattleLimitedCountersPerSkill = 967,
+    /// <summary>指定状態による戦闘終了を防ぐ。</summary>
+    StateDoesNotEndBattle = 968,
+    /// <summary>自身が必ず先行する。</summary>
+    AlwaysTakeInitiative = 969,
+    /// <summary>指定カテゴリーまたは状態を持つキャラクターだけが、指定行為で自身を対象にできる。</summary>
+    RequireTargeterCategoryOrState = 970,
+    /// <summary>自身への状態付与時に、指定の式と目標値で抵抗判定を行う。</summary>
+    RollAgainstIncomingState = 971,
+    /// <summary>抵抗判定に成功した場合、状態の付与を無効にする。</summary>
+    CancelStateOnSuccessfulCheck = 972,
+    /// <summary>判定に成功した場合、自身に付与された指定カテゴリーの状態をすべて解除する。</summary>
+    CleanseStateCategoryOnCheckSuccess = 973,
+    /// <summary>指定した二つの属性威力を含む行為を無効にする。</summary>
+    ImmuneToElementPairAction = 974,
+    /// <summary>指定した二つの属性威力を含む行為からの被ダメージに倍率を適用する。</summary>
+    ElementPairActionDamageFactor = 975,
+    /// <summary>指定した二つの属性威力を含む行為を受けたとき、戦闘を終了する。</summary>
+    EndBattleWhenHitByElementPair = 976,
+    /// <summary>自身と接近していない相手が行う指定カテゴリーの判定の目標値を増減する。</summary>
+    IncomingRangedCategoryDifficulty = 977,
+    /// <summary>指定した味方が場に存在する間、自身を選択対象から外す。</summary>
+    UntargetableWhileAllyPresent = 978,
+    /// <summary>入力した式で自身へのダメージ軽減量を算出する。</summary>
+    ReduceIncomingPowerByFormula = 979,
+    /// <summary>指定状態になったとき、別のエンティティとして戦闘を再開する。</summary>
+    RestartBattleAsEntityOnState = 980,
+    /// <summary>ターン開始時に指定リソースを指定値にする。</summary>
+    SetResourceAtTurnStart = 981,
+    /// <summary>原文で効果の内容が伏せられていることを示す。</summary>
+    UndisclosedEffect = 982,
+    /// <summary>自身に付与される状態を無効にする。</summary>
+    ImmuneToAllStates = 983,
+    /// <summary>敵の指定リソースがゼロより小さい値になることを許可する。</summary>
+    AllowNegativeEnemyResource = 984,
+    /// <summary>敵のリソースの負値に応じて、自身の二つのリソースを回復する。</summary>
+    RecoverFromEnemyNegativeResource = 985,
+    /// <summary>どちらかのリソースがゼロに達すると、指定した二つのリソースを全回復する。</summary>
+    RecoverResourcesWhenEitherDepleted = 986,
+    /// <summary>自身に敗北したキャラクターが指定額を失う。</summary>
+    CurrencyLossOnDefeat = 987,
+    /// <summary>自身を対象とする判定のクリティカルとファンブルの出目範囲を個別に変更する。</summary>
+    TargetedCriticalFumbleDiceShift = 988,
+    /// <summary>毎ターンの開始時に自身の指定リソースを回復する。</summary>
+    RecoverAtEachTurnStart = 989,
+    /// <summary>敵が指定能力値で自身に対して行う判定を自動失敗にする。</summary>
+    FailEnemyAbilityCheckAgainstSelf = 990,
+    /// <summary>敵が行動を終えるたびに指定リソースを回復する。</summary>
+    RecoverAfterEnemyAction = 991,
+    /// <summary>指定カテゴリーの状態を無効にする。</summary>
+    ImmuneToStateCategories = 992,
+    /// <summary>先行ターンを得た場合、そのターンの与ダメージに倍率を適用する。</summary>
+    OpeningTurnDamageFactor = 993,
+    /// <summary>例外カテゴリーの攻撃を除き、リソースが尽きたときの状態移行を次の自身のターン終了まで延期する。</summary>
+    DeferStateUnlessCategoryHit = 994,
+    /// <summary>戦闘開始時に指定状態のスタックを得る。</summary>
+    GainStateStacksAtBattleStart = 995,
+    /// <summary>攻撃されたとき、攻撃した相手に指定量のダメージを与える。</summary>
+    RetaliateWhenAttacked = 996,
+    /// <summary>自身のターン開始時にリソースの不足量に応じて回復する。</summary>
+    RecoverMissingResourcePercentAtOwnTurnStart = 997,
+    /// <summary>同じ接近グループから指定カテゴリーの行為を受けたとき、行為者へ属性ダメージを与える。</summary>
+    MeleeElementalRetaliation = 998,
+    /// <summary>アイテムの効果を受けなくする。</summary>
+    IgnoreAllItemEffects = 999,
+    /// <summary>指定フェーズ中、敵が宣言できる行為を指定ロールに制限する。</summary>
+    LimitEnemyDeclarationsByPhase = 1000,
+    /// <summary>指定属性のダメージを無効にし、同じ量のリソースを回復する。</summary>
+    AbsorbElementDamage = 1001,
+    /// <summary>指定能力値による被ダメージに倍率を適用する。</summary>
+    DamageByAbilityTakenFactor = 1002,
+    /// <summary>自身を選択対象に含むクリティカルを無効にする。</summary>
+    IgnoreTargetingCriticals = 1003,
+    /// <summary>自身が与えたダメージに応じて指定リソースを回復する。</summary>
+    RestoreByDamageDealt = 1004,
+    /// <summary>指定カテゴリーに由来するものを除き、自身への状態付与を無効にする。</summary>
+    ImmuneToStatesExceptCategory = 1005,
+    /// <summary>指定カテゴリーに由来するものを除き、自身への効果を無効にする。</summary>
+    ImmuneToEffectsExceptCategory = 1006,
+    /// <summary>軽減量が被ダメージを上回った分をリソース回復に変える。</summary>
+    RestoreOverReducedDamage = 1007,
+    /// <summary>自身のターン開始時に付与されている状態をすべて解除する。</summary>
+    ClearStatesAtOwnTurnStart = 1008,
+    /// <summary>戦闘中の全キャラクターに指定状態を付与する。</summary>
+    ApplyStateToAllCombatants = 1009,
+    /// <summary>自身に対する行為判定の目標値を増減する。</summary>
+    IncomingActionCheckDifficulty = 1010,
+    /// <summary>指定した午前の時刻に戦闘を終了する。</summary>
+    EndBattleAtClockTime = 1011,
+    /// <summary>自身を対象に含む指定カテゴリーの行為の目標値に倍率を適用する。</summary>
+    IncomingCategoryDifficultyFactor = 1012,
+    /// <summary>毎ターンの開始時に自身に付与されたすべての状態を解除する。</summary>
+    ClearStatesAtEachTurnStart = 1013,
+    /// <summary>指定状態にある敵も選択対象に含められるようにする。</summary>
+    TargetEnemiesWithState = 1014,
+    /// <summary>名前で指定したキャラクターと同じ接近グループに入る。</summary>
+    EngageNamedCharacter = 1040,
+    /// <summary>指定カテゴリーを持つキャラクターに指定状態を直ちに付与する。</summary>
+    ApplyImmediateStateToCategory = 1041,
+    /// <summary>指定リソースがしきい値以下の対象が1体以上いれば、対象の総数×指定量だけ、自身の2つのリソースをそれぞれ回復する。</summary>
+    RecoverPerTargetWhenResourceLow = 1042,
+    /// <summary>対象のリソースがしきい値以下のとき、この攻撃が与える指定リソースへのダメージに倍率を適用する。</summary>
+    ScaleResourceDamageAtTargetThreshold = 1043,
+    /// <summary>この効果で対象が指定状態になったとき、自身のリソースを回復する。</summary>
+    RecoverWhenEffectCausesState = 1044,
+
 }
 /// <summary>効果一つの種類と引数。適用元の名前・欄・発動条件は親データが保持する。</summary>
 [Serializable]

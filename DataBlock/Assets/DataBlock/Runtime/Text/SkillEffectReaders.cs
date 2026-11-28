@@ -444,8 +444,8 @@ public static partial class SkillTextConverter
     private static EffectContent ReadDirectResourceEffect(string s)
     {
         Match m;
-        if (s.TrimEnd('。') == "自身は戦闘を離脱する")
-            return Content(EffectContentType.LeaveBattle, "Self");
+        m = M(s, @"^(自身|対象)は戦闘を離脱する。?$");
+        if (m.Success) return Content(EffectContentType.LeaveBattle, ActorKey(m.Groups[1].Value));
         m = M(s, @"^自身は([A-Z]+)が([0-9]+)以下になった時、(.+?)ロールを行う必要がない。?$");
         if (m.Success) return Content(EffectContentType.PreventRollAtResource, "Self", m.Groups[1].Value, "AtMost", m.Groups[2].Value, m.Groups[3].Value);
         m = M(s, @"^自身はあらゆる〈([^〉]+)〉からの効果を受けない。?$");
@@ -460,8 +460,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.AddQuestReward, "Self", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^対象スキルを([0-9]+)ターンの間《([^》]+)》状態にする。?$");
         if (m.Success) return Content(EffectContentType.ApplySelectedSkillState, "SelectedSkill", m.Groups[2].Value, m.Groups[1].Value);
-        m = M(s, @"^対象(?:に|へ)(.+?)の([A-Z]+)ダメージを与える。?$");
-        if (m.Success) return Content(EffectContentType.ResourceDamage, "Target", m.Groups[2].Value, m.Groups[1].Value.Replace("×", "*"));
+        m = M(s, @"^(対象|敵全体)(?:に|へ)(.+?)の([A-Z]+)ダメージを与える。?$");
+        if (m.Success) return Content(EffectContentType.ResourceDamage, m.Groups[1].Value == "対象" ? "Target" : "AllEnemies", m.Groups[3].Value, m.Groups[2].Value.Replace("×", "*"));
         m = M(s, @"^与えた([A-Z]+)ダメージの([0-9.]+)倍の値の([A-Z]+)を回復する。?$");
         if (m.Success) return Content(EffectContentType.RestoreFromResourceDamage, "Self", m.Groups[1].Value, m.Groups[3].Value, m.Groups[2].Value, "ThisResolution");
         m = M(s, @"^《([^》]+)》状態のキャラクター全てに自身のターン開始時《([^》]+)》スタックを([0-9]+)付与する。?$");

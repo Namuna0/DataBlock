@@ -14,6 +14,7 @@ public static partial class SkillTextConverter
 
     private static string NormalizeEffectSentence(string text)
     {
+        text = NormalizeCombatEffect(text);
         text = RegexReplace(text, @"^その後、(?=自身は|対象は|対象を)", "");
         text = RegexReplace(text, @"^対象は永続的に《([^》]+)》状態になる。?$", "対象を永続的に《$1》状態にする。");
         text = RegexReplace(text, @"^(?:攻撃)?対象を(?:スキル値)?([0-9]+)の武器威力で攻撃する。?$", "対象をスキル値$1で武器攻撃する。");
@@ -61,6 +62,43 @@ public static partial class SkillTextConverter
     {
         string statement = Unbullet(text);
         if (type != EffectType.Roleplay) statement = NormalizeEffectSentence(statement);
+        var inlineRoll = M(statement, @"^(?:さらに)?ダイスロール([1-9][0-9]*d[1-9][0-9]*)を行い、([0-9]+(?:～[0-9]+)?)が出た場合、(.+)$");
+        if (IsOrdinary(type) && inlineRoll.Success)
+        {
+            ReadSkillLine(skill, type, inlineRoll.Groups[1].Value + "のダイスロールを行う。");
+            ReadSkillLine(skill, type, "- " + inlineRoll.Groups[2].Value + "：" + inlineRoll.Groups[3].Value);
+            return;
+        }
+        var recover = M(statement, @"^毎ターン開始時、自身の([A-Z]+)と([A-Z]+)は(" + ArithmeticPattern + @")回復する。?$");
+        if (IsOrdinary(type) && recover.Success)
+        {
+            foreach (var resource in new[] { recover.Groups[1].Value, recover.Groups[2].Value })
+                ReadSkillLine(skill, type, "毎ターン開始時、自身の" + resource + "を" + recover.Groups[3].Value + "回復する。");
+            return;
+        }
+        if (type == EffectType.Passive && statement.TrimEnd('。') == "自身への状態付与を無効にする")
+            statement = "自身の状態を無効にする。";
+        var categoryStates = M(statement, @"^〈([^〉]+)〉は直ちに《([^》]+)》かつ《([^》]+)》状態となる。?$");
+        if (type == EffectType.Passive && categoryStates.Success)
+        {
+            foreach (var state in new[] { categoryStates.Groups[2].Value, categoryStates.Groups[3].Value })
+                AddSkillEffect(skill, type, Content(EffectContentType.ApplyImmediateStateToCategory, categoryStates.Groups[1].Value, state));
+            return;
+        }
+        var pair = M(statement, @"^対象を《([^》]+)》(?:かつ|と)《([^》]+)》状態にする。?$");
+        if (IsOrdinary(type) && pair.Success)
+        {
+            ReadSkillLine(skill, type, "対象を《" + pair.Groups[1].Value + "》状態にする。");
+            ReadSkillLine(skill, type, "対象を《" + pair.Groups[2].Value + "》状態にする。");
+            return;
+        }
+        var timedAndRemoved = M(statement, @"^対象に([1-9][0-9]*)ターンの間《([^》]+)》状態を付与して《([^》]+)》状態を解除させる。?$");
+        if (IsOrdinary(type) && timedAndRemoved.Success)
+        {
+            ReadSkillLine(skill, type, "対象に" + timedAndRemoved.Groups[1].Value + "ターンの間《" + timedAndRemoved.Groups[2].Value + "》状態を付与する。");
+            ReadSkillLine(skill, type, "対象の《" + timedAndRemoved.Groups[3].Value + "》状態を解除する。");
+            return;
+        }
         if (type == EffectType.Passive && M(statement, @"^[A-Z]+最大値[+-][0-9]+,\s*自身は").Success)
         {
             foreach (string clause in Split(statement, ",")) ReadSkillLine(skill, type, clause);
@@ -153,25 +191,35 @@ public static partial class SkillTextConverter
             if (!IsOrdinary(type)) throw new InvalidOperationException("効果種別を指定してください。");
             if (TryReadPassiveSkillLine(skill, type, body)) continue;
             var triggers = NoTriggers();
-            Match branch = M(body, @"^[-－]\s*([0-9]+)[：:]\s*(.+)$");
+            Match branch = M(body, @"^[-－]\s*([0-9]+(?:[～〜][0-9]+)?)[：:]\s*(.+)$");
             if (branch.Success)
             {
                 EffectContent roll = skill.Effects.Where(x => x.Type == type).SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.RollDice);
                 if (roll == null) throw new InvalidOperationException("出目分岐の前に追加ダイスロールを指定してください。");
                 string[] rollArgs = Args(roll.Parameters, 2, "RollDice");
-                triggers.Add(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, rollArgs[0], branch.Groups[1].Value)));
+                triggers.Add(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, rollArgs[0], branch.Groups[1].Value.Replace('〜', '～'))));
                 body = branch.Groups[2].Value;
             }
             else
             {
-                branch = M(body, @"^追加ロール([0-9]+)の出目が([0-9]+)の時[、,]\s*(.+)$");
+                branch = M(body, @"^追加ロール([0-9]+)の出目が([0-9]+(?:～[0-9]+)?)の時[、,]\s*(.+)$");
                 if (branch.Success)
                 {
                     triggers.Add(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, branch.Groups[1].Value, branch.Groups[2].Value)));
                     body = branch.Groups[3].Value;
                 }
             }
-            if (triggers.Count == 0 && ReadSkillOverride(skill, type, body)) continue;
+            if (triggers.Count > 0)
+            {
+                int before = skill.Effects.Count;
+                ReadSkillLine(skill, type, body);
+                var added = skill.Effects.Skip(before).ToList();
+                if (added.Count == 0 || added.Any(effect => effect.Triggers.Count != 0))
+                    throw new InvalidOperationException("追加ロールの出目分岐には通常の効果を指定してください。");
+                foreach (var effect in added) effect.Triggers = new List<TriggerDefinition>(triggers);
+                continue;
+            }
+            if (ReadSkillOverride(skill, type, body)) continue;
             if (body.TrimEnd('。') == "防御点はそれぞれに適用される")
             {
                 var prior = skill.Effects.LastOrDefault(x => x.Type == type);
@@ -198,7 +246,7 @@ public static partial class SkillTextConverter
             foreach (string atom in atoms)
             {
                 if (atoms.Count > 1 && triggers.Count == 0 && ReadSkillStatement(skill, type, atom)) continue;
-                if (M(atom, @"^対象1体を").Success && !skill.DeclarationConditions.And.Any(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) && c.Parameters.SequenceEqual(new[] { "1", "Exact", "Default" })))
+                if (M(atom, @"^対象1体を").Success && skill.DeclarationConditions.And.Any(c => c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) && !skill.DeclarationConditions.And.Any(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) && c.Parameters.SequenceEqual(new[] { "1", "Exact", "Default" })))
                     throw new InvalidOperationException("対象1体の攻撃には、ちょうど1体を選択する宣言条件を指定してください。");
                 var effect = new EffectDefinition { Type = type, Triggers = triggers };
                 EffectContent content = direct ?? ReadContent(atom);
@@ -353,10 +401,12 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.ReapplyEffects, "Turn", "バフ", "All", m.Groups[1].Value);
         m = M(s, @"^このエリアの採取を([0-9]+)回追加で行うことができる。?$");
         if (m.Success) return Content(EffectContentType.AddAreaGathering, Number(m.Groups[1].Value, 1, "追加採取回数").ToString());
-        m = M(s, @"^追加で(.+?)のダイスロールを行う。?$");
-        if (m.Success) return Content(EffectContentType.RollDice, "", m.Groups[1].Value);
+        m = M(s, @"^(?:追加で(.+?)|([0-9]+d[0-9]+))のダイスロールを行う。?$");
+        if (m.Success) return Content(EffectContentType.RollDice, "", m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value);
         m = M(s, @"^追加ロール([0-9]+)として(.+?)のダイスロールを行う。?$");
         if (m.Success) return Content(EffectContentType.RollDice, m.Groups[1].Value, m.Groups[2].Value);
+        m = M(s, @"^《([^》]+)》×([1-9][0-9]*)を召喚する。?$");
+        if (m.Success) return Content(EffectContentType.Summon, m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^ペット《([^》]+)》を(?:([1-9][0-9]*)体)?召喚する。?$");
         if (m.Success) return m.Groups[2].Success ? Content(EffectContentType.Summon, m.Groups[1].Value, m.Groups[2].Value) : Content(EffectContentType.Summon, m.Groups[1].Value);
         m = M(s, @"^(自身|対象|付与者)の([A-Z]+)を([+-].+?)(?:減少|変化)させる。?$");
@@ -520,7 +570,7 @@ public static partial class SkillTextConverter
         TriggerDefinition t = triggers[0]; var c = t.Conditions;
         if (t.Timing == TriggerTiming.RandomResult && c.Or.Count == 0 && c.And.Count == 1 && c.And[0].Type == ConditionType.RollResult)
         {
-            string[] p = Args(c.And[0].Parameters, 2, "RollResult"); Number(p[0], 1, "追加ロール番号"); Number(p[1], 1, "出目");
+            string[] p = Args(c.And[0].Parameters, 2, "RollResult"); Number(p[0], 1, "追加ロール番号"); RollRangeEnd(p[1]);
             return "追加ロール" + p[0] + "の出目が" + p[1] + "の時、";
         }
         if (c.Or.Count == 0 && c.And.Count == 1 && c.And[0].Type == ConditionType.AttackAppliedState && type == EffectType.Active && t.Timing == TriggerTiming.AfterWeaponAttack)

@@ -147,6 +147,15 @@ public static partial class SkillTextConverter
         }
     }
 
+    private static int RollRangeEnd(string value)
+    {
+        var range = value.Split('～');
+        int first = Number(range[0], 1, "出目");
+        if (range.Length == 1) return first;
+        if (range.Length != 2) throw new InvalidOperationException("出目の範囲が不正です：" + value);
+        return Number(range[1], first, "出目の上限");
+    }
+
     private static void ValidateRandomRolls(SkillBody skill)
     {
         var rolls = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -162,7 +171,7 @@ public static partial class SkillTextConverter
             string[] p = Args(condition.Parameters, 2, "RollResult");
             string formula;
             if (!rolls.TryGetValue(p[0], out formula)) throw new InvalidOperationException("対応する追加ロールがありません：" + p[0]);
-            int result = Number(p[1], 1, "出目");
+            int result = RollRangeEnd(p[1]);
             Match dice = M(formula, @"^1d([0-9]+)$");
             if (dice.Success)
             {
@@ -290,7 +299,8 @@ public static partial class SkillTextConverter
         foreach (var content in effect.Contents)
         {
             var rules = ContentRules[(false, content.Type)];
-            if (rules.Any()) Require(effect.Triggers.Count == 0 && rules.Any(r => r.Section == effect.Type));
+            if (rules.Any()) Require((effect.Triggers.Count == 0 || (effect.Triggers.Count == 1 && effect.Triggers[0].Timing == TriggerTiming.RandomResult))
+                && rules.Any(r => r.Section == effect.Type));
             if (content.Type == EffectContentType.ApplyPermanentLinkedStates)
                 Require(skill.DeclarationConditions.And.Count(c => (c.Type == ConditionType.SelectCharacters || c.Type == ConditionType.SelectMeleeCharacters) &&
                     c.Parameters[0] == "1" && c.Parameters[1] == "Exact") == 1);

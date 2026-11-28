@@ -19,7 +19,8 @@ public class SkillBody
     public ConditionSet EquipmentConditions = new ConditionSet();
     public ConditionSet DeclarationConditions = new ConditionSet();
     public List<ResourceCost> Costs = new List<ResourceCost>();
-    [Min(0)] public int CooldownTurns;
+    /// <summary>再使用までのターン数。0 は指定なし、-1 は無期限。</summary>
+    [Min(-1)] public int CooldownTurns;
     public DiceRollDefinition Roll = new DiceRollDefinition();
     public List<EffectDefinition> Effects = new List<EffectDefinition>();
     // 通常効果とは分離。発動条件・効果種別に従ってゲーム側で評価します。

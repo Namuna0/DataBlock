@@ -1,0 +1,75 @@
+public static partial class SkillTextConverter
+{
+    private static void RegisterTraitRules(RuleSection rules)
+    {
+        const string stat = @"(?:[一-龯ァ-ヶA-Za-z]+B|[A-Z]+最大値|防御点)";
+        const string elements = @"[火水風電冷土光闇](?:、[火水風電冷土光闇])*";
+        const string phase = @"[^、。\s]+フェーズ";
+        rules.Add(EffectContentType.BattleStartResourceLoss, "戦闘開始時に{0}を{1}失う。", RuleResourcePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.StandbyEnemyCheckDifficulty, "スタンバイフェーズ時、敵の行為判定の目標値は{0}される。", RuleSignedPattern);
+        rules.Add(EffectContentType.SameNameDoesNotStack, "同名の効果は重複しない。");
+        rules.Add(EffectContentType.EndBattleOnSoloPartyGift, "〈{0}〉及び〈{1}〉の{2}人だけのパーティーが《{3}》を受け渡すなら、この戦闘は終了する。", RuleNamePattern, RuleNamePattern, RulePositivePattern, RuleNamePattern);
+        rules.Add(EffectContentType.EndBattleOnSoloPartyTitle, "〈{0}〉及び〈{1}〉の{2}人だけのパーティーが《{3}》を習得しているなら、この戦闘は終了する。", RuleNamePattern, RuleNamePattern, RulePositivePattern, RuleNamePattern);
+        rules.Add(EffectContentType.LearnNamedTitle, "称号《{0}》を習得する。", RuleNamePattern);
+        rules.Add(EffectContentType.ClearAllStatesBeforeActing, "あらゆる自身への状態は行動直前に解除される。");
+        rules.Add(EffectContentType.ImmuneToElementDamage, "自身に対する{0}の属性威力による被ダメージを0にする。", elements);
+        rules.Add(EffectContentType.RecoverEachTurn, "毎ターン{0}を{1}回復する。", RuleResourcePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.ReduceDamagePerPresentEntity, "《{0}》が場に存在する場合、自身が受ける〈{1}〉の被ダメージは{2}軽減される。", RuleNamePattern, RuleNamePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.TransformAtTurnStart, "{0}ターン目開始時、自身は《{1}》に変身する。", RulePositivePattern, RuleNamePattern);
+        rules.Add(EffectContentType.IncomingTaggedActionDamageFactor, "自身は〈{0}〉および〈{1}〉による〈{2}〉を受けた時、被ダメージが×{3}倍される。", RuleNamePattern, RuleNamePattern, RuleNamePattern, RuleFactorPattern);
+        rules.Add(EffectContentType.PlayerWinsAtResourceThreshold, "{0}が{1}以下になった時、プレイヤーの勝利として扱われる。", RuleResourcePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.IgnoreResourceDamage, "自身は{0}値ダメージを受けることはない。", RuleResourcePattern);
+        rules.Add(EffectContentType.CancelLowResultIncomingCategory, "自身に対する達成値{0}以下の〈{1}〉を無効にする。", ArithmeticPattern, RuleNamePattern);
+        rules.Add(EffectContentType.SetStatWhenTraitInactive, "《{0}》が無効なら、自身の{1}は{2}になる。", RuleNamePattern, stat, ArithmeticPattern);
+        rules.Add(EffectContentType.SetOwnStatToValue, "自身の{0}は{1}になる。", stat, ArithmeticPattern);
+        rules.Add(EffectContentType.BattleLimitedCountersPerSkill, "戦闘中{0}度だけ、自身は{1}つのスキルに対して{2}回カウンター効果を宣言する事が出来る。", RulePositivePattern, RulePositivePattern, RulePositivePattern);
+        rules.Add(EffectContentType.StateDoesNotEndBattle, "《{0}》によって戦闘終了にならない。", RuleNamePattern);
+        rules.Add(EffectContentType.AlwaysTakeInitiative, "自身は必ず先行を得る。");
+        rules.Add(EffectContentType.RequireTargeterCategoryOrState, "〈{0}〉か《{1}》状態ではないキャラクターから〈{2}〉の対象にならない。", CategoryListPattern, RuleNamePattern, RuleNamePattern);
+        rules.Add(EffectContentType.RollAgainstIncomingState, "自身に状態を付与される時、{0} 目標値{1}の行為判定を行う。", ArithmeticPattern, ArithmeticPattern);
+        rules.Add(EffectContentType.CancelStateOnSuccessfulCheck, "成功時、状態付与を無効にする。");
+        rules.Add(EffectContentType.CleanseStateCategoryOnCheckSuccess, "成功した場合、自身に付与された〈{0}〉状態を全て解除する。", RuleNamePattern);
+        rules.Add(EffectContentType.ImmuneToElementPairAction, "自身に対する{0}及び{1}の属性威力を含む〈{2}〉を無効にする。", elements, elements, RuleNamePattern);
+        rules.Add(EffectContentType.ElementPairActionDamageFactor, "自身に対する{0}及び{1}の属性威力を含む〈{2}〉の被ダメージは×{3}倍される。", elements, elements, RuleNamePattern, RuleFactorPattern);
+        rules.Add(EffectContentType.EndBattleWhenHitByElementPair, "自身が{0}及び{1}の属性威力を含む〈{2}〉を受けた時、戦闘は終了する。", elements, elements, RuleNamePattern);
+        rules.Add(EffectContentType.IncomingRangedCategoryDifficulty, "自身と接近状態ではないキャラクターからの〈{0}〉の目標値は{1}される。", CategoryListPattern, RuleSignedPattern);
+        rules.Add(EffectContentType.UntargetableWhileAllyPresent, "味方に《{0}》が存在する時、自身は選択の対象にならない。", RuleNamePattern);
+        rules.Add(EffectContentType.ReduceIncomingPowerByFormula, "自身が受けるダメージは{0}減少する。", ArithmeticPattern);
+        rules.Add(EffectContentType.RestartBattleAsEntityOnState, "自身が《{0}》状態になる時、《{1}》として戦闘再開する。", RuleNamePattern, RuleNamePattern);
+        rules.Add(EffectContentType.SetResourceAtTurnStart, "自身はターン開始時に{0}が{1}になる。", RuleResourcePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.UndisclosedEffect, "???");
+        rules.Add(EffectContentType.ApplyImmediateStateToCategory, "〈{0}〉は直ちに《{1}》状態となる。", RuleNamePattern, RuleNamePattern);
+        rules.Add(EffectContentType.ImmuneToAllStates, "自身の状態を無効にする。");
+        rules.Add(EffectContentType.AllowNegativeEnemyResource, "敵の{0}値は0を超えて負の値へ減少できる。", RuleResourcePattern);
+        rules.Add(EffectContentType.RecoverFromEnemyNegativeResource, "敵の負の{0}値の分、自身は{1}と{2}を回復する。", RuleResourcePattern, RuleResourcePattern, RuleResourcePattern);
+        rules.Add(EffectContentType.RecoverResourcesWhenEitherDepleted, "自身の{0}または{1}が0になった時{2}と{3}は全回復する。", RuleResourcePattern, RuleResourcePattern, RuleResourcePattern, RuleResourcePattern);
+        rules.Add(EffectContentType.CurrencyLossOnDefeat, "自身に敗北したキャラクターは{0}ジルダ失う。", ArithmeticPattern);
+        rules.Add(EffectContentType.TargetedCriticalFumbleDiceShift, "自身を対象に行為判定が行われる時、クリティカルになるダイスは{0}、ファンブルになるダイスは{1}される。", RuleSignedPattern, RuleSignedPattern);
+        rules.Add(EffectContentType.RecoverAtEachTurnStart, "毎ターン開始時、自身の{0}を{1}回復する。", RuleResourcePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.FailEnemyAbilityCheckAgainstSelf, "敵からの自身に対する[{0}]による行為判定は自動失敗になる。", stat);
+        rules.Add(EffectContentType.RecoverAfterEnemyAction, "敵キャラクターの行動が終了する度に、{0}を{1}回復する。", RuleResourcePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.ImmuneToStateCategories, "自身は〈{0}〉状態を無効にする。", CategoryListPattern);
+        rules.Add(EffectContentType.OpeningTurnDamageFactor, "自身が先行ターンを取った場合、自身のそのターンの与ダメージは{0}倍される。", RuleFactorPattern);
+        rules.Add(EffectContentType.DeferStateUnlessCategoryHit, "自身は〈{0}〉以外によって{1}が0になってもすぐさま《{2}》状態にならない、次の自身のターン終了後《{3}》になる。", CategoryListPattern, RuleResourcePattern, RuleNamePattern, RuleNamePattern);
+        rules.Add(EffectContentType.GainStateStacksAtBattleStart, "自身は戦闘開始時、《{0}》×{1}を得る。", RuleNamePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.RetaliateWhenAttacked, "自身が攻撃を受けた時、攻撃対象へ{0}のダメージを与える。", ArithmeticPattern);
+        rules.Add(EffectContentType.RecoverMissingResourcePercentAtOwnTurnStart, "自身のターン開始時、減少した{0}の{1}%を回復する。", RuleResourcePattern, RulePositivePattern);
+        rules.Add(EffectContentType.MeleeElementalRetaliation, "同じ接近グループの対象から〈{0}〉を受けると、発動対象に{1}の{2}属性ダメージを与える。", RuleNamePattern, ArithmeticPattern, elements);
+        rules.Add(EffectContentType.IgnoreAllItemEffects, "自身はアイテムによるあらゆる効果を受けない。");
+        rules.Add(EffectContentType.LimitEnemyDeclarationsByPhase, "敵は{0}及び{1}、{2}以外の宣言を行う事は出来ない。", phase, phase, @"[^、。\s]+ロール");
+        rules.Add(EffectContentType.AbsorbElementDamage, "{0}属性ダメージを無効にしてその分の{1}を回復する。", elements, RuleResourcePattern);
+        rules.Add(EffectContentType.DamageByAbilityTakenFactor, "このキャラクターは[{0}]によるダメージを受けた時、被ダメージは×{1}倍される。", stat, RuleFactorPattern);
+        rules.Add(EffectContentType.IgnoreTargetingCriticals, "自身を選択したクリティカルは無効になる。");
+        rules.Add(EffectContentType.RestoreByDamageDealt, "自身が与えたダメージの×{0}の{1}を回復する。", RuleFactorPattern, RuleResourcePattern);
+        rules.Add(EffectContentType.ImmuneToStatesExceptCategory, "自身に対する〈{0}〉を除くあらゆる状態付与は無効化される。", RuleNamePattern);
+        rules.Add(EffectContentType.ImmuneToEffectsExceptCategory, "自身に対する〈{0}〉を除くあらゆる効果は無効化される。", RuleNamePattern);
+        rules.Add(EffectContentType.RestoreOverReducedDamage, "自身が0に軽減した余剰ダメージは回復効果となり{0}を回復させる。", RuleResourcePattern);
+        rules.Add(EffectContentType.ClearStatesAtOwnTurnStart, "自身のターン開始時、自身に付与された状態を全て解除する。");
+        rules.Add(EffectContentType.ApplyStateToAllCombatants, "戦闘中の全てのキャラクターは《{0}》状態になる。", RuleNamePattern);
+        rules.Add(EffectContentType.IncomingActionCheckDifficulty, "自身へのあらゆる行為判定への目標値は{0}される。", RuleSignedPattern);
+        rules.Add(EffectContentType.EndBattleAtClockTime, "午前{0}時{1}分になる時、強制的に戦闘は終了する。", @"[0-9]+", @"[0-9]+");
+        rules.Add(EffectContentType.IncomingCategoryDifficultyFactor, "自身を対象に含む〈{0}〉の目標値は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
+        rules.Add(EffectContentType.ClearStatesAtEachTurnStart, "毎ターン開始時、自身に付与された状態を全て解除する。");
+        rules.Add(EffectContentType.TargetEnemiesWithState, "自身は《{0}》状態の敵を選択対象に含むことができる。", RuleNamePattern);
+    }
+}

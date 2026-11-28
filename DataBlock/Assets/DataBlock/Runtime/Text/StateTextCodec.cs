@@ -7,7 +7,7 @@ public static partial class SkillTextConverter
     internal static bool TryStateHeader(string line, out StateDefinition state, out string body, bool allowShorthand = false)
     {
         string text = Unbullet(line);
-        var header = M(text, @"^(?<name>[^・⚫【《：:〈〉]+?)効果(?<tags>(?:〈[^〉]+〉)*)[：:](?<body>.*)$");
+        var header = M(text, @"^(?<name>[^・⚫【《：:〈〉]+?)効果(?<tags>(?:〈[^〉]+〉)*)(?:[：:]|(?<=〉)(?=自身))(?<body>.*)$");
         if (!header.Success && (allowShorthand || text.StartsWith("《", StringComparison.Ordinal)))
             header = M(text, @"^(?:《(?<name>[^》]+)》|(?<name>[^《【●：:〈〉]+?))(?:効果)?(?<tags>(?:〈[^〉]+〉)+|効果)(?:効果)?[：:](?<body>.*)$");
         if (header.Success && header.Groups["name"].Value != "効果")
@@ -52,7 +52,10 @@ public static partial class SkillTextConverter
     private static bool ReadStateLine(StateDefinition state, string text, bool compound = false, bool allowSkillSentences = true)
     {
         string source = Unbullet(text);
+        source = RegexReplace(source, @"^(?:さらに、?)?自身が([A-Z]+)ダメージを受ける時、その\1ダメージは×([0-9.]+)倍される。?$", "自身が受ける$1ダメージは×$2倍される。");
         text = RegexReplace(source, @"^さらに[、]?\s*", "").TrimStart('*', '＊').Trim();
+        text = NormalizeCombatEffect(text);
+        text = RegexReplace(text, @"^自身の〈([^〉]+)〉(?:及び|および)〈([^〉]+)〉による達成値は×", "自身の〈$1, $2〉による達成値は×");
         text = RegexReplace(text, @"^再び付与者が《([^》]+)》発動する時", "再び付与者が《$1》を発動する時");
         text = RegexReplace(text, @"^自身の(〈[^〉]+〉)かつ(〈[^〉]+〉)による威力が×", "自身は$1かつ$2による威力は×");
         text = RegexReplace(text, @"^自身の(〈[^〉]+〉)及び(〈[^〉]+〉)による目標値は", "自身は$1と$2の目標値が");
@@ -64,6 +67,13 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"^自身の(〈[^〉]+〉)かつ(〈[^〉]+〉)による威力は", "自身は$1かつ$2による威力は");
         text = RegexReplace(text, @"^自身の([^,]+B, [^,]+B, [^,]+Bによる達成値は)([0-9.]+)倍", "自身の$1×$2倍");
         text = RegexReplace(text, @"^自身は(〈[^〉]+〉)を宣言する事はできない", "自身は$1を宣言する事は出来ない");
+        if (text.StartsWith("状態説明：", StringComparison.Ordinal) || M(text, @"^.+ような痛みが襲います。?$").Success)
+        {
+            string description = text.StartsWith("状態説明：", StringComparison.Ordinal) ? text.Substring(5) : text;
+            state.Effects.Add(new EffectDefinition { Type = EffectType.Roleplay,
+                Contents = new List<EffectContent> { Content(EffectContentType.RoleplayDescription, Need(description, "状態説明")) } });
+            return true;
+        }
         if (compound)
         {
             if (ReadSemanticRule(null, state, EffectType.Passive, text) || ReadCompoundStatePower(state, text)) return true;
@@ -206,6 +216,12 @@ public static partial class SkillTextConverter
         var texts = new List<string>();
         foreach (EffectDefinition effect in state.Effects)
         {
+            if (effect?.Type == EffectType.Roleplay && effect.Triggers?.Count == 0 && effect.Contents?.Count == 1 &&
+                effect.Contents[0]?.Type == EffectContentType.RoleplayDescription)
+            {
+                texts.Add("状態説明：" + Args(effect.Contents[0].Parameters, 1, "RoleplayDescription")[0]);
+                continue;
+            }
             if (effect == null || effect.Type != EffectType.Passive || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("状態の通常効果は、内容のあるPassiveにしてください。");
             var triggers = StateTriggers(state, effect.Triggers);
             bool unconditional = Matches(triggers, Trigger(TriggerTiming.Always));

@@ -18,6 +18,35 @@ internal sealed class DataBlockJsonExportTests
     }
 
     [Test]
+    public void EnemyTraitsExportTheirDefinitionsAlongsideActionSkills()
+    {
+        var enemy = new EnemyTextData();
+        var trait = new SkillTextData();
+        trait.Skill.Name = "波の加護";
+        trait.States.Add(new StateDefinition { Name = "加護" });
+        enemy.Enemy.Traits.Add(trait);
+        var preview = new DataBlockJsonPreview(enemy);
+        var body = JsonNode.Parse(preview.Main)["Enemy"]["Traits"][0].AsObject();
+        Assert.That(body.ContainsKey("States") || body.ContainsKey("Summons"), Is.False);
+        Assert.That((string)JsonNode.Parse(preview.States)[0]["Name"], Is.EqualTo("加護"));
+    }
+
+    [Test]
+    public void CsvPreservesCaptureThresholdsAndEnemyClassification()
+    {
+        string source = "《魚》\n〈一般エネミー〉\n【危険度】☆\n【捕獲ドロップロール】1d100*[対象捕獲最大HP]*0.01\n"
+            + "- ～60：漂流物：《藁》×1を獲得\n- 61～200：大物：《魚》×2を獲得\n――――――――――――――――\n兵器に似た模様を持つ。";
+        var cell = RulebookCsv.Read(new StringReader('"' + source + '"')).Single();
+        Assert.That(cell.Error, Is.Null);
+        var fish = ((EnemyTextData)cell.Data).Enemy;
+        Assert.That(fish.LootKind, Is.EqualTo(EnemyLootKind.Capture));
+        Assert.That(fish.Drops[0].Minimum, Is.Zero);
+        Assert.That(fish.Drops[1].Maximum, Is.EqualTo(200));
+        Assert.That(fish.Drops[1].ResultName, Is.EqualTo("大物"));
+        Assert.That(EnemyTextConverter.Normalize(cell.BuildText()), Is.EqualTo(cell.BuildText()));
+    }
+
+    [Test]
     public void EmptyDefinitionsAreSeparateEmptyArrays()
     {
         var preview = new DataBlockJsonPreview(new SkillTextData());

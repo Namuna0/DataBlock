@@ -103,7 +103,9 @@ internal sealed class DataBlockJsonExport
                 foreach (var skill in equipment["Skills"].AsArray()) SplitSkill(skill.AsObject());
                 break;
             case EnemyTextData _:
-                foreach (var skill in root["Enemy"]["Skills"].AsArray()) SplitSkill(skill.AsObject());
+                var enemy = root["Enemy"].AsObject();
+                foreach (var trait in enemy["Traits"].AsArray()) SplitSkill(trait.AsObject());
+                foreach (var skill in enemy["Skills"].AsArray()) SplitSkill(skill.AsObject());
                 break;
             default: throw new InvalidOperationException("未対応のJSON出力形式です。");
         }
@@ -119,6 +121,7 @@ internal sealed class DataBlockJsonExport
             string kind = cell.Data switch
             {
                 SkillTextData _ => "skill",
+                EnemyTextData _ => "enemy",
                 EquipmentTextData _ => "equipment",
                 CharacterProfileData _ => "profile",
                 SiegeWeaponData _ => "siegeWeapon",

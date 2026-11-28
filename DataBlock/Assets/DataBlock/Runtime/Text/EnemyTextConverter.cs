@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 public static partial class EnemyTextConverter
 {
     private const string Separator = "――――――――――――――――";
-    private const string DropRollHeader = "【ドロップロール】1d100";
 
     public static EnemyTextData Parse(string source)
     {
@@ -33,11 +32,20 @@ public static partial class EnemyTextConverter
         sb.AppendLine(CategoryText(enemy.Categories));
         sb.AppendLine("【危険度】" + Need(enemy.DangerLevel, "危険度"));
         foreach (EnemyStatDefinition stat in enemy.Stats)
-            sb.AppendLine("【" + Need(stat.Name, "能力値名") + "】" + Need(stat.Formula, stat.Name + "の値"));
+            sb.AppendLine("【" + Need(stat.Name, "能力値名") + "】" + (stat.Formula ?? "").Trim());
 
-        sb.AppendLine();
-        sb.AppendLine("【行動】");
-        foreach (EnemyActionRule action in enemy.Actions) sb.AppendLine("●" + ActionText(action));
+        if (enemy.Traits.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("【特性】");
+            foreach (var trait in enemy.Traits) sb.AppendLine(TraitBodyText(trait));
+        }
+        if (enemy.Actions.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("【行動】");
+            foreach (EnemyActionRule action in enemy.Actions) sb.AppendLine("●" + ActionText(action));
+        }
 
         foreach (SkillTextData skill in enemy.Skills)
         {
@@ -45,11 +53,11 @@ public static partial class EnemyTextConverter
             sb.AppendLine(SkillBodyText(skill));
         }
 
-        sb.AppendLine();
-        sb.AppendLine(DropRollHeader);
-        foreach (EnemyDropDefinition drop in OrderedDrops(enemy)) sb.AppendLine(DropText(drop));
+        WriteDrops(sb, enemy);
         if (!string.IsNullOrWhiteSpace(enemy.Flavor))
         {
+            if (enemy.LootKind == EnemyLootKind.Unspecified && enemy.Skills.Count > 0 &&
+                string.IsNullOrWhiteSpace(enemy.Skills[enemy.Skills.Count - 1].Skill.Flavor)) sb.AppendLine(Separator);
             sb.AppendLine(Separator);
             sb.AppendLine(enemy.Flavor.Replace("\r\n", "\n").Replace("\r", "\n").TrimEnd());
         }
@@ -77,99 +85,77 @@ public static partial class EnemyTextConverter
         catch (InvalidOperationException exception) { throw LineError(index, lines[index], exception.Message, exception); }
         index++;
 
-        bool actionHeader = false;
         while (index < lines.Length)
         {
             SkipEmpty(lines, ref index);
             if (index >= lines.Length) break;
             string line = SyntaxLine(lines[index]);
-            if (line == "【行動】") { actionHeader = true; index++; break; }
-            Match header = Match(line, @"^【([^】]+)】(.+)$");
+            if (StartsDropTable(lines, index)) { ParseDrops(enemy, lines, ref index); continue; }
+            if (IsSeparator(line))
+            {
+                enemy.Flavor = string.Join("\n", lines.Skip(index + 1)).TrimEnd();
+                break;
+            }
+            if (line.StartsWith("【行動】", StringComparison.Ordinal))
+            {
+                var actions = new List<string>();
+                string first = line.Substring("【行動】".Length).Trim();
+                if (first.Length > 0) actions.Add(first);
+                index++;
+                while (index < lines.Length && !SectionBoundary(lines, index)) actions.Add(lines[index++]);
+                enemy.Actions.AddRange(ParseActions(actions));
+                continue;
+            }
+            if (TrySkillBoundary(lines, index))
+            {
+                int start = index++;
+                bool inFlavor = false;
+                while (index < lines.Length)
+                {
+                    string candidate = SyntaxLine(lines[index]);
+                    if (StartsDropTable(lines, index) || (TrySkillBoundary(lines, index) && !IsEmbeddedSummon(lines, start, index))) break;
+                    if (IsSeparator(candidate))
+                    {
+                        if (inFlavor) break;
+                        inFlavor = true;
+                    }
+                    index++;
+                }
+                string skillSource = NestedSkillText(lines, start, index);
+                try
+                {
+                    var skill = SkillTextConverter.Parse("```\n" + skillSource + "\n```");
+                    // Embedded trap rules often give the removal trigger after
+                    // the counter. The writer emits declaration triggers first.
+                    foreach (var summon in skill.Summons)
+                        summon.Effects = summon.Effects.OrderBy(effect => effect.Type == EffectType.Declaration ? 0 : 1).ToList();
+                    enemy.Skills.Add(skill);
+                }
+                catch (InvalidOperationException ex) { throw LineError(start, lines[start], "行動スキルを解析できません：" + ex.Message, ex); }
+                continue;
+            }
+
+            Match traitHeader = Match(line, @"^【(?:特性|パッシブ効果)】(.*)$");
+            if (traitHeader.Success || line.StartsWith("《", StringComparison.Ordinal))
+            {
+                var traitLines = new List<string>();
+                traitLines.Add(traitHeader.Success ? traitHeader.Groups[1].Value : line);
+                int start = index++;
+                while (index < lines.Length && !SectionBoundary(lines, index)) traitLines.Add(lines[index++]);
+                try { AddTraits(enemy, traitLines); }
+                catch (InvalidOperationException ex) { throw LineError(start, lines[start], ex.Message, ex); }
+                continue;
+            }
+            Match header = Match(line, @"^【([^】]+)】(.*)$");
             if (!header.Success) throw LineError(index, lines[index], "能力値は【名前】値の形式です。");
             string key = Need(header.Groups[1].Value, "能力値名");
-            string value = Need(header.Groups[2].Value, key + "の値");
+            string value = header.Groups[2].Value.Trim();
             if (key == "危険度")
             {
                 if (enemy.DangerLevel.Length != 0) throw LineError(index, lines[index], "危険度が重複しています。");
-                enemy.DangerLevel = value;
+                enemy.DangerLevel = Need(value, key);
             }
-            else
-            {
-                if (enemy.Stats.Any(x => x.Name == key)) throw LineError(index, lines[index], "能力値が重複しています：" + key);
-                enemy.Stats.Add(new EnemyStatDefinition { Name = key, Formula = value });
-            }
-            index++;
-        }
-        if (!actionHeader) throw new InvalidOperationException("【行動】がありません。");
-
-        while (index < lines.Length)
-        {
-            SkipEmpty(lines, ref index);
-            if (index >= lines.Length) break;
-            string line = SyntaxLine(lines[index]);
-            if (TryNameHeader(line, out _)) break;
-            if (!line.StartsWith("●", StringComparison.Ordinal)) throw LineError(index, lines[index], "行動は●から始めてください。");
-            try { enemy.Actions.Add(ParseAction(line.Substring(1).Trim())); }
-            catch (InvalidOperationException exception) { throw LineError(index, lines[index], exception.Message, exception); }
-            index++;
-        }
-        if (enemy.Actions.Count == 0) throw new InvalidOperationException("行動がありません。");
-
-        var referencedNames = new HashSet<string>(enemy.Actions.Select(x => x.SkillName), StringComparer.Ordinal);
-        var definedNames = new HashSet<string>(StringComparer.Ordinal);
-        Match dropHeader = Match("", "$a");
-        while (index < lines.Length)
-        {
-            SkipEmpty(lines, ref index);
-            if (index >= lines.Length) break;
-            string line = SyntaxLine(lines[index]);
-            dropHeader = Match(line, @"^【ドロップロール】(.*)$");
-            if (dropHeader.Success) break;
-            string skillName;
-            if (!TrySkillBoundary(lines, index, referencedNames, out skillName))
-                throw LineError(index, lines[index], "行動から参照されていないスキル定義です。");
-
-            int next = index + 1;
-            while (next < lines.Length)
-            {
-                string candidate = SyntaxLine(lines[next]);
-                if (Match(candidate, @"^【ドロップロール】(.*)$").Success) break;
-                string nextName;
-                if (TrySkillBoundary(lines, next, referencedNames, out nextName)) break;
-                next++;
-            }
-
-            string skillSource = string.Join("\n", lines.Skip(index).Take(next - index)).Trim();
-            SkillTextData skill;
-            try { skill = SkillTextConverter.Parse("```\n" + skillSource + "\n```"); }
-            catch (InvalidOperationException exception) { throw LineError(index, lines[index], "行動スキルを解析できません：" + exception.Message, exception); }
-            if (!definedNames.Add(skill.Skill.Name)) throw LineError(index, lines[index], "行動スキル定義が重複しています：" + skill.Skill.Name);
-            enemy.Skills.Add(skill);
-            index = next;
-        }
-
-        if (!dropHeader.Success)
-        {
-            if (index < lines.Length) dropHeader = Match(SyntaxLine(lines[index]), @"^【ドロップロール】(.*)$");
-            if (!dropHeader.Success) throw new InvalidOperationException("【ドロップロール】がありません。");
-        }
-        if (dropHeader.Groups[1].Value != "1d100")
-            throw LineError(index, lines[index], "ドロップロールは固定の1d100です。");
-        index++;
-
-        while (index < lines.Length)
-        {
-            string line = SyntaxLine(lines[index]);
-            if (line.Length == 0) { index++; continue; }
-            if (Match(line, @"^―{8,}$").Success)
-            {
-                index++;
-                enemy.Flavor = string.Join("\n", lines.Skip(index)).TrimEnd();
-                index = lines.Length;
-                break;
-            }
-            try { enemy.Drops.Add(ParseDrop(line)); }
-            catch (InvalidOperationException exception) { throw LineError(index, lines[index], exception.Message, exception); }
+            else enemy.Stats.Add(new EnemyStatDefinition { Name = key, Formula = value });
             index++;
         }
         return data;
@@ -181,37 +167,33 @@ public static partial class EnemyTextConverter
         EnemyDefinition enemy = data.Enemy;
         Need(enemy.Name, "エネミー名");
         Need(enemy.DangerLevel, "危険度");
-        if (enemy.Categories == null || enemy.Categories.Count == 0 || enemy.Stats == null || enemy.Actions == null || enemy.Skills == null || enemy.Drops == null)
+        if (enemy.Categories == null || enemy.Categories.Count == 0 || enemy.Stats == null || enemy.Actions == null || enemy.Skills == null || enemy.Traits == null || enemy.Drops == null)
             throw new InvalidOperationException("カテゴリー・能力値・行動・スキル・ドロップを初期化してください。");
         CategoryText(enemy.Categories);
         if (enemy.Stats.Any(x => x == null)) throw new InvalidOperationException("能力値にnullがあります。");
         string[] statNames = enemy.Stats.Select(x => Token(x.Name, "能力値名", "【】")).ToArray();
         if (statNames.Distinct(StringComparer.Ordinal).Count() != statNames.Length || statNames.Contains("危険度", StringComparer.Ordinal))
-            throw new InvalidOperationException("能力値名が重複しているか、予約名の「危険度」が使われています。");
-        foreach (EnemyStatDefinition stat in enemy.Stats) Need(stat.Formula, Token(stat.Name, "能力値名", "【】") + "の値");
-        if (enemy.Actions.Count == 0 || enemy.Actions.Any(x => x == null)) throw new InvalidOperationException("行動が空またはnullです。");
-        if (enemy.Skills.Count == 0 || enemy.Skills.Any(x => x == null || x.Skill == null)) throw new InvalidOperationException("行動スキルが空またはnullです。");
-        var references = new HashSet<string>(enemy.Actions.Select(x => { ActionText(x); return Need(x.SkillName, "行動スキル名"); }), StringComparer.Ordinal);
+            throw new InvalidOperationException("能力値が重複しているか、予約名の「危険度」が使われています。");
+        foreach (EnemyStatDefinition stat in enemy.Stats)
+            if (!string.IsNullOrEmpty(stat.Formula)) Need(stat.Formula, stat.Name + "の値");
+        if (enemy.Actions.Any(x => x == null)) throw new InvalidOperationException("行動がnullです。");
+        foreach (var action in enemy.Actions) ActionText(action);
+        if (enemy.Skills.Concat(enemy.Traits).Any(x => x == null || x.Skill == null)) throw new InvalidOperationException("特性または行動スキルがnullです。");
         string[] skillNames = enemy.Skills.Select(x => Token(x.Skill.Name, "行動スキル名", "《》")).ToArray();
         var skillNameSet = new HashSet<string>(skillNames, StringComparer.Ordinal);
         if (skillNameSet.Count != skillNames.Length) throw new InvalidOperationException("行動スキル名が重複しています。");
-        foreach (string reference in references)
-            if (!skillNameSet.Contains(reference)) throw new InvalidOperationException("行動スキル定義がありません：" + reference);
-        foreach (string skillName in skillNames)
-            if (!references.Contains(skillName)) throw new InvalidOperationException("行動から参照されていないスキル定義です：" + skillName);
 
-        var topLevelNames = skillNameSet;
-        foreach (SkillTextData skill in enemy.Skills)
+        foreach (SkillTextData skill in enemy.Skills.Concat(enemy.Traits))
         {
             if (skill.Summons == null) continue;
             foreach (SummonedEntityDefinition summon in skill.Summons.Where(x => x != null))
             {
                 string summonName = Token(summon.Name, "召喚名", "《》");
-                if (topLevelNames.Contains(summonName))
+                if (skillNameSet.Contains(summonName))
                     throw new InvalidOperationException("行動スキル名と召喚名は重複できません：" + summonName);
             }
         }
-        OrderedDrops(enemy);
+        ValidateDrops(enemy);
         return enemy;
     }
 
@@ -225,7 +207,7 @@ public static partial class EnemyTextConverter
 
     private static List<string> InputBlocks(string source) =>
         DataBlockText.ReadBlocks(DataBlockText.NormalizeBreaks(source), "エネミー", keepFences: false,
-            openingPattern: @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:text|txt|markdown|md)?""?\s*\|?$");
+            openingPattern: @"^(?:\|\s*)?""?(?<ticks>`{3,})(?:[A-Za-z][A-Za-z0-9_.+-]*)?""?\s*\|?$");
 
     private static bool TryNameHeader(string line, out string name)
     {
@@ -234,15 +216,67 @@ public static partial class EnemyTextConverter
         return match.Success;
     }
 
-    private static bool TrySkillBoundary(string[] lines, int index, HashSet<string> referencedNames, out string name)
+    private static string NestedSkillText(string[] lines, int start, int end)
     {
-        name = "";
-        if (index < 0 || index >= lines.Length || !TryNameHeader(SyntaxLine(lines[index]), out name) || !referencedNames.Contains(name))
-            return false;
+        // A trap or pet may follow the parent skill's flavor in the source.
+        // Place its structured fields before the shared skill flavor delimiter.
+        int separator = Array.FindIndex(lines, start + 1, end - start - 1, line => IsSeparator(SyntaxLine(line)));
+        if (separator >= 0)
+        {
+            for (int i = separator + 1; i < end - 1; i++)
+                if (TryNameHeader(SyntaxLine(lines[i]), out _) && IsEmbeddedSummon(lines, start, i))
+                    return string.Join("\n", lines.Skip(start).Take(separator - start)
+                        .Concat(lines.Skip(i).Take(end - i)).Concat(lines.Skip(separator).Take(i - separator))).TrimEnd();
+        }
+        return string.Join("\n", lines, start, end - start).TrimEnd();
+    }
+
+    private static bool IsEmbeddedSummon(string[] lines, int start, int index)
+    {
+        int next = index + 1;
+        SkipEmpty(lines, ref next);
+        if (next >= lines.Length || !IsSummonCategory(SyntaxLine(lines[next]))) return false;
+        string header = SyntaxLine(lines[index]);
+        for (int i = start + 1; i < index; i++)
+            if (lines[i].Contains(header) && (lines[i].Contains("召喚") || lines[i].Contains("設置"))) return true;
+        return false;
+    }
+
+    private static bool IsSummonCategory(string line) => Match(line, @"^〈(?:[^〉]*[,、]\s*)?(?:罠|ペット)(?:\s*[,、〉])").Success;
+
+    private static bool IsSeparator(string line) => Match(line, @"^―{8,}$").Success;
+
+    private static bool SectionBoundary(string[] lines, int index)
+    {
+        string line = SyntaxLine(lines[index]);
+        return IsSeparator(line) || StartsDropTable(lines, index) || TrySkillBoundary(lines, index) ||
+            line.StartsWith("【行動】", StringComparison.Ordinal) || line.StartsWith("【特性】", StringComparison.Ordinal) ||
+            line.StartsWith("【パッシブ効果】", StringComparison.Ordinal);
+    }
+
+    private static bool TrySkillBoundary(string[] lines, int index)
+    {
+        if (!TryNameHeader(SyntaxLine(lines[index]), out _)) return false;
         int next = index + 1;
         SkipEmpty(lines, ref next);
         if (next >= lines.Length) return false;
-        return SkillTextConverter.IsSkillBodyStart(SyntaxLine(lines[next]), next + 1 < lines.Length ? SyntaxLine(lines[next + 1]) : "");
+        string first = SyntaxLine(lines[next]);
+        return SkillTextConverter.IsSkillBodyStart(first, next + 1 < lines.Length ? SyntaxLine(lines[next + 1]) : "");
+    }
+
+    public static IEnumerable<string> ReferenceWarnings(EnemyDefinition enemy)
+    {
+        var references = new HashSet<string>(enemy.Actions.SelectMany(ActionSkillNames), StringComparer.Ordinal);
+        var definitions = new HashSet<string>(enemy.Skills.Select(x => x.Skill.Name), StringComparer.Ordinal);
+        foreach (string name in references.Except(definitions).OrderBy(x => x, StringComparer.Ordinal))
+            yield return "このエネミーに行動スキル定義がありません：《" + name + "》";
+        foreach (var action in enemy.Actions)
+            foreach (var item in new EnemyActionStep[] { action }.Concat(action.Branches).Where(step => step.UseItem))
+                references.Add(item.SkillName);
+        foreach (string name in definitions.Except(references).OrderBy(x => x, StringComparer.Ordinal))
+            yield return "行動欄から直接参照されていないスキル定義です：《" + name + "》";
+        foreach (var stat in enemy.Stats.Where(x => string.IsNullOrWhiteSpace(x.Formula)))
+            yield return "能力値が未記入です：【" + stat.Name + "】";
     }
 
     private static List<string> ParseCategories(string text)

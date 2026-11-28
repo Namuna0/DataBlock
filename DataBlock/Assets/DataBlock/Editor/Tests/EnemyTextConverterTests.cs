@@ -79,18 +79,29 @@ internal sealed class EnemyTextConverterTests
     }
 
     [Test]
-    public void Build_RejectsUnknownAndUnusedSkillReferences()
+    public void ReferenceWarnings_PreserveUndefinedAndIndirectlyUsedSkillNames()
     {
-        string source = ReadFixture("ChirupippiEnemy.txt");
-        EnemyTextData unknown = EnemyTextConverter.Parse(source);
-        unknown.Enemy.Actions[0].SkillName = "未定義スキル";
-        InvalidOperationException unknownError = Assert.Throws<InvalidOperationException>(() => EnemyTextConverter.Build(unknown));
-        StringAssert.Contains("行動スキル定義がありません", unknownError.Message);
+        EnemyTextData data = EnemyTextConverter.Parse(ReadFixture("ChirupippiEnemy.txt"));
+        data.Enemy.Actions[0].SkillName = "未定義スキル";
+        var restored = EnemyTextConverter.Parse(EnemyTextConverter.Build(data));
+        string[] warnings = EnemyTextConverter.ReferenceWarnings(restored.Enemy).ToArray();
+        Assert.That(warnings, Has.Some.Contains("行動スキル定義がありません：《未定義スキル》"));
+        Assert.That(warnings, Has.Some.Contains("行動欄から直接参照されていないスキル定義です：《飛来》"));
+    }
 
-        EnemyTextData unused = EnemyTextConverter.Parse(source);
-        unused.Enemy.Actions.RemoveAt(2);
-        InvalidOperationException unusedError = Assert.Throws<InvalidOperationException>(() => EnemyTextConverter.Build(unused));
-        StringAssert.Contains("行動から参照されていない", unusedError.Message);
+    [Test]
+    public void TraitOnlyEnemy_PreservesMissingStatAndTypedEffects()
+    {
+        const string source = "《試験》\n〈一般エネミー〉\n【危険度】☆\n【防御点】\n【特性】\n"
+            + "《再生》：毎ターンHP300回復\n《不明》：???\n――――――――――――――――\n変わった魔物。";
+        var data = EnemyTextConverter.Parse(source);
+        var contents = data.Enemy.Traits.SelectMany(trait => trait.Skill.Effects).SelectMany(effect => effect.Contents).ToArray();
+        Assert.That(contents[0].Type, Is.EqualTo(EffectContentType.RecoverEachTurn));
+        Assert.That(contents[0].Parameters, Is.EqualTo(new[] { "HP", "300" }));
+        Assert.That(contents[1].Type, Is.EqualTo(EffectContentType.UndisclosedEffect));
+        Assert.That(EnemyTextConverter.ReferenceWarnings(data.Enemy), Has.Some.Contains("防御点"));
+        Assert.That(data.Enemy.Flavor, Is.EqualTo("変わった魔物。"));
+        Assert.That(EnemyTextConverter.Normalize(EnemyTextConverter.Build(data)), Is.EqualTo(EnemyTextConverter.Build(data)));
     }
 
     [Test]
@@ -147,6 +158,20 @@ internal sealed class EnemyTextConverterTests
     }
 
     [Test]
+    public void VictoryDeadlineBeforeLoot_IsSeparateFromSkillFlavor()
+    {
+        const string condition = "【宣言条件】戦闘開始から2ターン目までに勝利";
+        var data = EnemyTextConverter.Parse(ReadFixture("ChirupippiEnemy.txt")
+            .Replace("【ドロップロール】", condition + "\n\n【ドロップロール】"));
+        Assert.That(data.Enemy.LootVictoryTurnLimit, Is.EqualTo(2));
+        Assert.That(data.Enemy.Skills.Last().Skill.Flavor, Does.Not.Contain("勝利"));
+        Assert.That(data.Enemy.Drops.Count, Is.EqualTo(2));
+        string canonical = EnemyTextConverter.Build(data);
+        Assert.That(canonical, Does.Contain(condition + "\n【ドロップロール】1d100"));
+        Assert.That(EnemyTextConverter.Parse(canonical).Enemy.LootVictoryTurnLimit, Is.EqualTo(2));
+    }
+
+    [Test]
     public void DropRoll_IsAlwaysOneHundredSided()
     {
         string invalid = ReadFixture("ChirupippiEnemy.txt")
@@ -170,6 +195,7 @@ internal sealed class EnemyTextConverterTests
         string quoted = source.TrimEnd();
         quoted = "\"" + quoted.Substring(0, quoted.Length - 3) + "```\"";
         quoted = quoted.Replace("白くて可愛らしい小鳥", "白くて\"\"可愛らしい\"\"小鳥");
+        Assert.That(EnemyTextConverter.Normalize(source.Replace("```\n《チルピッピ》", "```none\n《チルピッピ》")), Is.EqualTo(EnemyTextConverter.Normalize(source)));
         Assert.That(EnemyTextConverter.Parse(quoted).Enemy.Flavor,
             Is.EqualTo("白くて\"可愛らしい\"小鳥の魔物、人を見つけると沢山集まってくる。"));
 

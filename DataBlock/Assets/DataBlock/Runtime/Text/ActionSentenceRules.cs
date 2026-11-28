@@ -208,7 +208,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.GainPermanentTargetStacks, "対象へ永続的に《{0}》スタックを{1}付与する。", RuleNamePattern, RuleFormulaPattern);
         rules.Add(EffectContentType.GrantSelfStacksPerTarget, "自身は永続的に《{0}》スタックを[選択対象数]分得る。", RuleNamePattern);
         rules.Add(EffectContentType.ProhibitInvalidationExceptCategory, "この攻撃は〈{0}〉以外によって無効化する事は出来ない。", RuleNamePattern);
-        rules.Add(EffectContentType.ElementAttackPower, AttackParts.Power | AttackParts.AttributePower, "対象を{0}の{1}属性威力で攻撃する。", ArithmeticPattern, @"[炎火水電冷風土光闇]");
+        rules.Including(EffectType.Counter).Add(EffectContentType.ElementAttackPower, AttackParts.Power | AttackParts.AttributePower, "対象を{0}の{1}属性威力で攻撃する。", ArithmeticPattern, ElementSetPattern);
         rules.Including(EffectType.Counter, EffectType.Failure).Add(EffectContentType.RemoveOwnStateCategories, "自身に付与されている〈{0}〉状態を全て解除する。", RuleNamePattern);
         rules.Add(EffectContentType.ReturnStacksSpentInBattle, "自身は《{0}》スタックを戦闘中に消費した数分得る。", RuleNamePattern);
         rules.Add(EffectContentType.ResetTargetResourceByFormula, "対象の{0}を{1}減少させる。", RuleResourcePattern, ArithmeticPattern);
@@ -220,7 +220,7 @@ public static partial class SkillTextConverter
         rules.Add(EffectContentType.ResolveDurabilityByRoll, "発動ロールの結果に応じて〈{0}〉の耐久を増減します。", RuleNamePattern);
         rules.Add(EffectContentType.ClearTargetStacks, "この対象に付与されている《{0}》スタックを全て解除する。", RuleNamePattern);
         rules.Add(EffectContentType.StealSelectedPossessions, "対象の所持品からアイテムを{0}つ選択して奪う。", RulePositivePattern);
-        rules.Add(EffectContentType.ApplyPermanentTargetState, "対象を永続的に《{0}》状態にする。", RuleNamePattern);
+        rules.Including(EffectType.Counter).Add(EffectContentType.ApplyPermanentTargetState, "対象を永続的に《{0}》状態にする。", RuleNamePattern);
         rules.Add(EffectContentType.SelectedConsumableActive, "消費した〈{0}〉のアクティブ効果を適用する。", RuleNamePattern);
         rules.Add(EffectContentType.ClearOwnStateAndCategory, "自身の《{0}》と〈{1}〉状態を全て解除する。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.ApplyStateToTargetGroup, "対象と同じ接近グループのキャラクターは《{0}》状態になる。", RuleNamePattern);
@@ -266,7 +266,7 @@ public static partial class SkillTextConverter
     private static void RegisterCounterRules(RuleSection rules)
     {
         rules.Add(EffectContentType.CancelFumbleEffect, "ファンブル効果を無効にする。");
-        rules.Add(EffectContentType.MixedPowerAttack, "対象を{0}の威力と{1}の{2}属性威力で攻撃する。", ArithmeticPattern, ArithmeticPattern, @"[火水風電冷土光闇雷炎]");
+        rules.Add(EffectContentType.MixedPowerAttack, AttackParts.Power | AttackParts.AttributePower, "対象を{0}の威力と{1}の{2}属性威力で攻撃する。", ArithmeticPattern, ArithmeticPattern, @"[火水風電冷土光闇雷炎]");
         rules.Add(EffectContentType.InvalidateSelection, "その選択を無効にする。");
         rules.Add(EffectContentType.ModifyCheckDieAfterRoll, "行為判定の結果はダイス目を{0}した結果に変わる。", RuleSignedPattern);
         rules.Add(EffectContentType.ReduceTargetCooldown, "対象スキルのクールタイムを{0}減らす。", RulePositivePattern);

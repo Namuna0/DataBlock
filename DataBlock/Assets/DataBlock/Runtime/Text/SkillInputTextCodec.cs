@@ -15,6 +15,21 @@ public static partial class SkillTextConverter
                 .Replace("発動ロールの達成値は1d", "発動ロールは1d").Replace("に変化する。。", "に変化する。")
                 .Replace("レシピ記載のアイテムを入手する事が出来ます", "レシピ記載のアイテムを入手する事が出来る")
                 .Replace("自信を除くキャラクター", "自身を除くキャラクター");
+            if (i + 1 < lines.Length && M(lines[i], @"この攻撃によって対象を《[^》]+》状態にした場合。$").Success &&
+                M(lines[i + 1].Trim(), @"^[^《》。]+ロールの結果は必ず《[^》]+》となる。?$").Success)
+            {
+                lines[i] = lines[i].TrimEnd('。') + "、" + lines[i + 1].Trim();
+                lines[i + 1] = "";
+            }
+            if (i + 1 < lines.Length && lines[i].TrimEnd().EndsWith("のキャラクターが含まれる場合、", StringComparison.Ordinal) &&
+                lines[i + 1].TrimStart().StartsWith("対象1体につき", StringComparison.Ordinal))
+            {
+                lines[i] += lines[i + 1].Trim();
+                lines[++i] = "";
+                continue;
+            }
+            if (lines[i].StartsWith("●この状態は", StringComparison.Ordinal))
+                lines[i] = "*" + lines[i].Substring(1);
             // Remove only the dangling multiplication operator in a power replacement.
             lines[i] = RegexReplace(lines[i], @"(このアクティブ効果による威力は[^\r\n]+)\*に変化する", "$1に変化する");
             if (i + 1 < lines.Length && lines[i].Contains("によって相手を《") && lines[i].TrimEnd().EndsWith("状態にした時、", StringComparison.Ordinal))

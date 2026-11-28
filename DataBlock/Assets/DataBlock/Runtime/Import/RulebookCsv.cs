@@ -25,6 +25,7 @@ public sealed class RulebookCell
 
     public string BuildText()
     {
+        if (Data is EnemyTextData enemy) return EnemyTextConverter.Build(enemy);
         if (Data is SkillTextData skill) return SkillTextConverter.Build(skill);
         if (Data is CharacterProfileData profile) return SkillTextConverter.BuildProfile(profile);
         if (Data is SiegeWeaponData siege) return SkillTextConverter.BuildSiegeWeapon(siege);
@@ -85,13 +86,16 @@ public static class RulebookCsv
         if (source.IndexOf('\n') < 0 && source.IndexOf('\r') < 0 && source.Contains("【レアリティ】"))
             source = EquipmentTextConverter.PrepareInput(source);
         var lines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
-            .Select(s => s.Trim()).SkipWhile(s => s.Length == 0 || s.StartsWith("```", StringComparison.Ordinal))
+            .Select(s => s.Trim()).SkipWhile(s => s.Length == 0 || DataBlockText.OpeningFence(DataBlockText.NormalizeFenceLine(s)).Success)
             .TakeWhile(s => !s.StartsWith("――――――――", StringComparison.Ordinal)).ToArray();
         if (lines.Length == 0 || !lines[0].StartsWith("《", StringComparison.Ordinal)) return null;
         var title = DataBlockText.GetRegex(@"^《([^《》]+)》(☆[1-9][0-9]*)?$").Match(lines[0]);
         if (!title.Success) return null;
         string name = title.Groups[1].Value;
-        if ((source.Contains("秘匿") || source.Contains("兵器")) && !IncludedNames.Contains(name)) return null;
+        bool enemy = lines.Skip(1).FirstOrDefault(s => s.StartsWith("【", StringComparison.Ordinal))
+            ?.StartsWith("【危険度】", StringComparison.Ordinal) == true;
+        string filterText = enemy ? lines.Skip(1).FirstOrDefault(s => s.StartsWith("〈", StringComparison.Ordinal)) ?? "" : source;
+        if ((filterText.Contains("秘匿") || filterText.Contains("兵器")) && !IncludedNames.Contains(name)) return null;
         bool profile = lines.Any(s => s.StartsWith("【種族能力値ボーナス】") || s.StartsWith("【クラス能力値】")) ||
                        lines.Skip(1).Take(1).Any(s => s == "〈種族〉" || s.StartsWith("〈種族,"));
         bool siege = lines.Skip(1).Take(1).Any(s => s == "〈兵器〉" || s.StartsWith("〈兵器,"));
@@ -99,11 +103,12 @@ public static class RulebookCsv
             && (lines.Any(line => line.StartsWith("【装備部位】") || line.StartsWith("【装備効果】")) ||
                 (lines.Any(line => line.StartsWith("【レアリティ】")) && lines.Any(line => line.StartsWith("【サイズ】"))));
         if (!equipment && title.Groups[2].Success) return null;
-        if (!equipment && IsSkillDraft(lines, profile || siege)) return null;
+        if (!enemy && !equipment && IsSkillDraft(lines, profile || siege)) return null;
         try
         {
             object data;
-            if (profile) data = SkillTextConverter.ParseProfile(source);
+            if (enemy) data = EnemyTextConverter.Parse(source);
+            else if (profile) data = SkillTextConverter.ParseProfile(source);
             else if (siege) data = SkillTextConverter.ParseSiegeWeapon(source);
             else if (equipment)
             {

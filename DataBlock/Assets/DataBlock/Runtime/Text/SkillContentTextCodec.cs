@@ -182,7 +182,7 @@ public static partial class SkillTextConverter
                 if (content.Parameters.Count != 2 || content.Parameters[0] != "Self") return null;
                 return "自身の《" + content.Parameters[1] + "》状態を解除する。";
             case EffectContentType.LeaveBattle:
-                p = Args(content.Parameters, 1, "LeaveBattle"); Require(p[0] == "Self"); return "自身は戦闘を離脱する。";
+                p = Args(content.Parameters, 1, "LeaveBattle"); Require(p[0] == "Self" || p[0] == "Target"); return Actor(p[0]) + "は戦闘を離脱する。";
             case EffectContentType.PreventRollAtResource:
                 p = Args(content.Parameters, 5, "PreventRollAtResource"); Require(p[0] == "Self" && p[2] == "AtMost"); Number(p[3], 0, "閾値");
                 return "自身は" + p[1] + "が" + p[3] + "以下になった時、" + p[4] + "ロールを行う必要がない。";
@@ -199,7 +199,8 @@ public static partial class SkillTextConverter
             case EffectContentType.ApplySelectedSkillState:
                 p = Args(content.Parameters, 3, "ApplySelectedSkillState"); Require(p[0] == "SelectedSkill"); Number(p[2], 1, "持続ターン"); return "対象スキルを" + p[2] + "ターンの間《" + p[1] + "》状態にする。";
             case EffectContentType.ResourceDamage:
-                p = Args(content.Parameters, 3, "ResourceDamage"); Require(p[0] == "Target"); return "対象に" + p[2] + "の" + p[1] + "ダメージを与える。";
+                p = Args(content.Parameters, 3, "ResourceDamage"); Require(p[0] == "Target" || p[0] == "AllEnemies");
+                return (p[0] == "Target" ? "対象に" : "敵全体へ") + p[2] + "の" + p[1] + "ダメージを与える。";
             case EffectContentType.RestoreFromResourceDamage:
                 p = Args(content.Parameters, 5, "RestoreFromResourceDamage"); Require(p[0] == "Self" && p[4] == "ThisResolution"); PositiveModifierFactor(p[3]);
                 return "与えた" + p[1] + "ダメージの" + p[3] + "倍の値の" + p[2] + "を回復する。";

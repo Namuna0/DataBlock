@@ -142,7 +142,8 @@ public static partial class SkillTextConverter
         {
             sb.AppendLine("【消費リソース】" + string.Join(", ", skill.Costs.Select(CostText)));
         }
-        if (skill.CooldownTurns < 0 || skill.Roll.Count < 0) throw new InvalidOperationException("クールタイムと回数は0以上です。");
+        if (skill.CooldownTurns < -1 || skill.Roll.Count < 0) throw new InvalidOperationException("クールタイムは0以上または無期限、回数は0以上です。");
+        if (skill.CooldownTurns == -1) sb.AppendLine("【クールタイム】∞ターン");
         if (skill.CooldownTurns > 0) sb.AppendLine("【クールタイム】" + skill.CooldownTurns + "ターン");
         bool automaticRoll = skill.Roll.Count == 1 && skill.Roll.Formula == "自動成功" && string.IsNullOrWhiteSpace(skill.Roll.Target);
         var sources = skill.Roll.SourceItemCategories;

@@ -8,6 +8,8 @@ internal static class CommonEffectRollTable
 {
     private static readonly DataBlockSentencePattern[] TableTriggers =
     {
+        new DataBlockSentencePattern("TargetStateFromAchievement", "達成値が次の時、対象に{0}ターン状態を付与する。", Quantity),
+        new DataBlockSentencePattern("TargetStateFromTargetRoll", "対象はダイスロール1d{0}を行い、{1}ターンの間次の状態が付与される。", Quantity, Quantity),
         new DataBlockSentencePattern("EnemyDrop", "自身がエネミーのドロップロールを行う際、1体につきダイスロールを行いアイテムを獲得する。"),
         new DataBlockSentencePattern("FullRecoveryInArea", "自身が〈{0}〉で{1}を全回復した時、1d{2}のダイスロールを行い以下の効果を適用しても良い。", TagName, ResourceCode, Quantity),
         new DataBlockSentencePattern("PhaseState", "{0}フェーズ時、1d{1}のダイスロールの結果に応じて自身は[xx]状態になる。", BonusName, Quantity),
@@ -42,7 +44,7 @@ internal static class CommonEffectRollTable
             string line = lines[next].Trim().Replace("\\*", "*");
             if (line.Length == 0) continue;
             var tier = M(line, @"^☆([1-9][0-9]*)(?:～([1-9][0-9]*)|(以上))?のエネミー[：:]1d100$");
-            var row = M(line, @"^-\s*([1-9][0-9]*)(?:～([1-9][0-9]*))?[：:]\s*(.+)$");
+            var row = M(line, @"^(?:-\s*)?([1-9][0-9]*)(?:～([1-9][0-9]*))?[：:]\s*(.+)$");
             if (tier.Success)
             {
                 string max = tier.Groups[3].Success ? "Unlimited" : tier.Groups[tier.Groups[2].Success ? 2 : 1].Value;
@@ -99,7 +101,10 @@ internal static class CommonEffectRollTable
         string first = trigger.Write(header.Skip(1).ToArray());
         var result = new List<string> { first };
         bool dropped = trigger.Key == "EnemyDrop";
-        int die = dropped ? 100 : Number(header.Last(), 1, "ダイスの面数");
+        bool fromAchievement = trigger.Key == "TargetStateFromAchievement";
+        bool targetRoll = trigger.Key == "TargetStateFromTargetRoll";
+        bool stateOnly = fromAchievement || targetRoll || trigger.Key == "PhaseState";
+        int die = fromAchievement ? int.MaxValue : dropped ? 100 : Number(targetRoll ? header[1] : header.Last(), 1, "ダイスの面数");
         var tiers = new List<(int Min, int Max)>();
         var ranges = new List<(int Min, int Max)>();
         foreach (var effect in effects.Skip(1))
@@ -124,7 +129,7 @@ internal static class CommonEffectRollTable
             CheckTableRange(ranges, min, upper);
             var outcome = TableOutcomes.FirstOrDefault(t => t.Key == p[0]);
             if (outcome == null || (dropped && p[0] != "Item" && p[0] != "None") ||
-                (trigger.Key == "PhaseState" && p[0] != "State" && p[0] != "None"))
+                (stateOnly && p[0] != "State" && p[0] != "None"))
                 throw new InvalidOperationException("ロール表の結果の種類が不正です。");
             string body = outcome.Write(p.Skip(3).ToArray());
             if (p[0] == "PermanentState" || p[0] == "State") referencedStates?.Add(p[3]);

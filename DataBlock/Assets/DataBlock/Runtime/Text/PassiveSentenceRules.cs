@@ -2,6 +2,7 @@ public static partial class SkillTextConverter
 {
     private static void RegisterPassiveRules(RuleSection rules)
     {
+        RegisterTraitRules(rules);
         rules.Add(EffectContentType.IncreaseItemCapacityBySize, "自身の所持できるサイズ{0}のアイテムは{1}追加される。", @"[^〈〉《》【】、,。\s]+", RuleSignedPattern);
         rules.Add(EffectContentType.EntityStateImmunity, "このキャラクターは《{0}》状態にならない。", RuleNamePattern);
         rules.Add(EffectContentType.TitleOption, "選択候補の称号は《{0}》。", RuleNamePattern);
