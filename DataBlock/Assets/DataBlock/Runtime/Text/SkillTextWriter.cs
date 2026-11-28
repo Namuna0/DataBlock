@@ -82,6 +82,8 @@ public static partial class SkillTextConverter
     }
     private static string WriteCommonGroup(List<EffectContent> contents, bool unconditional, HashSet<string> referencedStates = null)
     {
+        if (contents.Count > 0 && contents[0]?.Type == EffectContentType.CharacterChoice)
+            return CharacterChoiceTextCodec.Write(contents);
         if (contents.Count > 0 && contents[0]?.Type == EffectContentType.RollTable)
         {
             if (!unconditional) throw new InvalidOperationException("ロール表の発動条件は表自体に指定してください。");
@@ -99,9 +101,10 @@ public static partial class SkillTextConverter
             yield return AppendPassiveEffectNotes(effect, trigger + SkillContentText(content));
     }
 
-    private static void WriteEffectGroup(StringBuilder sb, SkillBody skill, EffectType type)
+    private static void WriteEffectGroup(StringBuilder sb, SkillBody skill, EffectType type, string firstText = null)
     {
         var texts = new List<string>();
+        if (firstText != null) texts.Add(firstText);
         var effects = skill.Effects.Where(x => x.Type == type).ToList();
         var deferred = type == EffectType.Passive ? effects.Where(x => IsMappedStackRestore(x, null)).ToList() : new List<EffectDefinition>();
         if (deferred.Count > 1)
@@ -131,7 +134,8 @@ public static partial class SkillTextConverter
         if (texts.Count == 1) sb.AppendLine(header + texts[0]);
         else { sb.AppendLine(header); foreach (string text in texts) sb.AppendLine(Bullet + text); }
     }
-    private static void WriteSkill(StringBuilder sb, SkillBody skill, List<FormulaStat> stats = null, bool includeCategories = true)
+    private static void WriteSkill(StringBuilder sb, SkillBody skill, List<FormulaStat> stats = null, bool includeCategories = true,
+        string secondSpike = null, string thirdSpike = null)
     {
         if (includeCategories)
         {
@@ -180,14 +184,14 @@ public static partial class SkillTextConverter
         else if (automaticRoll) sb.AppendLine("【発動ロール】自動成功" + (skill.Roll.UseSummonerResult ? "、達成値は召喚者と同値として扱われる。" : skill.Roll.FixedResult >= 0 ? "、達成値は" + skill.Roll.FixedResult + "となる。" : ""));
         else if (skill.Roll.Count > 0) sb.AppendLine("【発動ロール】" + (skill.Roll.RepresentativeCount > 0 ? "代表" + skill.Roll.RepresentativeCount + "名が" : "") + (skill.Roll.Count > 1 ? skill.Roll.Count + "回：" : "") + Need(skill.Roll.Formula, "式") + " 目標値" + Need(skill.Roll.Target, "目標値"));
         foreach (EffectType type in DisplayOrder.Where(x => IsOrdinary(x) && x != EffectType.Declaration)) WriteEffectGroup(sb, skill, type);
-        if (skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
+        if (secondSpike != null || thirdSpike != null || skill.Overrides.Any(x => x.Type == EffectType.SecondSpike || x.Type == EffectType.ThirdSpike))
         {
             sb.AppendLine();
-            if (!skill.Overrides.Any(x => x.Type == EffectType.SecondSpike))
+            if (secondSpike == null && !skill.Overrides.Any(x => x.Type == EffectType.SecondSpike))
                 sb.AppendLine("【セカンドスパイク】無し");
             else
-                WriteEffectGroup(sb, skill, EffectType.SecondSpike);
-            WriteEffectGroup(sb, skill, EffectType.ThirdSpike);
+                WriteEffectGroup(sb, skill, EffectType.SecondSpike, secondSpike);
+            WriteEffectGroup(sb, skill, EffectType.ThirdSpike, thirdSpike);
         }
     }
     public static string Normalize(string text) { return string.Join("\n\n", InputBlocks(text).Select(x => Build(ParseOne(x)))); }
@@ -199,7 +203,7 @@ public static partial class SkillTextConverter
 
     public static string Build(SkillTextData data) => Build(data, includeHeading: true);
 
-    internal static string Build(SkillTextData data, bool includeHeading)
+    internal static string Build(SkillTextData data, bool includeHeading, string secondSpike = null, string thirdSpike = null)
     {
         if (data == null || data.Skill == null || data.Summons == null || data.States == null || data.Skill.Choices == null || data.Skill.Choices.Any(x => x == null) || data.Summons.Any(x => x == null) || data.States.Any(x => x == null)) throw new InvalidOperationException("スキル・子スキル・召喚・状態がnullです。");
         if (data.Skill.Choices.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.Summons.GroupBy(x => x.Name).Any(x => x.Count() > 1) || data.States.GroupBy(x => x.Name).Any(x => x.Count() > 1)) throw new InvalidOperationException("子スキル・召喚・状態の名前が重複しています。");
@@ -214,7 +218,7 @@ public static partial class SkillTextConverter
             sb.AppendLine("```");
             sb.AppendLine("《" + Need(data.Skill.Name, "スキル名") + "》");
         }
-        WriteSkill(sb, data.Skill, includeCategories: includeHeading);
+        WriteSkill(sb, data.Skill, includeCategories: includeHeading, secondSpike: secondSpike, thirdSpike: thirdSpike);
         if (data.Skill.Choices.Count > 0)
         {
             sb.AppendLine("【説明】" + Description);

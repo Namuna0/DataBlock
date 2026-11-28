@@ -61,7 +61,7 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^自身の([^〈〉《》\[\]]+B)は([0-9.]+)加算される", "自身の$1が+$2加算される");
             line = RegexReplace(line, @"^([A-Z]+)値最大値が([+-][0-9]+)される。?$", "$1最大値$2");
             line = RegexReplace(line, @"^([^\s〈〉《》：。]+)：(?=この状態付与から|\[[^\]]+B\]による行為判定)", "$1効果：");
-            line = RegexReplace(line, @"^-\s*《([^》]+)》$", "選択候補の称号は《$1》。");
+
             line = RegexReplace(line, @"^-\s*(?=[0-9]+スタック：|消費した〈|《[^》]+》を[0-9]+個以上)", "");
             line = RegexReplace(line, @"^\*別の(〈[^〉]+〉へ移動するまで持続。)$", "別の$1");
             line = RegexReplace(line, @"^\*自身が(〈[^〉]+〉)を宣言した時、この状態は解除される。$", "*この状態は自身が$1を宣言した時解除される。");
@@ -336,6 +336,8 @@ public static partial class SkillTextConverter
     {
         int end = Array.FindIndex(source, line => M(line.Trim(), @"^―{8,}$").Success);
         string[] rules = end < 0 ? source : source.Take(end).ToArray();
+        if (rules.Any(line => line.Contains("ライフパス") && IsCategoryLine(line.Trim()) && Categories(line.Trim()).Contains("ライフパス")))
+            rules = NormalizeProgressionSentences(rules);
         rules = SplitCombatAndRoleplayRolls(NormalizeConsumableLines(rules));
         rules = NormalizeWrappedAppliedStateSentences(NormalizeWrappedEffectSentences(NormalizeWrappedMappings(
             NormalizeStructuralSkillLines(NormalizeCombinedResourceSentences(NormalizeCombinedStackSentences(rules))))));

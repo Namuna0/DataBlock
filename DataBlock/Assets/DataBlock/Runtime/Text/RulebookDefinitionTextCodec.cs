@@ -41,7 +41,7 @@ public static partial class SkillTextConverter
         return string.Join("\n", lines);
     }
 
-    private static List<ProfileBonus> ProfileBonuses(string text, bool percent)
+    internal static List<ProfileBonus> ProfileBonuses(string text, bool percent)
     {
         var values = new List<ProfileBonus>();
         foreach (string word in DataBlockText.GetRegex(@"[\s,、]+").Split(text.Trim()))

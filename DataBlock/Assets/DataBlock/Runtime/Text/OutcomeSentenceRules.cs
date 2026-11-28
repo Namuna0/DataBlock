@@ -42,6 +42,19 @@ public static partial class SkillTextConverter
 
     private static void RegisterSecondSpikeRules(RuleSection rules)
     {
+        rules.AddOverride(EffectContentType.RankMaximumResourceFactor, "{0}最大値は×{1}倍される。", RuleResourcePattern, RuleFactorPattern);
+        rules.AddOverride(EffectContentType.RankStateStackMaximumLoss, "{0}効果によるスタックごとの{1}最大値減少は{2}減少に変化する。", RuleNamePattern, RuleResourcePattern, RulePositivePattern);
+        rules.AddOverride(EffectContentType.RankOptionalStackCount, "自身は〈{0}〉及び《{1}》を宣言する際、《{2}》スタックを{3}つ付与に変化する。", RuleNamePattern, RuleNamePattern, RuleNamePattern, RulePositivePattern);
+        rules.AddOverride(EffectContentType.RankLevelCostDelta, "このパッシブ効果による消費経験値軽減は{0}に変化する。", RuleSignedPattern);
+        rules.AddOverride(EffectContentType.RankStateRecoveryFactor, "{0}効果による回復効果は×{1}倍に変化する。", RuleNamePattern, RuleFactorPattern);
+        rules.AddOverride(EffectContentType.PreventMealResourceLoss, "自身は食事のセット効果《{0}》によってリソースが減少しない。", RuleNamePattern);
+        rules.AddOverride(EffectContentType.RankCheckResultDelta, "このパッシブ効果による達成値の上昇は{0}に変化する。", RuleSignedPattern);
+        rules.AddOverride(EffectContentType.RankCategoryActiveCheckDelta, "〈{0}〉のアクティブ効果による行為判定の達成値は{1}される。", RuleNamePattern, RuleSignedPattern);
+        rules.AddOverride(EffectContentType.RankSelectedSkillTarget, "選択されたスキルの目標値は{0}される。", RuleSignedPattern);
+        rules.AddOverride(EffectContentType.RankResourceUseLimit, "このパッシブ効果による{0}回復は1ターンに{1}度までに変化する。", RuleResourcePattern, RulePositivePattern);
+        rules.AddOverride(EffectContentType.RankGrowthPoints, "成長点を追加で{0}得る。", RulePositivePattern);
+        rules.AddOverride(EffectContentType.OptionalBattleTurnReroll, "戦闘開始{0}ターン目に任意でもう一度このパッシブ効果によるダイスロールを行ってもよい。", RulePositivePattern);
+        rules.AddOverride(EffectContentType.RankPairedStateStats, "《{0}》の{1}は{2}、《{3}》の{4}及び{5}は{6}に変化する。", RuleNamePattern, RuleNamePattern, @"[+-][0-9]+(?:\.[0-9]+)?", RuleNamePattern, RuleNamePattern, RuleNamePattern, @"[+-][0-9]+(?:\.[0-9]+)?");
         rules.AddOverride(EffectContentType.ReplacePassiveStatBonus, "このパッシブ効果による[{0}]上昇は{1}加算に変化する。", RuleNamePattern, @"[+-][0-9]+(?:\.[0-9]+)?");
         rules.AddOverride(EffectContentType.SetDelayedStateSkillValue, "《{0}》の遅延攻撃のスキル値は{1}に変化する。", RuleNamePattern, @"[0-9]+");
         rules.AddOverride(EffectContentType.QualifyNamedSkill, "《{0}》の習得条件を達成する。", RuleNamePattern);

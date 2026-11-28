@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -274,7 +274,11 @@ public enum EffectContentType
     GrantCreationChoice = 45, // LifePath, count, candidate names...
     /// <summary>指定した種族カテゴリーの特性を習得する。</summary>
     GrantRaceTrait = 46, // race category, count
-    /// <summary>種別とパラメーターの組でキャラクター固有のルールを表す。</summary>
+    /// <summary>キャラクターの候補選択、称号の組み合わせ、または食事セットの適用条件を定義する。</summary>
+    CharacterChoice = 1600,
+    /// <summary>キャラクター作成時の選択表の候補・構成要素・説明例を表す。</summary>
+    CharacterChoiceEntry = 1601,
+    /// <summary>キャラクター作成・種族・移動などの規則とその引数を保持する。</summary>
     CharacterRule = 47, // character-rule kind followed by semantic parameters; see CharacterRuleTextCodec
     /// <summary>達成値が上限以下の指定カテゴリーの行動を任意で無効にする。</summary>
     OptionalInvalidateAction = 48, // Self, action category, AtMost, achievement value
@@ -2414,6 +2418,136 @@ public enum EffectContentType
     RepeatAttackByActivationResult = 1142,
     /// <summary>自身が指定属性のダメージを受け、二つの永続状態を得る。</summary>
     SelfElementDamageAndPersistentStates = 1143,
+    /// <summary>自身の行為判定でクリティカルに必要な出目の下限を加減する。</summary>
+    CriticalMinimumDelta = 1800,
+    /// <summary>作成時のスキル枠を指定数消費して名前付きスキルを習得する。</summary>
+    SpendCreationSlotForSkill = 1801,
+    /// <summary>指定能力値に対するライフパスのマイナス補正を防ぐ。</summary>
+    ProtectLifePathStat = 1802,
+    /// <summary>味方プレイヤーが戦闘不能になり単独になった時、自分のターン開始時にリソースを得て状態を任意解除する。</summary>
+    LastPlayerTurnRecovery = 1803,
+    /// <summary>ライフパス習得時に指定種別の品を獲得する。</summary>
+    GainItemOnAcquisition = 1804,
+    /// <summary>指定数のディスティニースパイクを得る。</summary>
+    GainDestinySpikes = 1805,
+    /// <summary>指定したいずれかの分類による行為判定の達成値を乗算する。</summary>
+    EitherCategoryCheckFactor = 1806,
+    /// <summary>指定したいずれかの分類による行為判定の達成値を加減する。</summary>
+    EitherCategoryCheckDelta = 1807,
+    /// <summary>指定分類またはスキルの宣言時、任意で永続スタックを付与して達成値を乗算する。</summary>
+    OptionalPermanentStackForActivation = 1808,
+    /// <summary>指定した日次回数まで発動ロールの出目を任意に加減する。</summary>
+    OptionalRollFaceAdjustment = 1809,
+    /// <summary>他の味方から受けたバフの種類数が閾値以上の時、敵のカウンター目標値を乗算する。</summary>
+    IncreaseEnemyCounterTargetByAllyBuffs = 1810,
+    /// <summary>指定分類へのカウンター効果の達成値を加減する。</summary>
+    CounterAgainstCategoryResultDelta = 1811,
+    /// <summary>レベル上昇時の消費経験値を加減する。</summary>
+    LevelExperienceCostDelta = 1812,
+    /// <summary>戦闘中、自身の能力値による達成値を他の味方の人数に応じて増加する。</summary>
+    BattleCheckBonusPerAlly = 1813,
+    /// <summary>自身を除く味方全員の指定能力値による達成値を加減する。</summary>
+    OtherAlliesStatResultDelta = 1814,
+    /// <summary>指定クラスを習得する。</summary>
+    LearnClass = 1815,
+    /// <summary>指定枠を消費して別種族の習得条件に合う種族スキルを選ぶ。</summary>
+    SpendSlotForOtherRaceSkill = 1816,
+    /// <summary>種族共通スキルと通常選択不可の種族スキルを候補から除外する。</summary>
+    ExcludeSharedAndRestrictedRaceSkills = 1817,
+    /// <summary>移動可能なエリアを選択種族のものに限定する。</summary>
+    UseSelectedRaceTravel = 1818,
+    /// <summary>習得可能なクラスを選択種族のものに限定する。</summary>
+    UseSelectedRaceClasses = 1819,
+    /// <summary>作成時のスキル枠を消費して二つの分類を満たすスキルを選ぶ。</summary>
+    SpendSlotForTaggedSkill = 1820,
+    /// <summary>指定分類の発動ロール達成値を加減する。</summary>
+    CategoryActivationResultDelta = 1821,
+    /// <summary>指定分類のクリティカルを受けた場合の被ダメージを乗算する。</summary>
+    CriticalCategoryIncomingFactor = 1822,
+    /// <summary>危険度が閾値以上の敵との戦闘で能力値と指定分類の達成値を補正する。</summary>
+    DangerThresholdCombatBonus = 1823,
+    /// <summary>自身に対して指定分類が宣言された時の発動ロール目標値を加減する。</summary>
+    TargetedCategoryActivationTargetDelta = 1824,
+    /// <summary>指定分類のエネミーを倒すと追加ドロップロールを行う。</summary>
+    AdditionalDropsOnCategoryDefeat = 1825,
+    /// <summary>習得時に全スキルから指定数を選択する。</summary>
+    SelectSkillOnAcquisition = 1826,
+    /// <summary>選択したスキルの達成値を加減する。</summary>
+    SelectedSkillCheckDelta = 1827,
+    /// <summary>日ごとの回数まで任意で指定アイテムを得る。</summary>
+    OptionalDailyItems = 1828,
+    /// <summary>敵プレイヤーパーティー全滅時に日次上限付きの経験値と決意を得る。</summary>
+    EnemyPartyWipeRewards = 1829,
+    /// <summary>指定分類の発動時にターン中の上限回数までリソースを得る。</summary>
+    ResourceOnCategoryUsePerTurn = 1830,
+    /// <summary>指定分類への行為判定の目標値を加減する。</summary>
+    AgainstEitherCategoryTargetDelta = 1831,
+    /// <summary>指定分類の発動時に味方を追加選択すれば敵も追加選択でき、重複を許可する。</summary>
+    AddAllyAndEnemyTargets = 1832,
+    /// <summary>いずれかの指定分類で失敗した時、二つのリソースを回復する。</summary>
+    RecoverTwoResourcesOnCategoryFailure = 1833,
+    /// <summary>キャラクター作成時、同数の経験値と決意を得る。</summary>
+    CreationRewards = 1834,
+    /// <summary>指定クラスをいずれも装備していない場合に最大リソースを乗算する。</summary>
+    ResourceFactorWithoutClasses = 1835,
+    /// <summary>キャラクターの開始レベルを指定する。</summary>
+    StartingLevel = 1836,
+    /// <summary>指定レベルへの昇格に必要な経験値と取得成長点を指定する。</summary>
+    LevelExperienceAndGrowth = 1837,
+    /// <summary>指定分類のアイテム使用時にリソースを回復し状態を得る。</summary>
+    ItemUseRecoveryAndState = 1838,
+    /// <summary>行為判定のクリティカルとファンブルの出目の境界を加減する。</summary>
+    CriticalFumbleThresholds = 1839,
+    /// <summary>指定分類のスキルを任意で指定数選び習得する。</summary>
+    ChooseTaggedSkills = 1840,
+    /// <summary>指定ターンの自身のターン開始時に行為判定目標値を加減する。</summary>
+    OwnTurnCheckTargetDelta = 1841,
+    /// <summary>この段階で追加される最大リソースの乗数を指定する。</summary>
+    RankMaximumResourceFactor = 1842,
+    /// <summary>指定状態のスタックごとの最大リソース減少を置換する。</summary>
+    RankStateStackMaximumLoss = 1844,
+    /// <summary>指定分類または名前付きスキルの宣言時に付与するスタック数を置換する。</summary>
+    RankOptionalStackCount = 1845,
+    /// <summary>レベル上昇に必要な経験値の軽減量を置換する。</summary>
+    RankLevelCostDelta = 1846,
+    /// <summary>指定状態が受けるリソース回復量の倍率を置換する。</summary>
+    RankStateRecoveryFactor = 1847,
+    /// <summary>指定した食事セット効果によるリソース低下を防止する。</summary>
+    PreventMealResourceLoss = 1848,
+    /// <summary>基本の行為判定達成値に対する加算値を置換する。</summary>
+    RankCheckResultDelta = 1849,
+    /// <summary>指定アイテム分類のアクティブ効果の達成値に加算する。</summary>
+    RankCategoryActiveCheckDelta = 1850,
+    /// <summary>選択したスキルの目標値を加減する。</summary>
+    RankSelectedSkillTarget = 1851,
+    /// <summary>基本効果がリソースを回復できるターンあたりの回数を置換する。</summary>
+    RankResourceUseLimit = 1852,
+    /// <summary>追加成長点を得る。</summary>
+    RankGrowthPoints = 1853,
+    /// <summary>指定ターンにこのパッシブ効果のダイスを任意で振り直せる。</summary>
+    OptionalBattleTurnReroll = 1854,
+    /// <summary>二つの状態で参照される能力値への補正をそれぞれ置換する。</summary>
+    RankPairedStateStats = 1855,
+    /// <summary>次の指定回数のスキルが参照する能力値を加算する。</summary>
+    NextSkillStatBonus = 1856,
+    /// <summary>全滅ロールを振り直す。</summary>
+    RerollWipe = 1857,
+    /// <summary>代表者が行った全滅ロールの結果を全員に適用する。</summary>
+    ApplyRepresentativeWipeToParty = 1858,
+    /// <summary>スタックごとに指定リソースの最大値を減少させる。</summary>
+    StackBasedResourceMaximumLoss = 1859,
+    /// <summary>二つの指定分類を満たす場合、指定式で威力を乗算する。</summary>
+    StackTaggedPowerFactor = 1860,
+    /// <summary>自身が受けるリソースの回復量を乗算する。</summary>
+    ReceivedResourceRecoveryFactor = 1861,
+    /// <summary>自身が装備できるスキル枠の数を加減する。</summary>
+    EquippedSkillSlotDelta = 1870,
+    /// <summary>自身のアクティブ効果に伴う行為判定の達成値を加減する。</summary>
+    ActiveEffectCheckDelta = 1872,
+    /// <summary>出目範囲の変化例を数値で示す参考情報。追加の補正は適用しない。</summary>
+    ThresholdRangeExample = 1873,
+    /// <summary>該当する不利属性の値に係数を掛けて属性被ダメージを乗算する。</summary>
+    WeakElementDamageFactor = 1871,
 }
 /// <summary>効果一つの種類と引数。適用元の名前・欄・発動条件は親データが保持する。</summary>
 [Serializable]

@@ -2,6 +2,7 @@ public static partial class SkillTextConverter
 {
     private static void RegisterActiveRules(RuleSection rules)
     {
+        rules.Add(EffectContentType.NextSkillStatBonus, "次の{0}回のスキルで参照される{1}は{2}される。", RulePositivePattern, RuleNamePattern, @"[+-][0-9]+(?:\.[0-9]+)?");
         rules.Add(EffectContentType.IgnoreSeasonOnHigherRoll, "ダイスロール{0}を行い達成値が季節ロールの値を超えているなら。自身は季節ロールの効果を無視してもよい。", ArithmeticPattern);
         rules.Add(EffectContentType.SwapEquipmentInTwoSlots, "装備している{0}と{1}の装備と対象装備を入れ替える。", @"[^〈〉《》【】、,。\s]+", @"[^〈〉《》【】、,。\s]+");
         rules.Add(EffectContentType.RenameAndRegisterItem, "〈{0}〉の名前を「{1}」と変更して{2}に登録する。", RuleNamePattern, @"[^「」。\r\n]+", RuleNamePattern);
@@ -265,6 +266,8 @@ public static partial class SkillTextConverter
 
     private static void RegisterCounterRules(RuleSection rules)
     {
+        rules.Add(EffectContentType.RerollWipe, "全滅ロールを振りなおす。");
+        rules.Add(EffectContentType.ApplyRepresentativeWipeToParty, "パーティーを代表して全滅ロールを行った場合もその結果は全員に適用される。");
         rules.Add(EffectContentType.CancelFumbleEffect, "ファンブル効果を無効にする。");
         rules.Add(EffectContentType.MixedPowerAttack, AttackParts.Power | AttackParts.AttributePower, "対象を{0}の威力と{1}の{2}属性威力で攻撃する。", ArithmeticPattern, ArithmeticPattern, @"[火水風電冷土光闇雷炎]");
         rules.Add(EffectContentType.InvalidateSelection, "その選択を無効にする。");

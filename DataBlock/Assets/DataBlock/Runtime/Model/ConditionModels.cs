@@ -581,6 +581,18 @@ public enum ConditionType
     FallbackRandomCharacters = 481,
     /// <summary>対象が任意の判定に成功した場合に発動を失敗にする。</summary>
     OptionalCheckCancelsActivation = 482,
+    /// <summary>通常の選択候補から除外する。</summary>
+    NotNormallySelectable = 483,
+    /// <summary>管理者によるキャラクター設定の確認を必要とする。</summary>
+    RequiresCharacterApproval = 484,
+    /// <summary>指定した種族分類に含まれないことを要求する。</summary>
+    ExcludedRaceCategories = 485,
+    /// <summary>現在の自身のリソースが指定値以下であれば宣言できる。</summary>
+    OwnResourceAtMost = 486,
+    /// <summary>自身を除く味方を指定数だけ選択する。</summary>
+    SelectOtherAllies = 487,
+    /// <summary>全滅ロールを行った時に宣言できる。</summary>
+    WhenWipeRoll = 488,
 }
 [Serializable]
 public class ConditionEntry

@@ -28,6 +28,7 @@ public sealed class RulebookCell
 
     public string BuildText()
     {
+        if (Data is LifePathTextData lifePath) return LifePathTextConverter.Build(lifePath);
         if (Data is AreaTextData area) return AreaTextConverter.Build(area);
         if (Data is ItemTextData item) return ItemTextConverter.Build(item);
         if (Data is EnemyTextData enemy) return EnemyTextConverter.Build(enemy);
@@ -52,6 +53,7 @@ public static class RulebookCsv
         if (reader == null) throw new ArgumentNullException(nameof(reader));
         int row = 1, column = 1;
         var field = new StringBuilder();
+        var columnHeaders = new Dictionary<int, string>();
         bool quoted = false, closed = false;
         if (reader.Peek() == '\uFEFF') reader.Read();
         while (true)
@@ -67,7 +69,15 @@ public static class RulebookCsv
             }
             if (ch == ',' || ch == '\r' || ch == '\n' || ch < 0)
             {
-                var cell = ParseCell(field.ToString(), row, column, onExcluded);
+                string source = field.ToString();
+                if (row == 1)
+                {
+                    string header = source.Trim();
+                    if (header.Length > 0 && DataBlockText.GetRegex(@"^[^《》〈〉【】\r\n]+$").IsMatch(header))
+                        columnHeaders[column] = header;
+                }
+                columnHeaders.TryGetValue(column, out string columnHeader);
+                var cell = ParseCell(source, row, column, columnHeader, onExcluded);
                 if (cell != null || yieldSkippedFields) yield return cell;
                 if (ch < 0) yield break;
                 if (ch == ',') column++;
@@ -86,7 +96,7 @@ public static class RulebookCsv
         }
     }
 
-    private static RulebookCell ParseCell(string source, int row, int column, Action<RulebookCell> onExcluded)
+    private static RulebookCell ParseCell(string source, int row, int column, string columnHeader, Action<RulebookCell> onExcluded)
     {
         if (string.IsNullOrWhiteSpace(source)) return null;
         if (source.IndexOf('\n') < 0 && source.IndexOf('\r') < 0 && source.Contains("【レアリティ】"))
@@ -119,6 +129,7 @@ public static class RulebookCsv
         string filterText = enemy ? categories : source;
         if ((filterText.Contains("秘匿") || filterText.Contains("兵器")) && !IncludedNames.Contains(name))
             return Exclude(name, "「秘匿」または「兵器」の除外条件に該当します。");
+        bool lifePath = hasCategories && DataBlockText.GetRegex(@"(?:^〈|[,，、]\s*)ライフパス(?=[,，、〉])").IsMatch(categories);
         bool profile = lines.Any(s => s.StartsWith("【種族能力値ボーナス】") || s.StartsWith("【クラス能力値】")) ||
                        categories == "〈種族〉" || categories.StartsWith("〈種族,");
         bool siege = categories == "〈兵器〉" || categories.StartsWith("〈兵器,");
@@ -127,7 +138,7 @@ public static class RulebookCsv
         bool itemRecord = hasCategories && lines.Any(line => line.StartsWith("【レアリティ】", StringComparison.Ordinal));
         if (!equipment && !itemRecord && title.Groups[2].Success)
             return Exclude(name, "グレード指定に対応する装備またはアイテムの項目がありません。");
-        if (!area && !prize && !enemy && !equipment && !itemRecord)
+        if (!lifePath && !area && !prize && !enemy && !equipment && !itemRecord)
         {
             string reason = SkillDraftReason(lines, profile || siege);
             if (reason != null) return Exclude(name, reason);
@@ -135,7 +146,18 @@ public static class RulebookCsv
         try
         {
             object data;
-            if (area)
+            if (lifePath)
+            {
+                var path = LifePathTextConverter.Parse(source);
+                if (!string.IsNullOrEmpty(columnHeader))
+                {
+                    if (!string.IsNullOrEmpty(path.Group) && path.Group != columnHeader)
+                        throw new InvalidOperationException($"本文のライフパス分類「{path.Group}」と列見出し「{columnHeader}」が異なります。");
+                    path.Group = columnHeader;
+                }
+                data = path;
+            }
+            else if (area)
             {
                 if (!AreaTextConverter.HasEncounterRoll(source))
                     return Exclude(name, "抽選を行うエンカウントロールがありません。");

@@ -222,6 +222,663 @@ MonoBehaviour:
       GradeAdjustments: []
       Skills: []
       Flavor: "\u671D\u3001\u76EE\u3092\u899A\u307E\u3057\u3066\u3001\u3042\u306A\u305F\u306F\u898B\u3064\u3051\u308B\u3002\n\u6BDB\u5E03\u306E\u4E0A\u306B\u306F\u3069\u3053\u304B\u898B\u899A\u3048\u306E\u3042\u308B\u30B5\u30FC\u30AF\u30EC\u30C3\u30C8\u304C\u7F6E\u304B\u308C\u3066\u3044\u305F\u3002\n\n\u7D30\u3044\u91DD\u91D1\u3068\u9234\u862D\u306E\u8449\u3068\u830E\u304C\u3001\u512A\u96C5\u306B\u66F2\u7DDA\u3092\u63CF\u3044\u3066\u7DE8\u307F\u8FBC\u307E\u308C\u3066\u3044\u308B\u3002\n\n\u53B3\u304B\u3067\u6F84\u3093\u3060\u6C17\u914D\u3092\u5BBF\u3057\u305F\u9234\u862D\u304C\u67AF\u308C\u308B\u4E8B\u306F\u306A\u304F\u3001\n\u3072\u3068\u305F\u3073\u984D\u306B\u6234\u3051\u3070\u3001\u5FFD\u3061\u597D\u5947\u5FC3\u3092\u6291\u3048\u304D\u308C\u306C\u5B50\u4F9B\u306E\u3088\u3046\u306B\u7CBE\u970A\u9054\u304C\u96C6\u307E\u3063\u3066\u304F\u308B\u3060\u308D\u3046\u3002"
+--- !u!1 &105789658
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 105789660}
+  - component: {fileID: 105789659}
+  m_Layer: 0
+  m_Name: AreaDataBlock
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &105789659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 105789658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c3ba0deaad64e8fa1a2fae57e17b0a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AreaDataBlock
+  Data:
+    Area:
+      Region: "\u30DE\u30FC\u30BC\u30E9\u30F3\u30C9\u738B\u56FD"
+      Name: "\u30B8\u30E7\u30FC\u30ED\u30F3\u306E\u68EE"
+      Categories:
+      - "\u6226\u95D8\u30A8\u30EA\u30A2"
+      - "\u68EE"
+      Sections:
+      - Facility: 
+        FacilityMarker: 
+        Encounters:
+        - Name: "\u30A8\u30F3\u30AB\u30A6\u30F3\u30C8"
+          Requirements: []
+          Dice: 1d100
+          Rolls: 5
+          AfterProgress: 0
+          NoProgressRoll: 0
+          Entries:
+          - Minimum: 1
+            Maximum: 5
+            Sequence: 0
+            Label: 
+            Condition: 
+            Check: 
+            Target: 0
+            Costs: []
+            Result:
+              Type: 0
+              Enemies:
+              - Name: "\u30B5\u30A4\u30AF\u30ED\u30D7\u30B9"
+                Count: 1
+              Value: 
+              Repetitions: 1
+            OnFailure: []
+            EventId: 0
+          - Minimum: 6
+            Maximum: 10
+            Sequence: 0
+            Label: 
+            Condition: 
+            Check: 
+            Target: 0
+            Costs: []
+            Result:
+              Type: 0
+              Enemies:
+              - Name: "\u30A2\u30ED\u30DA\u30A2\u30D9\u30A2"
+                Count: 2
+              Value: 
+              Repetitions: 1
+            OnFailure: []
+            EventId: 0
+          - Minimum: 11
+            Maximum: 15
+            Sequence: 0
+            Label: 
+            Condition: 
+            Check: 
+            Target: 0
+            Costs: []
+            Result:
+              Type: 0
+              Enemies:
+              - Name: "\u30B0\u30FC\u30EB"
+                Count: 1
+              Value: 
+              Repetitions: 1
+            OnFailure: []
+            EventId: 0
+          - Minimum: 16
+            Maximum: 25
+            Sequence: 0
+            Label: 
+            Condition: 
+            Check: 
+            Target: 0
+            Costs: []
+            Result:
+              Type: 0
+              Enemies:
+              - Name: "\u30B2\u30EB\u30C9\u30D9\u30EA\u30FC\u30F4\u30A1\u30A4\u30D1\u30FC"
+                Count: 2
+              Value: 
+              Repetitions: 1
+            OnFailure: []
+            EventId: 0
+        Actions:
+        - Name: "\u63A1\u53D6"
+          Entries:
+          - Type: 4
+            Field: 
+            Subject: "\u690D\u6797\u5730"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 1
+              Formula: "\u300A\u4F10\u63A1\u300B"
+              Target: 30
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u30D6\u30D9\u30E9\u306E\u6728\u6750"
+              Amount: 4
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 4
+            Field: 
+            Subject: "\u9053\u8FBA\u306E\u8349\u82B1"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 1
+              Formula: "\u300A\u76EE\u661F\u300B"
+              Target: 30
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u30E4\u30DE\u30A2\u30B8\u30B5\u30A4"
+              Amount: 2
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 4
+            Field: 
+            Subject: "\u5D16\u306E\u969B"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: ApplyStateOnFumble
+            Parameters:
+            - "\u30ED\u30B9\u30C8"
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 1
+              Formula: "\u300A\u76EE\u661F\u300B"
+              Target: 50
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u30EC\u30F3\u30B2\u30B7\u30E7\u30A6\u30DE"
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+        - Name: "\u7279\u6B8A\u884C\u52D5"
+          Entries:
+          - Type: 10
+            Field: "\u5BA3\u8A00\u6761\u4EF6"
+            Subject: 
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: LimitChoicesPerVisit
+            Parameters:
+            - 3
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 0
+              Formula: 
+              Target: 
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: 
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 4
+            Field: 
+            Subject: "\u307E\u3060\u6E29\u304B\u3044\u9BAE\u8840\u306B\u67D3\u307E\u308B\u907A\u4F53"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 1
+              Formula: "\u300A\u30EA\u30B6\u30EC\u30AF\u30B7\u30E7\u30F3\u300B"
+              Target: 34
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u8607\u751F\u78BA\u8A8D\u540D\u7C3F"
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 4
+            Field: 
+            Subject: "\u307E\u3060\u6E29\u304B\u3044\u9BAE\u8840\u306B\u67D3\u307E\u308B\u907A\u4F532"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 1
+              Formula: "1d100*[\u7B4B\u529BB]"
+              Target: 46
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u5192\u967A\u8005\u306E\u907A\u4F53"
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 4
+            Field: 
+            Subject: "\u7634\u6C17\u7ACB\u3061\u8FBC\u3081\u308B\u907A\u4F53"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 2
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 2
+              Formula: "\u300A\u30EA\u30B6\u30EC\u30AF\u30B7\u30E7\u30F3\u300B"
+              Target: 34
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u8607\u751F\u78BA\u8A8D\u540D\u7C3F"
+              Amount: 2
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 4
+            Field: 
+            Subject: "\u7634\u6C17\u7ACB\u3061\u8FBC\u3081\u308B\u907A\u4F532"
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 2
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 2
+              Formula: "1d100*[\u7B4B\u529BB]"
+              Target: 46
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: "\u5192\u967A\u8005\u306E\u907A\u4F53"
+              Amount: 2
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+        - Name: "\u884C\u304D\u5148"
+          Entries:
+          - Type: 10
+            Field: "\u79FB\u52D5\u6761\u4EF6"
+            Subject: 
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: TravelAfterProgress
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 0
+              Formula: 
+              Target: 
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: 
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 2
+            Field: 
+            Subject: 
+            Names:
+            - "\u30B2\u30EB\u30C9\u30D9\u30EA\u30FC\u8FD1\u90CA\uFF08\u5317\uFF09"
+            - "\u30B5\u30F3\u30D0\u30E9\u8FD1\u90CA"
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 0
+              Formula: 
+              Target: 
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: 
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+        - Name: "\u884C\u304D\u51482"
+          Entries:
+          - Type: 10
+            Field: "\u5BA3\u8A00\u6761\u4EF6"
+            Subject: 
+            Names: []
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: RequireCategoryOrState
+            Parameters:
+            - "\u30AF\u30E9\u30A4\u30DF\u30F3\u30B0"
+            - "\u6EDE\u7A7A"
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 0
+              Formula: 
+              Target: 
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: 
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+          - Type: 2
+            Field: 
+            Subject: 
+            Names:
+            - "\u9727\u964D\u308A\u306E\u5927\u65AD\u5C64-\u6D45\u5C64-"
+            Categories: []
+            Value: 0
+            Currency: 
+            RequiredSuccesses: 0
+            MinimumSuccesses: 0
+            Rule: 
+            Parameters: []
+            Requirement: 
+            RequirementParameters: []
+            Note: 
+            Roll:
+              Count: 0
+              Formula: 
+              Target: 
+              FixedResult: -1
+              UseSummonerResult: 0
+              SourceItemCategories: []
+              RepresentativeCount: 0
+            Reward:
+              Minimum: 0
+              Maximum: 0
+              ResultName: 
+              ItemName: 
+              Amount: 1
+            Effects: []
+            Costs: []
+            Conditions:
+              And: []
+              Or: []
+      Flavor: "\u9727\u306F\u4F55\u51E6\u307E\u3067\u3082\u6DF1\u304F\u3001\u5E95\u306E\u898B\u3048\u306A\u3044\u5CE1\u8C37\u306E\u7DD1\u306B\u6CBF\u3063\u3066\u7D9A\u304F\u4EA4\u6613\u8DEF\u3002\n\u9038\u8A71\u306E\u591A\u3044\u5D16\u5E95\u3001\u591A\u69D8\u306A\u8CC7\u6E90\u3082\u305D\u3053\u306B\u306F\u7720\u3063\u3066\u3044\u308B\u304C\u3001\u811A\u3092\u8E0F\u307F\u5916\u305B\u3070\u795E\u8056\u8853\u306E\u5FA1\u696D\u3082\u5C4A\u304B\u306A\u3044\u3002 \n\u305D\u308C\u3067\u3082\u3053\u306E\u9053\u3092\u884C\u304D\u4EA4\u3046\u8005\u306F\u591A\u3044\u3002\n\u5D16\u3092\u969B\u306B\u6B69\u3051\u3070\u3001\u305D\u308C\u3060\u3051\u68EE\u306E\u5965\u3078\u8E0F\u307F\u8FBC\u3080\u3088\u308A\u3082\u3001\u9B54\u7269\u3068\u906D\u9047\u3059\u308B\u78BA\u7387\u3092\u6291\u3048\u3089\u308C\u308B\u304B\u3089\u3060\u3002"
+    Events: []
+    States: []
+--- !u!4 &105789660
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 105789658}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &459058738
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 459058740}
+  - component: {fileID: 459058739}
+  m_Layer: 0
+  m_Name: LifePathDataBlock
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &459058739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 459058738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0358cde8f07141fc8a0802dd38224528, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LifePathDataBlock
+  Data:
+    Group: 
+    Definition:
+      Skill:
+        Name: "\u624D\u80FD"
+        Categories:
+        - "\u30E9\u30A4\u30D5\u30D1\u30B9"
+        AcquisitionConditions:
+          And: []
+          Or: []
+        EquipmentConditions:
+          And: []
+          Or: []
+        DeclarationConditions:
+          And: []
+          Or: []
+        Costs: []
+        CooldownTurns: 0
+        Roll:
+          Count: 0
+          Formula: 
+          Target: 
+          FixedResult: -1
+          UseSummonerResult: 0
+          SourceItemCategories: []
+          RepresentativeCount: 0
+        Effects: []
+        Overrides:
+        - Type: 3
+          Triggers: []
+          Contents:
+          - Type: 607
+            Parameters:
+            - Self
+            - "\u6C7A\u610F"
+            - Add
+            - AllSkills
+            - All
+            - -5
+        Choices: []
+        Flavor: "\u3042\u306A\u305F\u306F\u751F\u307E\u308C\u306A\u304C\u3089\u306B\u3057\u3066\u7279\u5225\u306A\u624D\u80FD\u3092\u6301\u3063\u3066\u3044\u308B\u3002\n\u3057\u304B\u3057\u3001\u305D\u306E\u975E\u51E1\u306A\u624D\u80FD\u306F\u7FA8\u671B\u3068\u5B64\u72EC\u3092\u3082\u305F\u3089\u3059\u3002\n\u3042\u306A\u305F\u306F\u3053\u306E\u624D\u80FD\u3092\u795D\u798F\u3068\u898B\u308B\u304B\u3001\u305D\u308C\u3068\u3082\u546A\u3044\u3068\u611F\u3058\u308B\u306E\u304B\u3002\n\u305D\u308C\u306F\u3042\u306A\u305F\u304C\u3069\u306E\u3088\u3046\u306B\u81EA\u5206\u81EA\u8EAB\u3068\u305D\u306E\u529B\u3068\u5411\u304D\u5408\u3046\u304B\u306B\u3088\u308B\u3060\u308D\u3046\u3002"
+      Summons: []
+      States: []
+    AbilityBonuses:
+    - Stat: "\u7CBE\u795E"
+      Amount: -5
+    - Stat: "\u77E5\u529B"
+      Amount: 5
+    - Stat: "\u9B54\u529B"
+      Amount: 5
+    - Stat: "\u5668\u7528"
+      Amount: 10
+    - Stat: "\u5E78\u904B"
+      Amount: -15
+    SecondSpikeBonuses:
+    - Stat: "\u77E5\u529B"
+      Amount: 7
+    - Stat: "\u9B54\u529B"
+      Amount: 7
+    - Stat: "\u5668\u7528"
+      Amount: 11
+    ThirdSpikeBonuses:
+    - Stat: "\u77E5\u529B"
+      Amount: 9
+    - Stat: "\u9B54\u529B"
+      Amount: 9
+    - Stat: "\u5668\u7528"
+      Amount: 12
+--- !u!4 &459058740
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 459058738}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1264060946
 GameObject:
   m_ObjectHideFlags: 0
@@ -253,16 +910,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemDataBlock
   Data:
     Item:
-      Name: "\u30EC\u30C3\u30C9\u30A8\u30C3\u30BB\u30F3\u30B9\u30DD\u30FC\u30B7\u30E7\u30F3"
+      Name: "\u307B\u3046\u308C\u3093\u8349\u30AD\u30C3\u30B7\u30E5"
       Categories:
-      - "\u9B54\u6CD5\u85AC"
+      - "\u98DF\u3079\u7269"
+      - "\u30E1\u30A4\u30F3\u30C7\u30A3\u30C3\u30B7\u30E5"
       Rarity: Rare
       Grade: 3
       SpecialGrade: 
       VariantGrade: 0
       Value:
         Kind: 0
-        Amount: 54
+        Amount: 2
         Currency: "\u30B8\u30EB\u30C0"
         Quantity: 1
       Size: "\u4E2D"
@@ -280,9 +938,10 @@ MonoBehaviour:
       Traits: []
       OwnSkills:
       - Skill:
-          Name: "\u30EC\u30C3\u30C9\u30A8\u30C3\u30BB\u30F3\u30B9\u30DD\u30FC\u30B7\u30E7\u30F3"
+          Name: "\u307B\u3046\u308C\u3093\u8349\u30AD\u30C3\u30B7\u30E5"
           Categories:
-          - "\u9B54\u6CD5\u85AC"
+          - "\u98DF\u3079\u7269"
+          - "\u30E1\u30A4\u30F3\u30C7\u30A3\u30C3\u30B7\u30E5"
           AcquisitionConditions:
             And: []
             Or: []
@@ -290,13 +949,17 @@ MonoBehaviour:
             And: []
             Or: []
           DeclarationConditions:
-            And:
-            - Type: 461
-              Parameters: []
+            And: []
             Or: []
           Costs:
+          - Kind: 0
+            Resource: ACT
+            Quantity: 0
+            Amount: 4
+            Maximum: 0
+            Formula: 
           - Kind: 2
-            Resource: "\u30D4\u30F3\u30AF\u30A8\u30C3\u30BB\u30F3\u30B9\u30DD\u30FC\u30B7\u30E7\u30F3"
+            Resource: "\u307B\u3046\u308C\u3093\u8349\u30AD\u30C3\u30B7\u30E5"
             Quantity: 0
             Amount: 1
             Maximum: 0
@@ -318,14 +981,39 @@ MonoBehaviour:
               Parameters:
               - Self
               - HP
-              - "[HP\u6700\u5927\u5024]*40/100"
+              - "[HP\u6700\u5927\u5024]*4/100"
+          - Type: 1
+            Triggers: []
+            Contents:
+            - Type: 2
+              Parameters:
+              - Self
+              - "\u6D88\u8CBBACT\u6E1B\u5C11"
+              - 1
           Overrides: []
           Choices: []
           Flavor: 
         Summons: []
-        States: []
+        States:
+        - Name: "\u6D88\u8CBBACT\u6E1B\u5C11"
+          Categories:
+          - "\u30DE\u30A4\u30F3\u30C9"
+          Trigger:
+            Timing: 0
+            Conditions:
+              And: []
+              Or: []
+          Effects:
+          - Type: 3
+            Triggers: []
+            Contents:
+            - Type: 1116
+              Parameters:
+              - ACT
+              - -1
+          Overrides: []
       Skills: []
-      Flavor: "\u30C0\u30F3\u30B8\u30E7\u30F3\u3067\u3088\u304F\u898B\u3064\u304B\u308B\u8D64\u8272\u306E\u30DD\u30FC\u30B7\u30E7\u30F3\u3002\n\u975E\u5E38\u306B\u9577\u3044\u6642\u9593\u306E\u4FDD\u5B58\u306B\u8010\u3048\u308B\u3002"
+      Flavor: "\u30D0\u30BF\u30FC\u9999\u308B\u30B5\u30AF\u30B5\u30AF\u306E\u751F\u5730\u306B\u3001\u305F\u3063\u3077\u308A\u306E\u307B\u3046\u308C\u3093\u8349\u3068\u6FC3\u539A\u306A\u30C1\u30FC\u30BA\u3092\u8A70\u3081\u3066\u713C\u304D\u4E0A\u3052\u305F\u8D05\u6CA2\u306A\u30D1\u30A4\u6599\u7406\u3002\n\u5375\u306E\u307E\u308D\u3084\u304B\u3055\u3068\u307B\u3046\u308C\u3093\u8349\u306E\u98A8\u5473\u304C\u7D76\u5999\u306B\u7D61\u307F\u5408\u3044\u3001\u98DF\u3079\u308B\u3068\u5FC3\u3082\u4F53\u3082\u6E29\u307E\u308B\u4E00\u54C1\u3002"
 --- !u!4 &1264060948
 Transform:
   m_ObjectHideFlags: 0
@@ -841,4 +1529,6 @@ SceneRoots:
   - {fileID: 1649472813}
   - {fileID: 26904263}
   - {fileID: 1264060948}
+  - {fileID: 105789660}
+  - {fileID: 459058740}
   - {fileID: 1555061158}

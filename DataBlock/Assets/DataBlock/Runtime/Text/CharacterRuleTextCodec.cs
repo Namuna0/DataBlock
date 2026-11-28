@@ -69,6 +69,10 @@ public static partial class SkillTextConverter
 
     private static readonly CharacterTextRule[] CharacterRules =
     {
+        new CharacterTextRule("BlendRaceBonus", "自身の種族能力値ボーナスは[元々の種族の種族能力値ボーナス]×{0}+[選択種族の種族能力値ボーナス]×{1}に変化する。", "Ability", "{0}", "{1}"),
+        new CharacterTextRule("BlendRaceBonus", "自身の種族属性値ボーナスは[元々の種族の種族属性値ボーナス]×{0}+[選択種族の種族属性値ボーナス]×{1}に変化する。", "Element", "{0}", "{1}"),
+        new CharacterTextRule("InheritSelectedCategory", "〈{0}〉を選択した場合、〈{1}〉として扱われる。", "{0}", "{1}"),
+        new CharacterTextRule("RetainRaceSelectionRestriction", "通常選択不可種族は、通常選択不可。", "SelectedRace"),
         new CharacterTextRule("ForbiddenArea", "自身は〈{0}〉に進入する事が出来ない。", "{0}"),
         new CharacterTextRule("AreaActions", "代りに〈{0}〉で〈{1}〉と同等の行動を行う事が出来る。", "{0}", "{1}"),
         new CharacterTextRule("StartingArea", "キャラクター作成時、自身はエリア《{0}》に移動する。", "CharacterCreation", "{0}"),
@@ -130,6 +134,10 @@ public static partial class SkillTextConverter
         foreach (string part in p) Need(part, "キャラクタールールの引数");
         switch (p[0])
         {
+            case "BlendRaceBonus": Require(p.Length == 4 && (p[1] == "Ability" || p[1] == "Element"));
+                CharacterNumber(p[2]); CharacterNumber(p[3]); break;
+            case "InheritSelectedCategory": Require(p.Length == 3); break;
+            case "RetainRaceSelectionRestriction": Require(p.Length == 2 && p[1] == "SelectedRace"); break;
             case "ForbiddenArea": Require(p.Length == 2); break;
             case "AreaActions": Require(p.Length == 3); break;
             case "StartingArea": Require(p.Length == 3 && p[1] == "CharacterCreation"); break;

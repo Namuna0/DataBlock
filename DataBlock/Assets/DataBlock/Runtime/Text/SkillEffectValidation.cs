@@ -33,6 +33,12 @@ public static partial class SkillTextConverter
         {
             if (effect == null || !IsOrdinary(effect.Type) || effect.Triggers == null || effect.Contents == null || effect.Contents.Count == 0) throw new InvalidOperationException("通常効果の種別・内容を指定してください。");
             SkillTriggerText(effect.Type, effect.Triggers);
+            if (effect.Contents[0]?.Type == EffectContentType.CharacterChoice)
+            {
+                Require(effect.Type == EffectType.Passive && effect.Triggers.Count == 0);
+                CharacterChoiceTextCodec.Write(effect.Contents);
+                continue;
+            }
             if (effect.Contents[0]?.Type == EffectContentType.RollTable)
             {
                 WriteCommonGroup(effect.Contents, effect.Triggers.Count == 0);

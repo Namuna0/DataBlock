@@ -143,7 +143,7 @@ public static partial class SkillTextConverter
         Build(data);
         return data;
     }
-    private static List<string> InputBlocks(string source)
+    internal static List<string> InputBlocks(string source, Func<string, List<string>> splitPlain = null)
     {
         if (string.IsNullOrWhiteSpace(source)) throw new InvalidOperationException("入力テキストが空です。");
         string text = source.Replace("\r\n", "\n").Replace("\r", "\n");
@@ -160,7 +160,7 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"(?m)^([ \t]*`{3,})(《[^《》\r\n]+》)[ \t]*$", "$1\n$2");
         text = DataBlockText.NormalizeBreaks(text);
         text = RegexReplace(text, @"(?m)^(`{3,})-[ \t]*$", "$1");
-        return DataBlockText.ReadBlocks(text, "スキル", splitPlain: SplitPlainSkills);
+        return DataBlockText.ReadBlocks(text, "スキル", splitPlain: splitPlain ?? SplitPlainSkills);
     }
 
     private static List<string> SplitPlainSkills(string plain)

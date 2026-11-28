@@ -95,6 +95,7 @@ internal sealed class DataBlockJsonExport
         switch (data)
         {
             case SkillTextData _: SplitSkill(root); break;
+            case LifePathTextData _:
             case CharacterProfileData _: SplitSkill(root["Definition"].AsObject()); break;
             case SiegeWeaponData _: SplitSkill(root["Action"].AsObject()); break;
             case EquipmentTextData _:
@@ -139,6 +140,7 @@ internal sealed class DataBlockJsonExport
         {
             string kind = cell.Data switch
             {
+                LifePathTextData _ => "lifePath",
                 AreaTextData _ => "area",
                 SkillTextData _ => "skill",
                 EnemyTextData _ => "enemy",

@@ -31,6 +31,11 @@ public static partial class SkillTextConverter
     private static void ReadSkillEffectLines(SkillBody skill, EffectType[] sections, string text,
         string[] lines, ref int index, int end)
     {
+        // この候補は、直前の称号選択に属する場合だけ称号として読む。
+        var title = M(text, @"^-\s*《([^》]+)》$");
+        if (title.Success && skill.Effects.LastOrDefault()?.Contents.LastOrDefault() is EffectContent prior &&
+            (prior.Type == EffectContentType.ChooseTitle || prior.Type == EffectContentType.TitleOption))
+            text = "選択候補の称号は《" + title.Groups[1].Value + "》。";
         bool consumed = false;
         foreach (var section in sections)
         {
@@ -272,6 +277,12 @@ public static partial class SkillTextConverter
                 return true;
             }
             if (owner == null && (sections.Length == 0 || !sections.All(IsOrdinary))) return false;
+            if (owner == null && sections.Length == 1 && sections[0] == EffectType.Passive &&
+                CharacterChoiceTextCodec.TryRead(header, lines, ref index, end, out var choice))
+            {
+                current.Effects.Add(new EffectDefinition { Type = EffectType.Passive, Contents = choice });
+                return true;
+            }
             if (!CommonEffectRollTable.TryRead(header, lines, ref index, end, ReadInlineState, out var contents)) return false;
             if (owner != null) AddStateEffect(owner, NoTriggers(), contents.ToArray());
             else foreach (var section in sections) current.Effects.Add(new EffectDefinition { Type = section, Contents = new List<EffectContent>(contents) });

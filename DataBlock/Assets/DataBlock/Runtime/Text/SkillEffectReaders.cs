@@ -87,6 +87,18 @@ public static partial class SkillTextConverter
             Require(content.Type == EffectContentType.GainStack);
             AddSkillEffect(skill, type, content, Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnOwner, "Any"))); return true;
         }
+        m = M(s, @"^戦闘開始([0-9]+)ターン目(?:に|、)(?:追加ロール([1-9][0-9]*)として)?([1-9][0-9]*d[1-9][0-9]*)のダイスロールを行う。?$");
+        if (m.Success)
+        {
+            Require(type == EffectType.Passive);
+            int next = 1;
+            var used = skill.Effects.SelectMany(e => e.Contents).Where(c => c.Type == EffectContentType.RollDice).Select(c => c.Parameters[0]);
+            while (used.Contains(next.ToString(CultureInfo.InvariantCulture))) next++;
+            string id = m.Groups[2].Success ? m.Groups[2].Value : next.ToString(CultureInfo.InvariantCulture);
+            AddSkillEffect(skill, type, Content(EffectContentType.RollDice, id, m.Groups[3].Value),
+                Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnNumber, m.Groups[1].Value)));
+            return true;
+        }
         m = M(s, @"^戦闘開始([0-9]+)ターン目、([A-Z]+)が([+-][0-9]+)される。?$");
         if (m.Success)
         { Require(type == EffectType.Passive); AddSkillEffect(skill, type, Content(EffectContentType.ModifyResource, "Self", m.Groups[2].Value, m.Groups[3].Value), Trigger(TriggerTiming.TurnStart, Condition(ConditionType.TurnNumber, m.Groups[1].Value))); return true; }

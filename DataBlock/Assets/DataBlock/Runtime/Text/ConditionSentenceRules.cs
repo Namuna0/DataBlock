@@ -6,6 +6,12 @@ public static partial class SkillTextConverter
 {
     private static readonly SkillTextRule[] ConditionRules =
     {
+        new SkillTextRule(ConditionType.NotNormallySelectable, "通常選択不可"),
+        new SkillTextRule(ConditionType.RequiresCharacterApproval, "管理者によるキャラ設定のチェックが必要"),
+        new SkillTextRule(ConditionType.ExcludedRaceCategories, "自身の種族が〈{0}〉以外", RuleNamePattern),
+        new SkillTextRule(ConditionType.OwnResourceAtMost, "自身の{0}が{1}以下の時", RuleResourcePattern, @"[0-9]+"),
+        new SkillTextRule(ConditionType.SelectOtherAllies, "自身を除く味方キャラクターを{0}体選択", RulePositivePattern),
+        new SkillTextRule(ConditionType.WhenWipeRoll, "全滅ロールを行った時"),
         new SkillTextRule(ConditionType.RandomCharacters, "ランダムなキャラクター{0}体を選択して発動", RulePositivePattern),
         new SkillTextRule(ConditionType.DistinctRandomCharacters, "ランダムなキャラクター{0}体を選択して発動（重複しない）", RulePositivePattern),
         new SkillTextRule(ConditionType.DistinctRandomEnemies, "重複しない選択可能なランダムな敵{0}体を選択して発動", RulePositivePattern),
