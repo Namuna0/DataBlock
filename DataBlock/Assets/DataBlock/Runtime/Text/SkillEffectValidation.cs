@@ -147,6 +147,14 @@ public static partial class SkillTextConverter
         }
     }
 
+    private static string[] RollDiceArgs(List<string> parameters)
+    {
+        var result = VariableArgs(parameters, 2, "RollDice");
+        if (result.Length > 3) throw new InvalidOperationException("追加ロールには番号、式、任意の繰り返し回数を指定します。");
+        if (result.Length == 3) Number(result[2], 1, "繰り返し回数");
+        return result;
+    }
+
     private static int RollRangeEnd(string value)
     {
         var range = value.Split('～');
@@ -161,7 +169,7 @@ public static partial class SkillTextConverter
         var rolls = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (EffectContent content in skill.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.RollDice))
         {
-            string[] p = Args(content.Parameters, 2, "RollDice"); Number(p[0], 1, "追加ロール番号");
+            string[] p = RollDiceArgs(content.Parameters); Number(p[0], 1, "追加ロール番号");
             if (rolls.ContainsKey(p[0])) throw new InvalidOperationException("追加ロール番号が重複しています：" + p[0]);
             rolls.Add(p[0], p[1]);
         }
@@ -260,12 +268,12 @@ public static partial class SkillTextConverter
         foreach (var content in effect.Contents)
         {
             if (content.Type != EffectContentType.EnvironmentImmunity && content.Type != EffectContentType.RestoreOnAppliedState &&
-                content.Type != EffectContentType.ChooseCheckOutcome && content.Type != EffectContentType.GrantItem &&
+                content.Type != EffectContentType.ChooseCheckOutcome &&
                 content.Type != EffectContentType.RemoveStatesByOrigin && content.Type != EffectContentType.DeclareSelectedSkill &&
                 content.Type != EffectContentType.SwapWeapon) continue;
             Require(effect.Triggers.Count == 0);
             EffectType expected = content.Type == EffectContentType.EnvironmentImmunity || content.Type == EffectContentType.RestoreOnAppliedState ? EffectType.Passive :
-                content.Type == EffectContentType.GrantItem || content.Type == EffectContentType.SwapWeapon ? EffectType.Active : EffectType.Counter;
+                content.Type == EffectContentType.SwapWeapon ? EffectType.Active : EffectType.Counter;
             Require(effect.Type == expected);
             if (content.Type == EffectContentType.ChooseCheckOutcome)
                 Require(skill.DeclarationConditions.And.Count(x => x.Type == ConditionType.IncapacitatedCheckReaction) == 1);
@@ -495,7 +503,10 @@ public static partial class SkillTextConverter
             {
                 Require(effect.Triggers.Count == 0);
                 bool active = content.Type == EffectContentType.LeaveBattle || content.Type == EffectContentType.ApplySelectedSkillState || content.Type == EffectContentType.ResourceDamage || content.Type == EffectContentType.RestoreFromResourceDamage;
-                Require(effect.Type == (active ? EffectType.Active : EffectType.Passive));
+                Require(effect.Type == (active ? EffectType.Active : EffectType.Passive) ||
+                    (content.Type == EffectContentType.LeaveBattle && effect.Type == EffectType.Counter) ||
+                    (content.Type == EffectContentType.ResourceDamage && content.Parameters[0] == "Self" &&
+                     (effect.Type == EffectType.Failure || effect.Type == EffectType.Fumble)));
                 Require(content.Type != EffectContentType.GrantActionControl && content.Type != EffectContentType.DelayedStateAttack && content.Type != EffectContentType.ProhibitSelectedSkill);
             }
             if (content.Type == EffectContentType.ApplySelectedSkillState)

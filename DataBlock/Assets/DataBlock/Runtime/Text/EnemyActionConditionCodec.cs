@@ -29,6 +29,9 @@ public static partial class EnemyTextConverter
         ConditionPattern(EnemyActionConditionType.SkillNotDeclared, "《{0}》を宣言しない場合", ActionNamePart),
         ConditionPattern(EnemyActionConditionType.NoPriorTarget, "居ない場合は"),
         ConditionPattern(EnemyActionConditionType.NoAllyTarget, "味方が居ない時は"),
+        ConditionPattern(EnemyActionConditionType.OwnerActsOnEnemy, "自身の所有者が〈{0}〉を敵に対して発動した時", ActionTagsPart),
+        ConditionPattern(EnemyActionConditionType.OwnerTargeted, "このアイテムの所持者が〈{0}〉から選択対象になる時", ActionTagsPart),
+        ConditionPattern(EnemyActionConditionType.EnterOwnState, "自身が《{0}》状態になる時", ActionNamePart),
         ConditionPattern(EnemyActionConditionType.IncomingBothCategories, "あらゆる自身への〈{0}〉かつ〈{1}〉に対して", ActionTagsPart, ActionTagsPart),
         ConditionPattern(EnemyActionConditionType.IncomingAction, "あらゆる自身への〈{0}〉に対して", ActionTagsPart),
         ConditionPattern(EnemyActionConditionType.AnyAction, "あらゆる〈{0}〉に対して", ActionTagsPart),
@@ -103,5 +106,7 @@ public static partial class EnemyTextConverter
     private static bool IsReaction(EnemyActionCondition condition)
         => condition != null &&
            (condition.Type == EnemyActionConditionType.IncomingAction || condition.Type == EnemyActionConditionType.IncomingBothCategories ||
+            condition.Type == EnemyActionConditionType.OwnerActsOnEnemy || condition.Type == EnemyActionConditionType.OwnerTargeted ||
+            condition.Type == EnemyActionConditionType.EnterOwnState ||
             (condition.Type >= EnemyActionConditionType.AnyAction && condition.Type <= EnemyActionConditionType.StateApplier));
 }

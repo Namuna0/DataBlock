@@ -14,6 +14,7 @@ public static partial class SkillTextConverter
 
     private static string NormalizeEffectSentence(string text)
     {
+        text = NormalizeItemUseSentence(text);
         text = NormalizeCombatEffect(text);
         text = RegexReplace(text, @"^その後、(?=自身は|対象は|対象を)", "");
         text = RegexReplace(text, @"^対象は永続的に《([^》]+)》状態になる。?$", "対象を永続的に《$1》状態にする。");
@@ -90,6 +91,13 @@ public static partial class SkillTextConverter
         {
             ReadSkillLine(skill, type, "対象を《" + pair.Groups[1].Value + "》状態にする。");
             ReadSkillLine(skill, type, "対象を《" + pair.Groups[2].Value + "》状態にする。");
+            return;
+        }
+        var mixedDuration = M(statement, @"^自身は(《[^》]+》)状態、永続的に(《[^》]+》)状態になる。?$");
+        if (IsOrdinary(type) && mixedDuration.Success)
+        {
+            ReadSkillLine(skill, type, "自身は" + mixedDuration.Groups[1].Value + "状態になる。");
+            ReadSkillLine(skill, type, "自身へ永続的に" + mixedDuration.Groups[2].Value + "状態を付与する。");
             return;
         }
         var timedAndRemoved = M(statement, @"^対象に([1-9][0-9]*)ターンの間《([^》]+)》状態を付与して《([^》]+)》状態を解除させる。?$");
@@ -196,7 +204,7 @@ public static partial class SkillTextConverter
             {
                 EffectContent roll = skill.Effects.Where(x => x.Type == type).SelectMany(x => x.Contents).LastOrDefault(x => x.Type == EffectContentType.RollDice);
                 if (roll == null) throw new InvalidOperationException("出目分岐の前に追加ダイスロールを指定してください。");
-                string[] rollArgs = Args(roll.Parameters, 2, "RollDice");
+                string[] rollArgs = RollDiceArgs(roll.Parameters);
                 triggers.Add(Trigger(TriggerTiming.RandomResult, Condition(ConditionType.RollResult, rollArgs[0], branch.Groups[1].Value.Replace('〜', '～'))));
                 body = branch.Groups[2].Value;
             }
@@ -212,7 +220,10 @@ public static partial class SkillTextConverter
             if (triggers.Count > 0)
             {
                 int before = skill.Effects.Count;
-                ReadSkillLine(skill, type, body);
+                var rewards = Split(body, ",");
+                if (rewards.All(reward => M(reward, @"^《[^》]+》(☆[1-9][0-9]*)?×[0-9]+$").Success))
+                    foreach (string reward in rewards) ReadSkillLine(skill, type, reward + "獲得");
+                else ReadSkillLine(skill, type, body);
                 var added = skill.Effects.Skip(before).ToList();
                 if (added.Count == 0 || added.Any(effect => effect.Triggers.Count != 0))
                     throw new InvalidOperationException("追加ロールの出目分岐には通常の効果を指定してください。");
@@ -250,9 +261,9 @@ public static partial class SkillTextConverter
                     throw new InvalidOperationException("対象1体の攻撃には、ちょうど1体を選択する宣言条件を指定してください。");
                 var effect = new EffectDefinition { Type = type, Triggers = triggers };
                 EffectContent content = direct ?? ReadContent(atom);
-                if (content.Type == EffectContentType.RollDice && content.Parameters.Count == 2 && content.Parameters[0].Length == 0)
+                if (content.Type == EffectContentType.RollDice && content.Parameters.Count >= 2 && content.Parameters[0].Length == 0)
                 {
-                    var usedIds = new HashSet<string>(skill.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.RollDice && x.Parameters.Count == 2).Select(x => x.Parameters[0]), StringComparer.Ordinal);
+                    var usedIds = new HashSet<string>(skill.Effects.SelectMany(x => x.Contents).Where(x => x.Type == EffectContentType.RollDice && x.Parameters.Count >= 2).Select(x => x.Parameters[0]), StringComparer.Ordinal);
                     int nextId = 1;
                     while (usedIds.Contains(nextId.ToString())) nextId++;
                     content.Parameters[0] = nextId.ToString();
@@ -350,13 +361,20 @@ public static partial class SkillTextConverter
         return ReadDirectEffectContent(text) ?? throw new InvalidOperationException("未対応の効果です：" + text);
     }
 
+    private static EffectContent ReadRecovery(string actor, string resource, string amount)
+    {
+        var percent = M(amount, @"^最大値の?([0-9]+(?:\.[0-9]+)?)%$");
+        if (percent.Success) amount = "[" + resource + "最大値]*" + percent.Groups[1].Value + "/100";
+        return Content(EffectContentType.RestoreResource, actor, resource, amount);
+    }
+
     internal static EffectContent ReadDirectEffectContent(string text)
     {
         string s = RegexReplace(Unbullet(text), @"^さらに\s*", "").Trim();
         Match m = M(s, @"^味方キャラクター全員の([A-Z]+)を(.+?)回復する。?$");
-        if (m.Success) return Content(EffectContentType.RestoreResource, "AllAllies", m.Groups[1].Value, m.Groups[2].Value);
+        if (m.Success) return ReadRecovery("AllAllies", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^(?:(自身|対象|付与者)(?:は|の))?([A-Z]+)(?:が|を)(.+?)回復する。?$");
-        if (m.Success) return Content(EffectContentType.RestoreResource, m.Groups[1].Success ? ActorKey(m.Groups[1].Value) : "Self", m.Groups[2].Value, m.Groups[3].Value);
+        if (m.Success) return ReadRecovery(m.Groups[1].Success ? ActorKey(m.Groups[1].Value) : "Self", m.Groups[2].Value, m.Groups[3].Value);
         m = M(s, @"^([A-Z]+)([0-9]+)回復。?$");
         if (m.Success) return Content(EffectContentType.RestoreResource, "Self", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^自身を除くすべての敵キャラクターは\s*(?:([0-9]+)ターンの間)?《([^》]+)》状態(?:になる|となる)。?$");
@@ -401,6 +419,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.ReapplyEffects, "Turn", "バフ", "All", m.Groups[1].Value);
         m = M(s, @"^このエリアの採取を([0-9]+)回追加で行うことができる。?$");
         if (m.Success) return Content(EffectContentType.AddAreaGathering, Number(m.Groups[1].Value, 1, "追加採取回数").ToString());
+        m = M(s, @"^(?:追加ロール([1-9][0-9]*)として)?ダイスロール([1-9][0-9]*d[1-9][0-9]*)を([1-9][0-9]*)回行い効果を受ける。?$");
+        if (m.Success) return Content(EffectContentType.RollDice, m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value);
         m = M(s, @"^(?:追加で(.+?)|([0-9]+d[0-9]+))のダイスロールを行う。?$");
         if (m.Success) return Content(EffectContentType.RollDice, "", m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value);
         m = M(s, @"^追加ロール([0-9]+)として(.+?)のダイスロールを行う。?$");
@@ -425,6 +445,8 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.ApplyConsumedItemActive, m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^(自身|対象|付与者)は《([^》]+)》スタックを(.+?)得る。?[（(]最大([0-9]+)スタック[）)]。?$");
         if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, m.Groups[3].Value, m.Groups[4].Value);
+        m = M(s, @"^自身は(" + ArithmeticPattern + @")の((?:捕獲|釣り)?[A-Z]+)ダメージを受ける。?$");
+        if (m.Success) return Content(EffectContentType.ResourceDamage, "Self", m.Groups[2].Value, m.Groups[1].Value);
         m = M(s, @"^(自身|対象|付与者)は(?!.*ターン開始時)(.+?)(?:の)?ダメージを受ける。?$");
         if (m.Success) return Content(EffectContentType.Damage, ActorKey(m.Groups[1].Value), m.Groups[2].Value);
         m = M(s, @"^(対象|自身|付与者)に([0-9]+)のダメージを与える。?$");
@@ -494,8 +516,10 @@ public static partial class SkillTextConverter
         {
             case EffectContentType.RestoreResource:
                 p = Args(content.Parameters, 3, "RestoreResource");
-                if (p[0] == "AllAllies") return "味方キャラクター全員の" + p[1] + "を" + p[2] + "回復する。";
-                return Actor(p[0]) + "は" + p[1] + "を" + p[2] + "回復する。";
+                var percentRecovery = M(p[2], @"^\[" + Regex.Escape(p[1]) + @"最大値\]\*([0-9]+(?:\.[0-9]+)?)/100$");
+                string amount = percentRecovery.Success ? "最大値の" + percentRecovery.Groups[1].Value + "%" : p[2];
+                string recipient = p[0] == "AllAllies" ? "味方キャラクター全員の" : Actor(p[0]) + "は";
+                return recipient + p[1] + "を" + amount + "回復する。";
             case EffectContentType.ApplyState:
                 p = VariableArgs(content.Parameters, 2, "ApplyState");
                 if (p.Length > 3) throw new InvalidOperationException("ApplyStateは対象・状態名・ターン数（任意）の2～3個です。");
@@ -542,7 +566,8 @@ public static partial class SkillTextConverter
                 if (p[0] != "Turn" || p[1] != "バフ" || p[2] != "All") throw new InvalidOperationException("今回の再適用はTurn / バフ / Allです。");
                 return "ターン中に発動した、全てのバフによる効果を" + p[3] + "回まで適用しなおす。";
             case EffectContentType.RollDice:
-                p = Args(content.Parameters, 2, "RollDice"); Number(p[0], 1, "追加ロール番号");
+                p = RollDiceArgs(content.Parameters); Number(p[0], 1, "追加ロール番号");
+                if (p.Length == 3) return "追加ロール" + p[0] + "としてダイスロール" + p[1] + "を" + p[2] + "回行い効果を受ける。";
                 return "追加ロール" + p[0] + "として" + p[1] + "のダイスロールを行う。";
             case EffectContentType.Summon:
                 return "ペット《" + SummonName(content) + "》を" + (content.Parameters.Count == 2 ? content.Parameters[1] + "体" : "") + "召喚する。";

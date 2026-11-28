@@ -29,7 +29,7 @@ public static partial class EquipmentTextConverter
         return string.Join("\n\n", InputBlocks(source).Select(x => Build(ParseOne(x))));
     }
 
-    private static List<string> Categories(string text)
+    internal static List<string> Categories(string text)
     {
         if (!M(text, @"^(?:〈[^〉]+〉)+$").Success)
             throw new InvalidOperationException("カテゴリーの形式が不正です：" + text);
@@ -38,7 +38,7 @@ public static partial class EquipmentTextConverter
             .Select(x => Need(x, "カテゴリー")).ToList();
     }
 
-    private static string CategoryText(List<string> values)
+    internal static string CategoryText(List<string> values)
     {
         if (values == null) throw new InvalidOperationException("Categoriesがnullです。");
         return "〈" + string.Join(", ", values.Select(x => Need(x, "カテゴリー"))) + "〉";

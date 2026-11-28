@@ -165,49 +165,125 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentDataBlock
   Data:
     Equipment:
-      Name: "\u30A6\u30A9\u30C3\u30C1\u30E3\u30FC\u306E\u30E2\u30CE\u30AF\u30EB"
+      Name: "\u5996\u7CBE\u9234\u862D\u306E\u30B5\u30FC\u30AF\u30EC\u30C3\u30C8"
       Categories:
       - "\u88C5\u5099\u30A2\u30A4\u30C6\u30E0"
-      - "\u30A2\u30AF\u30BB\u30B5\u30EA\u30FC"
+      - "\u9B54\u6CD5\u670D"
       - "\u935B\u51B6"
-      - "\u4E0A\u7D1A"
+      Rarity: Heirloom Rare
+      Grade: 0
+      SpecialGrade: "\u2605\u2606"
+      VariantGrade: 0
+      Value:
+        Kind: 1
+        Amount: 0
+        Currency: 
+        Quantity: 1
+      EquipSlots:
+      - "\u982D"
+      EquipRequirements: []
+      Size: "\u5927"
+      MaxDurability: 5
+      RequiredSpace: 0
+      WeaponPowerName: 
+      WeaponPowerBonus: 0
+      WeaponPowerFormula: 
+      EffectGroups:
+      - Section: 0
+        Name: 
+        Effects:
+        - Type: 598
+          Parameters:
+          - Self
+          - "\u9632\u5FA1\u70B9"
+          - Add
+          - +15
+        - Type: 598
+          Parameters:
+          - Self
+          - "MP\u6700\u5927\u5024"
+          - Add
+          - +12
+      - Section: 0
+        Name: 
+        Effects:
+        - Type: 834
+          Parameters:
+          - Always
+          - ThreeStateStacksForItem
+          - "\u5996\u7CBE\u306E\u9C57\u7C89"
+          - 1
+          - "\u6C34\u7CBE\u306E\u3055\u3056\u3081\u304D"
+          - "\u98A8\u7CBE\u306E\u56C1\u304D"
+          - "\u571F\u7CBE\u306E\u8E0A\u8E8D"
+          - (1d2-1)
+      WeaponModes: []
+      States: []
+      GradeAdjustments: []
+      Skills: []
+      Flavor: "\u671D\u3001\u76EE\u3092\u899A\u307E\u3057\u3066\u3001\u3042\u306A\u305F\u306F\u898B\u3064\u3051\u308B\u3002\n\u6BDB\u5E03\u306E\u4E0A\u306B\u306F\u3069\u3053\u304B\u898B\u899A\u3048\u306E\u3042\u308B\u30B5\u30FC\u30AF\u30EC\u30C3\u30C8\u304C\u7F6E\u304B\u308C\u3066\u3044\u305F\u3002\n\n\u7D30\u3044\u91DD\u91D1\u3068\u9234\u862D\u306E\u8449\u3068\u830E\u304C\u3001\u512A\u96C5\u306B\u66F2\u7DDA\u3092\u63CF\u3044\u3066\u7DE8\u307F\u8FBC\u307E\u308C\u3066\u3044\u308B\u3002\n\n\u53B3\u304B\u3067\u6F84\u3093\u3060\u6C17\u914D\u3092\u5BBF\u3057\u305F\u9234\u862D\u304C\u67AF\u308C\u308B\u4E8B\u306F\u306A\u304F\u3001\n\u3072\u3068\u305F\u3073\u984D\u306B\u6234\u3051\u3070\u3001\u5FFD\u3061\u597D\u5947\u5FC3\u3092\u6291\u3048\u304D\u308C\u306C\u5B50\u4F9B\u306E\u3088\u3046\u306B\u7CBE\u970A\u9054\u304C\u96C6\u307E\u3063\u3066\u304F\u308B\u3060\u308D\u3046\u3002"
+--- !u!1 &1264060946
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1264060948}
+  - component: {fileID: 1264060947}
+  m_Layer: 0
+  m_Name: ItemDataBlock
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1264060947
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1264060946}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2329887e9ca14e198b685c177142e9ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDataBlock
+  Data:
+    Item:
+      Name: "\u30EC\u30C3\u30C9\u30A8\u30C3\u30BB\u30F3\u30B9\u30DD\u30FC\u30B7\u30E7\u30F3"
+      Categories:
+      - "\u9B54\u6CD5\u85AC"
       Rarity: Rare
-      Grade: 2
+      Grade: 3
+      SpecialGrade: 
       VariantGrade: 0
       Value:
         Kind: 0
-        Amount: 177
+        Amount: 54
         Currency: "\u30B8\u30EB\u30C0"
-      EquipSlots:
-      - "\u30A2\u30AF\u30BB\u30B5\u30EA\u30FC2"
-      EquipRequirements:
-      - Type: 0
-        Parameters:
-        - 6
-      Size: "\u5927"
-      MaxDurability: 5
-      WeaponPowerFormula: 
-      EffectGroups:
-      - Name: 
-        Effects:
-        - Type: 0
-          Parameters:
-          - Self
-          - "\u77E5\u529BB"
-          - Add
-          - +0.05
-        - Type: 0
-          Parameters:
-          - Self
-          - "\u611F\u77E5B"
-          - Add
-          - +0.05
-      States: []
+        Quantity: 1
+      Size: "\u4E2D"
+      Stats: []
+      HoldingLimitCategory: 
+      HoldingLimit: 0
+      DeclarationConditions:
+        And: []
+        Or: []
+      InstalledEffect: 0
+      Stock: []
+      DeferredInstalledEffect: 
       GradeAdjustments: []
+      Actions: []
+      Traits: []
+      HasOwnSkill: 1
       Skills:
       - Skill:
-          Name: "\u89B3\u5BDF\u773C"
-          Categories: []
+          Name: "\u30EC\u30C3\u30C9\u30A8\u30C3\u30BB\u30F3\u30B9\u30DD\u30FC\u30B7\u30E7\u30F3"
+          Categories:
+          - "\u9B54\u6CD5\u85AC"
           AcquisitionConditions:
             And: []
             Or: []
@@ -216,19 +292,20 @@ MonoBehaviour:
             Or: []
           DeclarationConditions:
             And:
-            - Type: 39
-              Parameters:
-              - 1
-            - Type: 29
-              Parameters:
-              - Day
-              - 1
+            - Type: 461
+              Parameters: []
             Or: []
-          Costs: []
+          Costs:
+          - Kind: 2
+            Resource: "\u30D4\u30F3\u30AF\u30A8\u30C3\u30BB\u30F3\u30B9\u30DD\u30FC\u30B7\u30E7\u30F3"
+            Quantity: 0
+            Amount: 1
+            Maximum: 0
+            Formula: 
           CooldownTurns: 0
           Roll:
-            Count: 1
-            Formula: "\u81EA\u52D5\u6210\u529F"
+            Count: 0
+            Formula: 
             Target: 
             FixedResult: -1
             UseSummonerResult: 0
@@ -238,15 +315,32 @@ MonoBehaviour:
           - Type: 1
             Triggers: []
             Contents:
-            - Type: 22
+            - Type: 1
               Parameters:
-              - 1
+              - Self
+              - HP
+              - "[HP\u6700\u5927\u5024]*40/100"
           Overrides: []
           Choices: []
           Flavor: 
         Summons: []
         States: []
-      Flavor: "\u7D30\u3044\u91D1\u5C5E\u67A0\u306B\u78E8\u304D\u4E0A\u3052\u305F\u7247\u773C\u93E1\u3092\u5D4C\u3081\u8FBC\u3093\u3060\u3001\u89B3\u5BDF\u8005\u306E\u305F\u3081\u306E\u88C5\u98FE\u5177\u3002\n\u666E\u901A\u306A\u3089\u898B\u843D\u3068\u3057\u3066\u3057\u307E\u3046\u3082\u306E\u3082\u3001\n\u3053\u306E\u30E2\u30CE\u30AF\u30EB\u3092\u901A\u305B\u3070\u3001\u610F\u5473\u3092\u6301\u3063\u305F\u624B\u639B\u304B\u308A\u3068\u3057\u3066\u6D6E\u304B\u3073\u4E0A\u304C\u308B\u304B\u3082\u3057\u308C\u306A\u3044\u3002"
+      Flavor: "\u30C0\u30F3\u30B8\u30E7\u30F3\u3067\u3088\u304F\u898B\u3064\u304B\u308B\u8D64\u8272\u306E\u30DD\u30FC\u30B7\u30E7\u30F3\u3002\n\u975E\u5E38\u306B\u9577\u3044\u6642\u9593\u306E\u4FDD\u5B58\u306B\u8010\u3048\u308B\u3002"
+--- !u!4 &1264060948
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1264060946}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0, y: 0, z: -0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1555061154
 GameObject:
   m_ObjectHideFlags: 0
@@ -421,36 +515,95 @@ MonoBehaviour:
       - Name: "\u9632\u5FA1\u70B9"
         Formula: 0
       Actions:
-      - Timing: 0
-        UsesPerTurn: 1
-        AllConditions: []
+      - AllConditions: []
         AnyConditions:
         - Type: 0
           Value: "\u63A5\u8FD1"
           Negated: 1
+          AdditionalValues: []
         - Type: 1
           Value: 
           Negated: 0
+          AdditionalValues: []
         TargetSelector: 1
+        TargetReference: 
+        TargetFilters: []
+        SelectableOnly: 0
+        RandomizeAllTargets: 0
+        DistinctTargets: 0
+        TargetCount: 0
+        UpToTargetCount: 0
         SkillName: "\u98DB\u6765"
-      - Timing: 0
+        UseItem: 0
+        RepeatCount: 1
+        Consecutive: 0
+        DoNothing: 0
+        Timing: 0
         UsesPerTurn: 1
-        AllConditions:
+        UsesPerTurnFormula: 
+        UpToUsesPerTurn: 0
+        TeamLimit: 0
+        UsesPerBattle: 0
+        BattleTurn: 0
+        BranchRoll: 
+        Branches: []
+      - AllConditions:
         - Type: 0
           Value: "\u63A5\u8FD1"
           Negated: 0
+          AdditionalValues: []
         AnyConditions: []
         TargetSelector: 2
+        TargetReference: 
+        TargetFilters: []
+        SelectableOnly: 0
+        RandomizeAllTargets: 0
+        DistinctTargets: 0
+        TargetCount: 0
+        UpToTargetCount: 0
         SkillName: "\u3064\u3064\u304F"
-      - Timing: 1
-        UsesPerTurn: 0
-        AllConditions:
+        UseItem: 0
+        RepeatCount: 1
+        Consecutive: 0
+        DoNothing: 0
+        Timing: 0
+        UsesPerTurn: 1
+        UsesPerTurnFormula: 
+        UpToUsesPerTurn: 0
+        TeamLimit: 0
+        UsesPerBattle: 0
+        BattleTurn: 0
+        BranchRoll: 
+        Branches: []
+      - AllConditions:
         - Type: 2
           Value: "\u653B\u6483"
           Negated: 0
+          AdditionalValues: []
         AnyConditions: []
         TargetSelector: 0
+        TargetReference: 
+        TargetFilters: []
+        SelectableOnly: 0
+        RandomizeAllTargets: 0
+        DistinctTargets: 0
+        TargetCount: 0
+        UpToTargetCount: 0
         SkillName: "\u9CE5\u56DE\u907F"
+        UseItem: 0
+        RepeatCount: 1
+        Consecutive: 0
+        DoNothing: 0
+        Timing: 1
+        UsesPerTurn: 0
+        UsesPerTurnFormula: 
+        UpToUsesPerTurn: 0
+        TeamLimit: 0
+        UsesPerBattle: 0
+        BattleTurn: 0
+        BranchRoll: 
+        Branches: []
+      Traits: []
       Skills:
       - Skill:
           Name: "\u98DB\u6765"
@@ -562,13 +715,18 @@ MonoBehaviour:
           Flavor: "\u5C0F\u3055\u304F\u98DB\u3093\u3067\u653B\u6483\u3092\u56DE\u907F\u3059\u308B\u3002"
         Summons: []
         States: []
+      LootKind: 0
+      LootVictoryTurnLimit: 0
+      CaptureRollFormula: 
       Drops:
       - Minimum: 31
         Maximum: 70
+        ResultName: 
         ItemName: "\u9CE5\u8089"
         Amount: 1
       - Minimum: 71
         Maximum: 100
+        ResultName: 
         ItemName: "\u5C0F\u3055\u306A\u7FBD\u6839"
         Amount: 1
       Flavor: "\u767D\u304F\u3066\u53EF\u611B\u3089\u3057\u3044\u5C0F\u9CE5\u306E\u9B54\u7269\u3001\u4EBA\u3092\u898B\u3064\u3051\u308B\u3068\u6CA2\u5C71\u96C6\u307E\u3063\u3066\u304F\u308B\u3002"
@@ -682,4 +840,5 @@ SceneRoots:
   - {fileID: 1782748332}
   - {fileID: 1649472813}
   - {fileID: 26904263}
+  - {fileID: 1264060948}
   - {fileID: 1555061158}

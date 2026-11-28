@@ -6,6 +6,36 @@ public static partial class SkillTextConverter
 {
     private static readonly SkillTextRule[] ConditionRules =
     {
+        new SkillTextRule(ConditionType.MinimumResourceCapacity, "{0}最大値{1}以上", RuleResourcePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.KnowTargetBirthAndOrigin, "対象の生年月日とバースプレイスを知っている事"),
+        new SkillTextRule(ConditionType.SelectOwnedTitle, "称号《{0}》を選択", RuleNamePattern),
+        new SkillTextRule(ConditionType.InTownArea, "自身が町エリアに居る事"),
+        new SkillTextRule(ConditionType.SelectNamedCharacter, "《{0}》を{1}体選択", RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectCharacterOfCategories, "〈{0}〉いずれかのキャラクターを{1}体選択", RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectNamedItemHolder, "《{0}》を所持しているキャラクターを{1}体選択", RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.SoloBattleTurnElapsed, "《{0}》とのソロ戦闘で{1}ターン経過", RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.DamageNamedCombatant, "《{0}》との戦闘でダメージを与える", RuleNamePattern),
+        new SkillTextRule(ConditionType.WinSoloAgainstNamed, "《{0}》との戦闘に単独勝利", RuleNamePattern),
+        new SkillTextRule(ConditionType.LacksTitle, "称号〈{0}〉未取得", RuleNamePattern),
+        new SkillTextRule(ConditionType.AtNamedArea, "エリア《{0}》", RuleNamePattern),
+        new SkillTextRule(ConditionType.SucceededSpecialAction, "特殊行動《{0}》成功後", RuleNamePattern),
+        new SkillTextRule(ConditionType.WithinRealmArea, "キャラクターが{0}内の〈{1}〉に居る事", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.PartyInBattleArea, "パーティーメンバーが戦闘エリアに居る事"),
+        new SkillTextRule(ConditionType.OutsideBattleUse, "戦闘中使用不可能"),
+        new SkillTextRule(ConditionType.RecipeProducedNamedItem, "レシピ{0}によって《{1}》を得る時", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.NormalFailureHusbandry, "{0}の養牧に通常失敗した時", RuleNamePattern),
+        new SkillTextRule(ConditionType.RiderOrMountTargeted, "自身または騎乗対象が〈{0}〉の対象になった時", RuleNamePattern),
+        new SkillTextRule(ConditionType.CurrentDurabilityAtLeast, "耐久{0}以上", RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectedEquippedCategory, "自身の装備している〈{0}〉を1つ選択", RuleNamePattern),
+        new SkillTextRule(ConditionType.RecipeWithNamedMaterial, "自身が消費リソースに《{0}》を含む《{1}》レシピを発動した時", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.AtHarborArea, "自身が港のある〈{0}〉に居る事", RuleNamePattern),
+        new SkillTextRule(ConditionType.SelectHarborDestination, "港の行き先から〈{0}〉エリアを1つ選択", RuleNamePattern),
+        new SkillTextRule(ConditionType.InstallerTargetedOutsideMelee, "設置者が自身と接近グループではないキャラクターから〈{0}〉の対象となった時、自動発動", RuleNamePattern),
+        new SkillTextRule(ConditionType.QuestCompletedAtLevel, "適正レベル{0}のクエストを達成した時", RulePositivePattern),
+        new SkillTextRule(ConditionType.QuestCompletedLevelRange, "適正レベル{0}～{1}のクエストを達成した時", RulePositivePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.CraftCategoryWithTool, "〈{0}〉により〈{1}〉アイテムを生産する時", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.CraftWithIngredientAndTool, "《{0}》を消費して〈{1}〉によりアイテムを生産する時", RuleNamePattern, RuleNamePattern),
+        new SkillTextRule(ConditionType.CraftCategoryWithIngredient, "《{0}》を消費して《{1}》アイテムを生産する時", RuleNamePattern, RuleNamePattern),
         new SkillTextRule(ConditionType.StatCheckFumbled, "{0}Bによる行為判定をファンブルした時", RuleNamePattern),
         new SkillTextRule(ConditionType.SeasonalHarvest, "季節が{0}及び{1}の〈{2}〉で収穫を行う時", @"[春夏秋冬]", @"[春夏秋冬]", RuleNamePattern),
         new SkillTextRule(ConditionType.SelectDangerCategory, "【危険度】☆{0}以下の〈{1}〉を選択", RulePositivePattern, RuleNamePattern),
@@ -246,6 +276,14 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"〈([^〉]+)〉が含まれるエリアで", "〈$1〉エリアで");
         text = RegexReplace(text, @"自身が〈([^〉]+)〉を宣言した時", "自身が〈$1〉を宣言した直後");
         text = RegexReplace(text, @"(最大値の[0-9]+%以下になった時)、発動可能", "$1");
+        text = text.TrimStart('】').Replace("を一体選択して発動可能", "を1体選択").Replace("を一つ選択して発動可能", "を1つ選択")
+            .Replace("エリアにつき1度だけ", "エリアに付き1回だけ").Replace("アイテムの生産する時", "アイテムを生産する時");
+        text = RegexReplace(text, @"キャラクターの現在エリアが《([^》]+)》である時", "エリア《$1》");
+        text = RegexReplace(text, @"(エリア《[^》]+》)(?=称号〈)", "$1, ");
+        text = RegexReplace(text, @"〈([^〉]+)〉の所持(?=[,、。]|$)", "〈$1〉を所持している事");
+        text = RegexReplace(text, @"自身が《([^》]+)》を宣言する時", "自身が《$1》を発動した時");
+        text = RegexReplace(text, @"戦闘中に([0-9]+)回だけ", "戦闘中$1回まで");
+        text = RegexReplace(text, @"^〈([^〉]+)〉によりアイテムを生産する時", "アイテムを生産する〈$1〉を宣言した時");
         return text.Replace("である事。", "であること").Replace("片手が素手。", "片手が素手").TrimEnd('。');
     }
 }

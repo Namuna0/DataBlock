@@ -86,7 +86,7 @@ public static partial class EquipmentTextConverter
         return builder.ToString().Replace("\r\n", "\n");
     }
 
-    private static string EquipmentValueText(EquipmentValueDefinition value)
+    internal static string EquipmentValueText(EquipmentValueDefinition value)
     {
         if (value == null) throw new InvalidOperationException("価値がnullです。");
         switch (value.Kind)

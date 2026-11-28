@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 public static partial class EnemyTextConverter
 {
-    private static List<EnemyActionRule> ParseActions(IEnumerable<string> lines)
+    internal static List<EnemyActionRule> ParseActions(IEnumerable<string> lines)
     {
         var actions = new List<EnemyActionRule>();
         var group = new List<string>();
@@ -69,7 +69,7 @@ public static partial class EnemyTextConverter
             step.DistinctTargets = true;
             text = text.Substring(0, text.Length - "（重複しない）".Length);
         }
-        var skill = Match(text, @"(?:([0-9]+)回連続で)?《([^《》]+)》(アイテム)?を(?:([0-9]+)回)?発動する。?$");
+        var skill = Match(text, @"(?:([0-9]+)回連続で)?《([^《》]+)》(アイテム)?を?(?:([0-9]+)回)?発動する。?$");
         var idle = Match(text, @"(?:何もしない|行動なし)。?$");
         var roll = Match(text, @"ダイスロール([1-9][0-9]*d[1-9][0-9]*)$");
         if (skill.Success)
@@ -133,7 +133,7 @@ public static partial class EnemyTextConverter
         else if (text.StartsWith("エンカウントフェーズ", StringComparison.Ordinal))
         {
             rule.Timing = EnemyActionTiming.Encounter;
-            text = text.Substring("エンカウントフェーズ".Length);
+            text = Replace(text, "^エンカウントフェーズ(?:で)?", "");
         }
         var battle = Match(text, @"^(?:戦闘開始から)?([1-9][0-9]*)ターン目(以降|開始時)?");
         if (battle.Success)
@@ -185,7 +185,7 @@ public static partial class EnemyTextConverter
         }
     }
 
-    private static string ActionText(EnemyActionRule action)
+    internal static string ActionText(EnemyActionRule action)
     {
         if (action == null) throw new InvalidOperationException("行動がnullです。");
         ValidateActionBranches(action);

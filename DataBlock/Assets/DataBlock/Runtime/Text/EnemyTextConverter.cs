@@ -128,7 +128,7 @@ public static partial class EnemyTextConverter
                     // Embedded trap rules often give the removal trigger after
                     // the counter. The writer emits declaration triggers first.
                     foreach (var summon in skill.Summons)
-                        summon.Effects = summon.Effects.OrderBy(effect => effect.Type == EffectType.Declaration ? 0 : 1).ToList();
+                        SkillTextConverter.OrderEmbeddedEffects(summon);
                     enemy.Skills.Add(skill);
                 }
                 catch (InvalidOperationException ex) { throw LineError(start, lines[start], "行動スキルを解析できません：" + ex.Message, ex); }
@@ -142,7 +142,7 @@ public static partial class EnemyTextConverter
                 traitLines.Add(traitHeader.Success ? traitHeader.Groups[1].Value : line);
                 int start = index++;
                 while (index < lines.Length && !SectionBoundary(lines, index)) traitLines.Add(lines[index++]);
-                try { AddTraits(enemy, traitLines); }
+                try { AddTraits(enemy.Traits, traitLines); }
                 catch (InvalidOperationException ex) { throw LineError(start, lines[start], ex.Message, ex); }
                 continue;
             }
@@ -197,7 +197,7 @@ public static partial class EnemyTextConverter
         return enemy;
     }
 
-    private static string SkillBodyText(SkillTextData skill)
+    internal static string SkillBodyText(SkillTextData skill)
     {
         string[] lines = SkillTextConverter.Build(skill).Replace("\r\n", "\n").Split('\n');
         if (lines.Length < 3 || !lines[0].StartsWith("```", StringComparison.Ordinal) || lines[lines.Length - 1] != "```")
@@ -231,7 +231,7 @@ public static partial class EnemyTextConverter
         return string.Join("\n", lines, start, end - start).TrimEnd();
     }
 
-    private static bool IsEmbeddedSummon(string[] lines, int start, int index)
+    internal static bool IsEmbeddedSummon(string[] lines, int start, int index)
     {
         int next = index + 1;
         SkipEmpty(lines, ref next);
@@ -254,7 +254,7 @@ public static partial class EnemyTextConverter
             line.StartsWith("【パッシブ効果】", StringComparison.Ordinal);
     }
 
-    private static bool TrySkillBoundary(string[] lines, int index)
+    internal static bool TrySkillBoundary(string[] lines, int index)
     {
         if (!TryNameHeader(SyntaxLine(lines[index]), out _)) return false;
         int next = index + 1;

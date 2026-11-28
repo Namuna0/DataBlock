@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 public static partial class SkillTextConverter
 {
-    private static void AddConditions(ConditionSet set, string text)
+    internal static void AddConditions(ConditionSet set, string text)
     {
         text = NormalizeConditionPhrasing(text);
         if (ReadCombinedReactionConditions(set, text)) return;

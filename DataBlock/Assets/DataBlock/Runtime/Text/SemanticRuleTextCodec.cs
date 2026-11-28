@@ -100,6 +100,15 @@ public static partial class SkillTextConverter
         RegisterCombatActionRules(new RuleSection(rules, false, EffectType.Active, EffectType.Counter));
         RegisterCombatOutcomeRules(new RuleSection(rules, false, EffectType.Success, EffectType.Failure, EffectType.Critical));
         RegisterCombatStateRules(new RuleSection(rules, true, EffectType.Passive));
+        RegisterConsumableActions(new RuleSection(rules, false, EffectType.Active));
+        RegisterConsumableStates(new RuleSection(rules, true, EffectType.Passive));
+        rules.Add(new SkillTextRule(EffectContentType.TreatAsNamedItem, false, EffectType.Passive, AttackParts.None, false,
+            "このアイテムは《{0}》として扱うことができる。", RuleNamePattern));
+        RegisterRecipeRules(rules);
+        RegisterItemActiveRules(new RuleSection(rules, false, EffectType.Active));
+        RegisterItemCounterRules(new RuleSection(rules, false, EffectType.Counter));
+        RegisterItemPassiveRules(new RuleSection(rules, false, EffectType.Passive));
+        RegisterItemStateRules(new RuleSection(rules, true, EffectType.Passive));
         return rules;
     }
 

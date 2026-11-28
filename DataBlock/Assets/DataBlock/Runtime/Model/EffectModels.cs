@@ -20,7 +20,16 @@ public enum CostKind
     /// <summary>通貨で費用を支払う。</summary>
     Currency,
     /// <summary>指定カテゴリーから宣言時に選ぶアイテムを消費する。</summary>
-    SelectedCategoryItem
+    SelectedCategoryItem,
+    /// <summary>列挙されたアイテムのいずれかを消費する。</summary>
+    ChoiceOfNamedItems = 10,
+    /// <summary>使用者本人を対象として採取された指定カテゴリーの素材を消費する。</summary>
+    SelfHarvestedItemCategory = 11,
+    /// <summary>指定フェーズの行動1回を消費する。</summary>
+    PhaseAction = 12,
+    /// <summary>指定個数の名前付きアイテムを奉納して消費する。</summary>
+    OfferedItem = 13,
+
 }
 /// <summary>コストの消費量の決め方を表す。固定値、任意量、全消費、計算式などを区別する。</summary>
 public enum CostQuantity
@@ -287,8 +296,8 @@ public enum EffectContentType
     ApplySelectedSkillState = 56, // SelectedSkill, state, turns
     /// <summary>選択したスキルの使用を禁止する。</summary>
     ProhibitSelectedSkill = 57, // Self, SelectedSkill
-    /// <summary>対象の指定リソースにダメージを与える。</summary>
-    ResourceDamage = 58, // Target or AllEnemies, resource, formula
+    /// <summary>指定されたキャラクターのリソースにダメージを与える。</summary>
+    ResourceDamage = 58, // Self, Target or AllEnemies, resource, formula
     /// <summary>与えたリソースダメージに応じて、自身の指定リソースを回復する。</summary>
     RestoreFromResourceDamage = 59, // Self, source resource, restored resource, multiplier, ThisResolution
     /// <summary>付与者が対象を味方として扱い、ターンごとの上限内でその行動を宣言する。</summary>
@@ -2107,7 +2116,286 @@ public enum EffectContentType
     ScaleResourceDamageAtTargetThreshold = 1043,
     /// <summary>この効果で対象が指定状態になったとき、自身のリソースを回復する。</summary>
     RecoverWhenEffectCausesState = 1044,
-
+    /// <summary>発動ロールの結果による個数で指定アイテムを獲得する。</summary>
+    CraftItemFromRolls = 1200,
+    /// <summary>発動ロールの達成回数が下限に届いた時、指定個数のアイテムを製作する。</summary>
+    RequireSuccessesForProduct = 1201,
+    /// <summary>製作などの連続判定で達成回数を加減する。</summary>
+    ChangeSuccessCount = 1202,
+    /// <summary>製作物のグレードを加減する。</summary>
+    ChangeProductGrade = 1203,
+    /// <summary>獲得個数が下限に達した場合に追加のアイテムを得る。</summary>
+    GrantBonusAtOutputCount = 1204,
+    /// <summary>残りの連続判定を中断し、自動成功または自動失敗にする。</summary>
+    EndRollsWithOutcome = 1205,
+    /// <summary>連続判定の達成回数が下限に達した時にこの効果を発動する。</summary>
+    RequireSuccessesForEffect = 1206,
+    /// <summary>対象に同じカテゴリーの効果が既にある場合、このバフで上書きする。</summary>
+    ReplacePriorCategoryBuff = 1207,
+    /// <summary>出目範囲に応じて指定カテゴリーのアイテムを獲得する。</summary>
+    ClassifiedRewardTableItem = 1208,
+    /// <summary>指定の代替素材を使うと完成品のグレードを変更する。</summary>
+    SubstituteIngredientForGrade = 1209,
+    /// <summary>完成品に名前を付けて本文を記録する。</summary>
+    NameAndWriteProducedItem = 1210,
+    /// <summary>対象の種類に応じて完成品を置き換える。</summary>
+    ReplaceProductForNamedTarget = 1211,
+    /// <summary>数式の値をスキル値に使って対象を武器攻撃する。</summary>
+    SkillValueFormulaWeaponAttack = 1212,
+    /// <summary>町を出る前に指定リソースを全回復した時、選んだ状態を解除できる。</summary>
+    CureOnFullResourceUntilTownExit = 1213,
+    /// <summary>経験値と決意をそれぞれ指定量変化させる。</summary>
+    GainExperienceAndDetermination = 1214,
+    /// <summary>指定日数だけ能力ボーナスを変更する。</summary>
+    TimedAbilityBonus = 1215,
+    /// <summary>両カテゴリーの発動ロールのクリティカル境界を指定日数変更する。</summary>
+    TimedCriticalThresholdTwoCategories = 1216,
+    /// <summary>指定期間中、対象報酬の判定に成功した場合に追加の報酬ロールを許す。</summary>
+    TimedExtraRewardOnCheck = 1217,
+    /// <summary>このターンに味方が勝つと対象のドロップの出目を補正する。</summary>
+    IncreaseDropsOnVictoryThisTurn = 1218,
+    /// <summary>対象がエリアを離れる時の耐久ロールを任意にする。</summary>
+    SkipDurabilityOnAreaExit = 1219,
+    /// <summary>次の指定までの状態効果を指定ターンまたは以降に限定する。</summary>
+    StateTurnScope = 1220,
+    /// <summary>指定リソースが減少すると他の二つのリソースを回復する。</summary>
+    RecoverTwoResourcesOnDecrease = 1221,
+    /// <summary>指定主体のカテゴリーに属する達成値を補正する。</summary>
+    ScaleRecipientCategoryAchievement = 1222,
+    /// <summary>状態を受けた対象のリソースを加算する。</summary>
+    AddRecipientResource = 1223,
+    /// <summary>このターンのリソース減少を防ぐ。</summary>
+    PreventResourceDecreaseThisTurn = 1224,
+    /// <summary>敵が付与した状態の効果を無効にする。</summary>
+    IgnoreEnemyStateEffects = 1225,
+    /// <summary>状態の付与者による指定威力の武器攻撃を指定回数受ける。</summary>
+    SourceRepeatedWeaponAttack = 1226,
+    /// <summary>状態の受け手を対象にした指定カテゴリーの達成値を補正する。</summary>
+    IncomingCategoryAchievement = 1227,
+    /// <summary>二つの能力値による行為判定の達成値を乗算する。</summary>
+    ScaleTwoAbilityChecks = 1228,
+    /// <summary>対象者が指定のダイスを振る。</summary>
+    TargetRollDice = 1229,
+    /// <summary>出目に対応する占い効果を指定の日の終了まで適用する。</summary>
+    GrantRolledFortuneUntilDayEnd = 1230,
+    /// <summary>出目に対応するエリアを指定の占い効果に設定し指定の日の終了まで付与する。</summary>
+    GrantAreaFortuneUntilDayEnd = 1231,
+    /// <summary>指定範囲の出目のとき、続く名前付き占い効果を適用する。</summary>
+    FortuneOutcome = 1232,
+    /// <summary>出目の範囲から対象エリアを選ぶ。</summary>
+    FortuneAreaOutcome = 1233,
+    /// <summary>追加納品した場合の経験値と決意を補正する。</summary>
+    FortuneDeliveryBonus = 1234,
+    /// <summary>指定カテゴリーの敵に遭遇したとき味方の敏捷ロール平均値を補正する。</summary>
+    FortuneEncounterAgility = 1235,
+    /// <summary>キャラクターへの販売収入を乗算する。</summary>
+    FortuneSaleMultiplier = 1236,
+    /// <summary>一対一のロールプレイで相手にアイテムを追加付与する。</summary>
+    FortuneRoleplayReward = 1237,
+    /// <summary>抽選エリアで行為判定の達成値を補正する。</summary>
+    FortuneAreaAchievement = 1238,
+    /// <summary>抽選エリアでクエスト特別報酬の出目を補正する。</summary>
+    FortuneAreaRewardRoll = 1239,
+    /// <summary>抽選エリアでクエスト報酬にアイテムを加える。</summary>
+    FortuneAreaRewardItem = 1240,
+    /// <summary>指定の能力ボーナスを使用したダイスロール後に状態を解除する。</summary>
+    ExpireAfterTwoAbilityRolls = 1241,
+    /// <summary>〈指定名〉の耐久を指定値回復する。</summary>
+    RepairEquippedCategory = 1300,
+    /// <summary>種類、名前、個数で指定された報酬を使用者が獲得する。</summary>
+    GrantClassifiedReward = 1363,
+    /// <summary>使用者のキャラクター専用武器を獲得する。</summary>
+    GrantPersonalWeapon = 1364,
+    /// <summary>対象カテゴリーの発動ロールの目標値に任意で倍率を掛ける。</summary>
+    OptionalActionTargetFactor = 1365,
+    /// <summary>指定クラスを習得している場合、この行動に支払う指定リソースの量を変更する。</summary>
+    ResourceCostIfClassLearned = 1366,
+    /// <summary>《指定名》の最後に全滅した階層と進行ロールからやり直すことができる。</summary>
+    RestartAreaAfterDefeat = 1301,
+    /// <summary>このエリアを移動するまでの間、環境効果《指定名》及び《指定名》の効果を無効にする。</summary>
+    IgnoreEnvironmentUntilLeaving = 1302,
+    /// <summary>このダメージによって対象の指定リソースが指定数を下回った時、指定数ターンの間対象を《指定名》状態にする。</summary>
+    ApplyStateAfterPoolBelow = 1303,
+    /// <summary>パーティメンバーの《指定名》は指定値の指定リソースと指定リソースダメージを受ける。</summary>
+    DamagePartyWithTrait = 1304,
+    /// <summary>パーティーメンバー全員は最後に訪れた町エリアに移動する。</summary>
+    ReturnPartyToLastTown = 1305,
+    /// <summary>対象が《指定名》の場合、戦闘を離脱して《指定名》×指定数を得る。</summary>
+    NamedTargetFleeAndGrantItem = 1306,
+    /// <summary>対象が《指定名》ではない場合、対象へ永続的に《指定名》スタックを×指定数付与する。</summary>
+    StackExceptNamedTarget = 1307,
+    /// <summary>一日に指定数回以上服用すると指定リソース最大値が指定値になり、翌日まで《指定名》状態になる。</summary>
+    DailyUseDepletion = 1308,
+    /// <summary>指定カテゴリーの敵がいる場合、味方全員の指定フェーズでの指定能力値による達成値に倍率を掛ける。</summary>
+    PartyPhaseAbilityScale = 1309,
+    /// <summary>対象魔法が命中した時、付与されている《指定名》スタック×指定値の指定リソースを減少させる。</summary>
+    OnSpellHitDamagePerStack = 1310,
+    /// <summary>自身に付与されている〈指定名〉を1つ選択して解除する。</summary>
+    RemoveOneStateOfCategories = 1312,
+    /// <summary>自身に付与されている《指定名》状態を全て解除する。</summary>
+    RemoveNamedStates = 1313,
+    /// <summary>自身は〈指定名〉の行動を指定数つ宣言できる。</summary>
+    DeclarePhaseActions = 1314,
+    /// <summary>自身はこのエリア効果の《指定名》から受ける効果を無効にする。</summary>
+    IgnoreCurrentAreaEnvironment = 1315,
+    /// <summary>自身は対象の〈指定名〉エリアの行先を一つ選択してエリアを移動する。</summary>
+    TravelToSelectedDestination = 1316,
+    /// <summary>指定名で移動できる行先へ移動する。</summary>
+    TravelByTransport = 1317,
+    /// <summary>処理後この《指定名》は指定名に返納される。</summary>
+    ReturnItemAfterUse = 1318,
+    /// <summary>称号《指定名》を得る。</summary>
+    LearnTitle = 1319,
+    /// <summary>指定数回以上達成で称号《指定名》を習得する。</summary>
+    LearnTitleAtSuccessCount = 1320,
+    /// <summary>このエリアの進行ロールは×指定倍率倍される。</summary>
+    GainPhaseProgress = 1321,
+    /// <summary>指定値 目標値指定数で指定名を振りなおす事が出来る。</summary>
+    RerollProduction = 1322,
+    /// <summary>この効果に対してさらに振りなおしは不可。</summary>
+    NoFurtherReroll = 1323,
+    /// <summary>その際に失敗から成功へ変化したなら成果物のグレードは指定量される。</summary>
+    GradeOnChangedSuccess = 1324,
+    /// <summary>《指定名》によって採取するアイテムの個数は指定量される。</summary>
+    NamedSkillHarvestDelta = 1325,
+    /// <summary>《指定名》による達成値は×指定倍率倍される。</summary>
+    NamedSkillAchievementFactor = 1326,
+    /// <summary>《指定名》の消費が指定量される。</summary>
+    ConsumedItemQuantityDelta = 1327,
+    /// <summary>クリティカルを出した時、個数が指定量される。</summary>
+    BonusYieldOnCritical = 1328,
+    /// <summary>ダイス目を指定数つ「指定数」に固定できる。</summary>
+    FixDiceFaces = 1329,
+    /// <summary>生産したアイテムのグレードを指定量する。</summary>
+    IncreaseProducedGrade = 1330,
+    /// <summary>生産のダイスロール指定数回分の達成値を指定量しても良い。</summary>
+    OptionalProductionRollDelta = 1331,
+    /// <summary>自身の《指定名》状態を解除して、指定リソースを指定値回復する。</summary>
+    ReviveAndRecoverFlat = 1332,
+    /// <summary>自身のレベルに関わらず、適正レベル指定数～指定数のクエストによる指定名報酬を受け取ることが出来る。</summary>
+    ClaimQuestRewardsIgnoringLevel = 1333,
+    /// <summary>適正レベル指定数のクエストによる指定名報酬を受け取ることが出来る。</summary>
+    ClaimQuestRewardsAtLevel = 1334,
+    /// <summary>RPによって、相手からのメッセージを受け取った時、このアイテムは消費される。</summary>
+    ConsumeOnMessage = 1335,
+    /// <summary>このアイテムは所持品に装備していなくても、〈指定名〉から使用する事が出来る。</summary>
+    UseWithoutInventoryEquip = 1336,
+    /// <summary>このアイテムを所持している場合、味方キャラクターとして扱い戦闘に参加する。</summary>
+    JoinBattleWhileHeld = 1337,
+    /// <summary>このアイテムを所持している状態で《指定名》を使用した場合、グレードを☆指定数として扱っても良い。</summary>
+    TreatNamedItemAsGrade = 1338,
+    /// <summary>このカードを生贄に捧げる時、カード指定数枚分として扱うことができる。</summary>
+    SacrificeAsMultipleCards = 1339,
+    /// <summary>アイテムを所持している場合、すべてのクエストの救助費を半額にする。</summary>
+    HalveRescueFee = 1340,
+    /// <summary>アイテムを所持している場合、推奨レベル指定数以下のクエストの救助費を半額にする。</summary>
+    HalveRescueFeeBelowLevel = 1341,
+    /// <summary>サイズ指定名の所持品枠を指定数個分使ってサイズ指定名のアイテムを指定数つ追加で所持できる。</summary>
+    TradeInventorySlots = 1342,
+    /// <summary>このアイテムを所持してペットに騎乗している間、サイズ指定名のアイテムの所持数がそれぞれ指定量される。</summary>
+    MountedInventoryCapacity = 1343,
+    /// <summary>このアイテムを所持してペットに騎乗している間、環境効果《指定名》を受けない。</summary>
+    MountedEnvironmentImmunity = 1344,
+    /// <summary>自身が〈指定名〉を宣言した時、発動ロール指定数つの達成値を×指定倍率倍しても良い。</summary>
+    OptionalCategoryActivationScale = 1345,
+    /// <summary>自身が〈指定名〉及び〈指定名〉を宣言した時、自身の指定リソースを指定値回復する。</summary>
+    RestoreResourceOnEitherCategory = 1346,
+    /// <summary>設置されたハウジングエリアに訪れたキャラクターは、ハウジングエリアの所有者が設定した〈指定名〉アイテム、価格、在庫数から、買取取引を行うことができる。</summary>
+    ShopInHousing = 1347,
+    /// <summary>取引は所有者が別エリアにいる、または不在でも成立する。</summary>
+    AllowAbsentShopOwner = 1348,
+    /// <summary>スタックが指定数以上の時《指定名》状態となる。</summary>
+    BecomeStateAtStackCount = 1349,
+    /// <summary>自身が受ける指定リソース回復効果は指定倍率倍される。</summary>
+    IncomingHealingScale = 1350,
+    /// <summary>自身が発動する〈指定名〉の達成値は指定量される。</summary>
+    CategoryAchievementDelta = 1351,
+    /// <summary>自身の[指定名B]はスタック×指定倍率減少する。</summary>
+    AbilityReductionPerStack = 1352,
+    /// <summary>自身の〈指定名〉及び〈指定名〉の達成値は×指定値倍される。</summary>
+    PartyOrSelfRollStackScale = 1353,
+    /// <summary>〈指定名〉かつ〈指定名〉の威力は指定値加算される。</summary>
+    TwoCategoryFlatPower = 1354,
+    /// <summary>全ての能力値Bとリソース最大値は×指定倍率倍される。</summary>
+    AllAbilityAndResourceScale = 1355,
+    /// <summary>自身の属性値Bは×指定倍率倍される。</summary>
+    AllElementBonusScale = 1356,
+    /// <summary>自身のターン、行動と選択対象は付与者によって選択される。</summary>
+    ApplierControlsActions = 1357,
+    /// <summary>〈指定名〉によって自身の指定リソースが0になる時、《指定名》状態を解除して指定リソースが全回復する。</summary>
+    OnCategoryDepletionRecover = 1358,
+    /// <summary>自身は指定数の防御点を得る。</summary>
+    GainFlatDefense = 1359,
+    /// <summary>ターン開始時、自身の《指定名》状態を解除する。</summary>
+    RemoveNamedStateOnTurnStart = 1360,
+    /// <summary>自身の指定リソース及び指定リソース最大値は×指定倍率倍される。</summary>
+    ResourcePairMaximumScale = 1361,
+    /// <summary>自身の〈指定名〉スキルによる与ダメージは×指定倍率倍される。</summary>
+    SkillCategoryDamageFactor = 1362,
+    /// <summary>アイテムを指定名のアイテムとして扱える。</summary>
+    TreatAsNamedItem = 1100,
+    /// <summary>追加の行為判定に失敗すると自身に永続スタックを与える。</summary>
+    FailedCheckPermanentStacks = 1101,
+    /// <summary>追加の行為判定に成功すると指定の報酬を得る。</summary>
+    SuccessfulCheckReward = 1102,
+    /// <summary>このターンにアクティブ効果で消費する指定リソースの量に倍率をかける。</summary>
+    ActiveCostFactorThisTurn = 1103,
+    /// <summary>発動したアイテムを効果の適用時に指定個数消費する。</summary>
+    ConsumedItemCount = 1104,
+    /// <summary>次に達成する作業クエストの得点を加減する。</summary>
+    NextWorkQuestScore = 1105,
+    /// <summary>自身の種族が指定リストに含まれていれば指定リソースを回復する。</summary>
+    RestoreIfAnyRace = 1106,
+    /// <summary>次に指定名のスキルを使用するとき達成値に倍率をかける。</summary>
+    NextNamedSkillAchievementFactor = 1107,
+    /// <summary>最大値を超えた回復量を上限まで永続スタックに変換する。</summary>
+    ExcessRecoveryToStacks = 1108,
+    /// <summary>自身の指定カテゴリーの状態を上限個数まで選んで解除する。</summary>
+    ChooseStateCategoriesToRemove = 1109,
+    /// <summary>指定量の経験値と決意をそれぞれ得る。</summary>
+    GainProgressionRewards = 1110,
+    /// <summary>指定名のロール表を指定回数振る。</summary>
+    RollNamedTable = 1111,
+    /// <summary>自身の状態を選びスタック数を増加させる。</summary>
+    IncreaseSelectedStacks = 1112,
+    /// <summary>自身が指定カテゴリーを持つ場合に状態を付与する。</summary>
+    CategorySelfState = 1113,
+    /// <summary>自身が指定種族の場合に状態を付与する。</summary>
+    RaceSelfState = 1114,
+    /// <summary>指定回数だけ指定カテゴリーのクリティカルの出目を加減する。</summary>
+    NextCategoryCriticalDelta = 1115,
+    /// <summary>アクティブ効果によるリソース消費量を加減する。</summary>
+    ActiveCostOffset = 1116,
+    /// <summary>指定カテゴリーによるリソース消費量に倍率をかける。</summary>
+    CategoryResourceCostFactor = 1118,
+    /// <summary>指定カテゴリーのクエストで得る決意と経験値を加減する。</summary>
+    QuestCategoryRewardBonus = 1119,
+    /// <summary>同じ報酬補正の重複を認めず、元の経験値と決意が0の場合は加算しない。</summary>
+    NonStackingNonzeroRewards = 1120,
+    /// <summary>ターン開始時、自身のリソースをその最大値に対する割合で回復する。</summary>
+    PeriodicMaxResourceRecovery = 1121,
+    /// <summary>カウンターによって受けるリソースダメージに倍率をかける。</summary>
+    IncomingCounterResourceFactor = 1122,
+    /// <summary>毎ターン開始時に指定した状態のスタックを得る。</summary>
+    TurnStartNamedStacks = 1123,
+    /// <summary>スタック数に応じて指定カテゴリーのダメージとSANダメージを減少させる。</summary>
+    CategoryStackDamageMitigation = 1124,
+    /// <summary>指定カテゴリーの威力またはダメージとSANダメージの合計だけスタックを減らす。</summary>
+    LoseStacksByDamageAndSan = 1125,
+    /// <summary>指定リソースが減少する時に代わりに状態スタックを消費する。</summary>
+    SpendStacksInsteadOfResource = 1126,
+    /// <summary>自身の奇数または偶数ターンの開始時にリソースを得る。</summary>
+    ParityTurnStartResource = 1127,
+    /// <summary>指定名のスキルの目標値を固定する。</summary>
+    NamedSkillTargetValue = 1128,
+    /// <summary>指定スキルで得る指定状態のスタック数に倍率をかける。</summary>
+    NamedSkillStackMultiplier = 1129,
+    /// <summary>エリア移動条件と特殊エンカウントの判定達成値を加減する。</summary>
+    AreaMoveEncounterCheckBonus = 1130,
+    /// <summary>指定系統のクラススキルによる達成値に倍率をかける。</summary>
+    ClassFamilyCheckFactor = 1131,
+    /// <summary>指定属性で与える威力に倍率をかける。</summary>
+    OutgoingElementPowerFactor = 1132,
 }
 /// <summary>効果一つの種類と引数。適用元の名前・欄・発動条件は親データが保持する。</summary>
 [Serializable]

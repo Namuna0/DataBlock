@@ -85,6 +85,22 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^(数例[0-9]+：)([0-9]+),([0-9]{3})ジルダ", "$1$2$3ジルダ");
             line = RegexReplace(line, @"(数例[0-9]+：.+?,)  +", "$1 ");
             line = RegexReplace(line, @"^(任意の数字階段[0-9]+桁：)\s+", "$1");
+            if (i + 1 < lines.Count && M(line, @"敵に〈[^〉]+〉が含まれている場合。$").Success &&
+                lines[i + 1].StartsWith("味方全員の", StringComparison.Ordinal))
+                line = line.TrimEnd('。') + "、" + lines[++i].Trim();
+            if (line.Trim() == "このアイテムを所持していて、かつ自身がペットに騎乗している場合、以下の効果を受ける。" &&
+                i + 1 < lines.Count && lines[i + 1].TrimStart().StartsWith("・", StringComparison.Ordinal))
+            {
+                const string whileMounted = "このアイテムを所持してペットに騎乗している間、";
+                while (i + 1 < lines.Count && lines[i + 1].TrimStart().StartsWith("・", StringComparison.Ordinal))
+                {
+                    string effect = Unbullet(lines[++i].Trim());
+                    effect = RegexReplace(effect, @"^所持出来るサイズ(.+?)のアイテムの個数はそれぞれ", "サイズ$1のアイテムの所持数がそれぞれ");
+                    result.Add(whileMounted + effect.Replace("》による効果を受けない", "》を受けない"));
+                }
+                continue;
+            }
+            line = RegexReplace(line, @"^【宣言条件】次の([1-9][0-9]*)回、(〈[^〉]+〉による発動ロールの達成値は[+-][0-9]+される。?)$", "【アクティブ効果】次の$1回の$2");
             var reward = i + 1 < lines.Count ? RewardTableHeader(line, lines[i + 1].Trim()) : Match.Empty;
             if (reward.Success) line = "【アクティブ効果】報酬表〈" + reward.Groups[1].Value + "〉のダイスは" + reward.Groups[2].Value + "。";
             line = RegexReplace(line, @"^([0-9]+～[0-9]+)：《([^》]+)》×([0-9]+)$", "出目$1：《$2》×$3を獲得する。");
@@ -169,10 +185,16 @@ public static partial class SkillTextConverter
             line = RegexReplace(line, @"^- ([火水風電冷土])属性：対象に《([^》]+)》状態を([0-9]+)ターン付与します。$", "この攻撃が命中した時、自属性が$1属性なら対象に《$2》状態を$3ターン付与する。");
             line = RegexReplace(line, @"^- ([火水風電冷土])属性：対象の《([^》]+)》状態を解除します。$", "この攻撃が命中した時、自属性が$1属性なら対象の《$2》状態を解除する。");
             line = RegexReplace(line, @"^※自属性が存在しない時(.+?)のみの威力となる。$", "自属性が存在しない時、属性威力と自属性の追加効果を適用せず、$1のみの威力となる。");
+            int removalNote = line.IndexOf("。発動後《", StringComparison.Ordinal);
+            if (removalNote >= 0)
+            {
+                lines.Insert(i + 1, line.Substring(removalNote + 1));
+                line = line.Substring(0, removalNote + 1);
+            }
             var removal = M(line.Trim(), @"^発動後《([^》]+)》は除去される。$");
             if (removal.Success)
             {
-                Require(removal.Groups[1].Value == entity);
+                Require(removal.Groups[1].Value == entity || "設置された" + removal.Groups[1].Value == entity);
                 line = "【宣言効果】スキルの処理後にこの罠は除去される。";
             }
             var turn = M(line, @"戦闘開始([0-9]+)ターン目、");
@@ -314,7 +336,7 @@ public static partial class SkillTextConverter
     {
         int end = Array.FindIndex(source, line => M(line.Trim(), @"^―{8,}$").Success);
         string[] rules = end < 0 ? source : source.Take(end).ToArray();
-        rules = SplitCombatAndRoleplayRolls(rules);
+        rules = SplitCombatAndRoleplayRolls(NormalizeConsumableLines(rules));
         rules = NormalizeWrappedAppliedStateSentences(NormalizeWrappedEffectSentences(NormalizeWrappedMappings(
             NormalizeStructuralSkillLines(NormalizeCombinedResourceSentences(NormalizeCombinedStackSentences(rules))))));
         return end < 0 ? rules : rules.Concat(source.Skip(end)).ToArray();

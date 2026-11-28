@@ -45,6 +45,8 @@ public static partial class SkillTextConverter
 
     private static SkillTextData ParseOne(string source)
     {
+        if (source.IndexOf("【景品ロール】", StringComparison.Ordinal) >= 0 && ItemTextConverter.TryNormalizePrizeTable(source, out var prize))
+            source = prize;
         string[] lines = PrepareSkillLines(source.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n'));
         int start = 0, end = lines.Length - 1;
         while (start <= end && string.IsNullOrWhiteSpace(lines[start])) start++;
@@ -286,7 +288,17 @@ public static partial class SkillTextConverter
 
     private static void ReadCosts(SkillBody skill, string body)
     {
+        body = DataBlockText.GetRegex(@"クラス《([^》]+)》を習得している場合は([^、,。0-9]+)([0-9]+)消費[、,]\s*習得していない場合は\2([0-9]+)消費").Replace(body, match =>
+        {
+            var g = match.Groups;
+            AddOverride(skill.Overrides, EffectType.Declaration, NoTriggers(),
+                Change(EffectContentType.ResourceCostIfClassLearned, g[1].Value, g[2].Value, g[3].Value));
+            return g[2].Value + "-" + g[4].Value;
+        });
         body = RegexReplace(body, @"(?<=\d)\s+(?=[A-Z]+-)", ", ").Replace('、', ',');
+        // 括弧内に列挙された素材は、それぞれ末尾の個数を消費する。
+        body = DataBlockText.GetRegex(@"《([^《》]+,[^《》]+)》\s*[×x]\s*([1-9][0-9]*)").Replace(body, match =>
+            string.Join(", ", Split(match.Groups[1].Value, ",").Select(name => "《" + name + "》×" + match.Groups[2].Value)));
         foreach (string part in Split(body, ","))
         {
             var cost = new ResourceCost();
@@ -296,6 +308,18 @@ public static partial class SkillTextConverter
             { cost.Resource = m.Groups[1].Value; cost.Quantity = CostQuantity.LeaveRemaining; cost.Amount = Number(m.Groups[2].Value, 0, "残す量"); }
             else if ((m = M(part, @"^([A-Z]+)-(\([0-9]+\+\[[^\[\]。]+\]\*[0-9]+\))$")).Success)
             { cost.Resource = m.Groups[1].Value; cost.Quantity = CostQuantity.Formula; cost.Formula = m.Groups[2].Value; }
+            else if ((m = M(part, @"^((?:《[^》]+》または)+《[^》]+》)×([0-9]+)$")).Success)
+            {
+                cost.Kind = CostKind.ChoiceOfNamedItems;
+                cost.Resource = string.Join(", ", AllMatches(m.Groups[1].Value, @"《([^》]+)》").Cast<Match>().Select(x => x.Groups[1].Value));
+                cost.Amount = Number(m.Groups[2].Value, 1, "アイテム数");
+            }
+            else if ((m = M(part, @"^(エンカウント|スタンバイ)フェーズ$")).Success)
+            { cost.Kind = CostKind.PhaseAction; cost.Resource = part; cost.Amount = 1; }
+            else if ((m = M(part, @"^《([^》]+)》×([0-9]+)の奉納$")).Success)
+            { cost.Kind = CostKind.OfferedItem; cost.Resource = m.Groups[1].Value; cost.Amount = Number(m.Groups[2].Value, 1, "奉納数"); }
+            else if ((m = M(part, @"^自身を対象に採取した〈([^〉]+)〉×([0-9]+)$")).Success)
+            { cost.Kind = CostKind.SelfHarvestedItemCategory; cost.Resource = m.Groups[1].Value; cost.Amount = Number(m.Groups[2].Value, 1, "素材数"); }
             else if ((m = M(part, @"^(?:〈([^〉]+)〉|《([^》]+)》)(?:スタック-([0-9]+)|(全スタック消費))$")).Success)
             {
                 cost.Kind = m.Groups[1].Success ? CostKind.CategoryStack : CostKind.NamedStack;

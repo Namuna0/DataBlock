@@ -22,7 +22,8 @@ public static partial class SkillTextConverter
                 Require(Args(content.Parameters, 4, "ChooseCheckOutcome").SequenceEqual(new[] { "Target", "Critical", "Fumble", "Optional" }));
                 return "対象の行為判定をクリティカル、もしくはファンブルに変える事が出来る。";
             case EffectContentType.GrantItem:
-                p = Args(content.Parameters, 4, "GrantItem"); Require(p[0] == "Self" && p[3] != "Unspecified"); Number(p[2], 1, "個数");
+                p = Args(content.Parameters, 4, "GrantItem"); Require(p[0] == "Self"); Number(p[2], 1, "個数");
+                if (p[3] == "Unspecified") return "《" + p[1] + "》×" + p[2] + "を獲得。";
                 return "《" + p[1] + "》×" + p[2] + "を獲得。\nランクは☆×" + p[3] + "となる。";
             case EffectContentType.RemoveStatesByOrigin:
                 p = Args(content.Parameters, 3, "RemoveStatesByOrigin"); Require(p[0] == "Self" && p[1] == "Roll"); return p[2] + "ロールによる状態を解除する。";
@@ -199,7 +200,9 @@ public static partial class SkillTextConverter
             case EffectContentType.ApplySelectedSkillState:
                 p = Args(content.Parameters, 3, "ApplySelectedSkillState"); Require(p[0] == "SelectedSkill"); Number(p[2], 1, "持続ターン"); return "対象スキルを" + p[2] + "ターンの間《" + p[1] + "》状態にする。";
             case EffectContentType.ResourceDamage:
-                p = Args(content.Parameters, 3, "ResourceDamage"); Require(p[0] == "Target" || p[0] == "AllEnemies");
+                p = Args(content.Parameters, 3, "ResourceDamage");
+                if (p[0] == "Self") return "自身は" + p[2] + "の" + p[1] + "ダメージを受ける。";
+                Require(p[0] == "Target" || p[0] == "AllEnemies");
                 return (p[0] == "Target" ? "対象に" : "敵全体へ") + p[2] + "の" + p[1] + "ダメージを与える。";
             case EffectContentType.RestoreFromResourceDamage:
                 p = Args(content.Parameters, 5, "RestoreFromResourceDamage"); Require(p[0] == "Self" && p[4] == "ThisResolution"); PositiveModifierFactor(p[3]);

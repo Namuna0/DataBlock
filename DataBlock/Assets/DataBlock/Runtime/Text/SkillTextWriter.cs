@@ -10,7 +10,7 @@ public static partial class SkillTextConverter
     {
         Require(cost != null && cost.Amount >= 0);
         string n = Need(cost.Resource, "消費名");
-        Require(!M(n, @"[\r\n〈〉《》\[\]、]").Success && (!n.Contains(",") || (cost.Kind == CostKind.ItemName && n.Split(',').All(v => !string.IsNullOrWhiteSpace(v)))));
+        Require(!M(n, @"[\r\n〈〉《》\[\]、]").Success && (!n.Contains(",") || ((cost.Kind == CostKind.ItemName || cost.Kind == CostKind.ChoiceOfNamedItems) && n.Split(',').All(v => !string.IsNullOrWhiteSpace(v)))));
         int a = cost.Amount;
         Require(cost.Quantity == CostQuantity.Formula || string.IsNullOrEmpty(cost.Formula));
         Require(cost.Quantity == CostQuantity.DistinctNameRange || cost.Maximum == 0);
@@ -37,18 +37,24 @@ public static partial class SkillTextConverter
         switch (cost.Kind)
         {
             case CostKind.Resource: return n + "-" + a;
+            case CostKind.PhaseAction: Require(a == 1 && (n == "エンカウントフェーズ" || n == "スタンバイフェーズ")); return n;
+            case CostKind.OfferedItem: return "《" + n + "》×" + a + "の奉納";
             case CostKind.ItemName: return "《" + n + "》×" + a;
             case CostKind.ItemCategory: return "〈" + n + "〉×" + a;
             case CostKind.NamedStack: return "《" + n + "》スタック-" + a;
             case CostKind.CategoryStack: return "〈" + n + "〉スタック-" + a;
             case CostKind.SelectedItem: Require(n == "選択された所持品"); return "[" + n + "]-" + a;
             case CostKind.SelectedCategoryItem: return "選択する〈" + n + "〉-" + a;
+            case CostKind.ChoiceOfNamedItems:
+                var options = n.Split(','); Require(options.Length >= 2 && a > 0);
+                return string.Join("または", options.Select(v => "《" + v.Trim() + "》")) + "×" + a;
+            case CostKind.SelfHarvestedItemCategory: Require(a > 0); return "自身を対象に採取した〈" + n + "〉×" + a;
             case CostKind.Currency: Require(n == "ジルダ"); return a + n;
             default: throw new InvalidOperationException("未対応の消費種別です。");
         }
     }
 
-    private static void WriteConditions(StringBuilder sb, string label, ConditionSet set, bool declaration)
+    internal static void WriteConditions(StringBuilder sb, string label, ConditionSet set, bool declaration)
     {
         if (!ValidConditions(set)) throw new InvalidOperationException("条件集合が不正です。");
         if (set.And.Any(x => x.Type == ConditionType.IncapacitatedCheckReaction || x.Type == ConditionType.SelectCarriedWeapon)) Require(set.And.Count == 1 && set.Or.Count == 0);
@@ -182,6 +188,12 @@ public static partial class SkillTextConverter
         }
     }
     public static string Normalize(string text) { return string.Join("\n\n", InputBlocks(text).Select(x => Build(ParseOne(x)))); }
+    // 内包するスキルを、単体の再構築と同じセクション順で保存する。
+    internal static void OrderEmbeddedEffects(SkillBody body)
+    {
+        body.Effects = body.Effects.OrderBy(effect => Array.IndexOf(DisplayOrder, effect.Type)).ToList();
+    }
+
     public static string Build(SkillTextData data)
     {
         if (data == null || data.Skill == null || data.Summons == null || data.States == null || data.Skill.Choices == null || data.Skill.Choices.Any(x => x == null) || data.Summons.Any(x => x == null) || data.States.Any(x => x == null)) throw new InvalidOperationException("スキル・子スキル・召喚・状態がnullです。");

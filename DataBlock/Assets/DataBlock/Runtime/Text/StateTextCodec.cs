@@ -7,7 +7,7 @@ public static partial class SkillTextConverter
     internal static bool TryStateHeader(string line, out StateDefinition state, out string body, bool allowShorthand = false)
     {
         string text = Unbullet(line);
-        var header = M(text, @"^(?<name>[^・⚫【《：:〈〉]+?)効果(?<tags>(?:〈[^〉]+〉)*)(?:[：:]|(?<=〉)(?=自身))(?<body>.*)$");
+        var header = M(text, @"^(?<name>[^・⚫【《：:〈〉][^⚫【《：:〈〉]*?)効果(?<tags>(?:〈[^〉]+〉)*)(?:[：:]|(?<=〉)(?=自身))(?<body>.*)$");
         if (!header.Success && (allowShorthand || text.StartsWith("《", StringComparison.Ordinal)))
             header = M(text, @"^(?:《(?<name>[^》]+)》|(?<name>[^《【●：:〈〉]+?))(?:効果)?(?<tags>(?:〈[^〉]+〉)+|効果)(?:効果)?[：:](?<body>.*)$");
         if (header.Success && header.Groups["name"].Value != "効果")
@@ -54,6 +54,8 @@ public static partial class SkillTextConverter
         string source = Unbullet(text);
         source = RegexReplace(source, @"^(?:さらに、?)?自身が([A-Z]+)ダメージを受ける時、その\1ダメージは×([0-9.]+)倍される。?$", "自身が受ける$1ダメージは×$2倍される。");
         text = RegexReplace(source, @"^さらに[、]?\s*", "").TrimStart('*', '＊').Trim();
+        if (text.TrimEnd('。') == "自身はあらゆる行動を行えなくなる") text = "自身は行動を宣言する事が出来ない。";
+        if (text.TrimEnd('。') == "その後この効果は解除される") text = "効果適用後この効果は解除される。";
         text = NormalizeCombatEffect(text);
         text = RegexReplace(text, @"^自身の〈([^〉]+)〉(?:及び|および)〈([^〉]+)〉による達成値は×", "自身の〈$1, $2〉による達成値は×");
         text = RegexReplace(text, @"^再び付与者が《([^》]+)》発動する時", "再び付与者が《$1》を発動する時");
@@ -67,7 +69,7 @@ public static partial class SkillTextConverter
         text = RegexReplace(text, @"^自身の(〈[^〉]+〉)かつ(〈[^〉]+〉)による威力は", "自身は$1かつ$2による威力は");
         text = RegexReplace(text, @"^自身の([^,]+B, [^,]+B, [^,]+Bによる達成値は)([0-9.]+)倍", "自身の$1×$2倍");
         text = RegexReplace(text, @"^自身は(〈[^〉]+〉)を宣言する事はできない", "自身は$1を宣言する事は出来ない");
-        if (text.StartsWith("状態説明：", StringComparison.Ordinal) || M(text, @"^.+ような痛みが襲います。?$").Success)
+        if (text.StartsWith("状態説明：", StringComparison.Ordinal) || M(text, @"^(?:.+ような痛みが襲います|元気が湧いてくる)。?$").Success)
         {
             string description = text.StartsWith("状態説明：", StringComparison.Ordinal) ? text.Substring(5) : text;
             state.Effects.Add(new EffectDefinition { Type = EffectType.Roleplay,

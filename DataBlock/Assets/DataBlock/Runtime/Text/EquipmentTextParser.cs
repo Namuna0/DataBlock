@@ -84,7 +84,7 @@ public static partial class EquipmentTextConverter
                         break;
                     case "価値":
                         if (body.Length == 0) throw new InvalidOperationException("【価値】の値が空欄です。");
-                        ReadEquipmentValue(equipment, body);
+                        equipment.Value = ParseValue(body);
                         break;
                     case "装備部位":
                         equipment.EquipSlots = Split(body.Replace("、", ","), ",");
@@ -288,16 +288,15 @@ public static partial class EquipmentTextConverter
         }
     }
 
-    private static void ReadEquipmentValue(EquipmentDefinition equipment, string body)
+    internal static EquipmentValueDefinition ParseValue(string body)
     {
         if (body == "取引不可")
         {
-            equipment.Value = new EquipmentValueDefinition { Kind = EquipmentValueKind.Untradeable };
-            return;
+            return new EquipmentValueDefinition { Kind = EquipmentValueKind.Untradeable };
         }
         Match value = M(body, @"^(?:(?<quantity>[0-9]+)個で)?(?<amount>[0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?<currency>[^\s0-9,、]*)$");
         if (!value.Success) throw new InvalidOperationException("価値は432ジルダまたは取引不可の形式です。");
-        equipment.Value = new EquipmentValueDefinition
+        return new EquipmentValueDefinition
         {
             Kind = EquipmentValueKind.Currency,
             Amount = Number(value.Groups["amount"].Value.Replace(",", ""), 0, "価値"),

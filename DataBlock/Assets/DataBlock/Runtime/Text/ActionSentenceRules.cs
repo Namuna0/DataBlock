@@ -336,6 +336,7 @@ public static partial class SkillTextConverter
 
     private static void RegisterDeclarationRules(RuleSection rules)
     {
+        rules.AddOverride(EffectContentType.ResourceCostIfClassLearned, "クラス《{0}》を習得している場合、{1}の消費は{2}になる。", RuleNamePattern, RuleNamePattern, @"[0-9]+");
         rules.Add(EffectContentType.AlternateElementRollSuccess, "または{0}属性威力を含む〈{1}〉発動成功。", @"[火水風電冷土光闇雷炎]", RuleNamePattern);
         rules.AddOverride(EffectContentType.AreaTargetMultiplier, "エリアに〈{0}〉が含まれる時、目標値は×{1}倍される。", RuleNamePattern, RuleFactorPattern);
         rules.Including(EffectType.Passive).Add(EffectContentType.IncrementalPaymentBeforeActivation, "このスキルの消費リソースの{0}が足りない時、次回以降のターンの開始時に可能な限り{1}を支払い、不足分を支払いきる事で、アクティブ効果を発動できる。", RuleResourcePattern, RuleResourcePattern);

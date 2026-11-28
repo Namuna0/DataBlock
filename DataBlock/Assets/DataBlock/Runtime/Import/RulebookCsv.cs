@@ -25,6 +25,7 @@ public sealed class RulebookCell
 
     public string BuildText()
     {
+        if (Data is ItemTextData item) return ItemTextConverter.Build(item);
         if (Data is EnemyTextData enemy) return EnemyTextConverter.Build(enemy);
         if (Data is SkillTextData skill) return SkillTextConverter.Build(skill);
         if (Data is CharacterProfileData profile) return SkillTextConverter.BuildProfile(profile);
@@ -88,10 +89,11 @@ public static class RulebookCsv
         var lines = source.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n')
             .Select(s => s.Trim()).SkipWhile(s => s.Length == 0 || DataBlockText.OpeningFence(DataBlockText.NormalizeFenceLine(s)).Success)
             .TakeWhile(s => !s.StartsWith("――――――――", StringComparison.Ordinal)).ToArray();
-        if (lines.Length == 0 || !lines[0].StartsWith("《", StringComparison.Ordinal)) return null;
+        if (lines.Length == 0) return null;
+        bool prize = lines[0].StartsWith("-", StringComparison.Ordinal) && lines.Any(line => line.StartsWith("【景品ロール】", StringComparison.Ordinal));
         var title = DataBlockText.GetRegex(@"^《([^《》]+)》(☆[1-9][0-9]*)?$").Match(lines[0]);
-        if (!title.Success) return null;
-        string name = title.Groups[1].Value;
+        if (!title.Success && !prize) return null;
+        string name = prize ? lines[0].Trim('-').Trim() : title.Groups[1].Value;
         bool enemy = lines.Skip(1).FirstOrDefault(s => s.StartsWith("【", StringComparison.Ordinal))
             ?.StartsWith("【危険度】", StringComparison.Ordinal) == true;
         string filterText = enemy ? lines.Skip(1).FirstOrDefault(s => s.StartsWith("〈", StringComparison.Ordinal)) ?? "" : source;
@@ -99,15 +101,18 @@ public static class RulebookCsv
         bool profile = lines.Any(s => s.StartsWith("【種族能力値ボーナス】") || s.StartsWith("【クラス能力値】")) ||
                        lines.Skip(1).Take(1).Any(s => s == "〈種族〉" || s.StartsWith("〈種族,"));
         bool siege = lines.Skip(1).Take(1).Any(s => s == "〈兵器〉" || s.StartsWith("〈兵器,"));
-        bool equipment = !siege && !profile && lines.Skip(1).FirstOrDefault()?.StartsWith("〈", StringComparison.Ordinal) == true
-            && (lines.Any(line => line.StartsWith("【装備部位】") || line.StartsWith("【装備効果】")) ||
-                (lines.Any(line => line.StartsWith("【レアリティ】")) && lines.Any(line => line.StartsWith("【サイズ】"))));
-        if (!equipment && title.Groups[2].Success) return null;
-        if (!enemy && !equipment && IsSkillDraft(lines, profile || siege)) return null;
+        string categories = lines.Skip(1).FirstOrDefault(s => s.Length > 0) ?? "";
+        bool hasCategories = categories.StartsWith("〈", StringComparison.Ordinal);
+        bool equipment = hasCategories && (lines.Any(line => line.StartsWith("【装備部位】") || line.StartsWith("【装備効果】") || line.StartsWith("【武器威力】")) ||
+            DataBlockText.GetRegex(@"(?:^〈|[,、]\s*)(?:装備アイテム|投擲武器|ファミリアカード)(?=[,、〉])").IsMatch(categories));
+        bool itemRecord = hasCategories && lines.Any(line => line.StartsWith("【レアリティ】", StringComparison.Ordinal));
+        if (!equipment && !itemRecord && title.Groups[2].Success) return null;
+        if (!prize && !enemy && !equipment && !itemRecord && IsSkillDraft(lines, profile || siege)) return null;
         try
         {
             object data;
-            if (enemy) data = EnemyTextConverter.Parse(source);
+            if (prize) data = SkillTextConverter.Parse(source);
+            else if (enemy) data = EnemyTextConverter.Parse(source);
             else if (profile) data = SkillTextConverter.ParseProfile(source);
             else if (siege) data = SkillTextConverter.ParseSiegeWeapon(source);
             else if (equipment)
@@ -120,6 +125,7 @@ public static class RulebookCsv
                     definition.States.Count == 0 && definition.GradeAdjustments.Count == 0) return null;
                 data = item;
             }
+            else if (itemRecord) data = ItemTextConverter.Parse(source);
             else data = SkillTextConverter.Parse(source);
             return new RulebookCell(row, column, name, data, null);
         }

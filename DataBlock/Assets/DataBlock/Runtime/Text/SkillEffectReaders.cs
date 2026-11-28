@@ -46,8 +46,8 @@ public static partial class SkillTextConverter
             return Content(EffectContentType.RestoreOnAppliedState, "Self", m.Groups[1].Value, "Target", m.Groups[2].Value, m.Groups[3].Value, "MaximumPercent", m.Groups[4].Value);
         if (s.TrimEnd('。') == "対象の行為判定をクリティカル、もしくはファンブルに変える事が出来る")
             return Content(EffectContentType.ChooseCheckOutcome, "Target", "Critical", "Fumble", "Optional");
-        m = M(s, @"^《([^》]+)》×([0-9]+)を獲得。?$");
-        if (m.Success) return Content(EffectContentType.GrantItem, "Self", m.Groups[1].Value, m.Groups[2].Value, "Unspecified");
+        m = M(s, @"^《([^》]+)》(?:☆([1-9][0-9]*))?×([0-9]+)(?:を)?獲得。?$");
+        if (m.Success) return Content(EffectContentType.GrantItem, "Self", m.Groups[1].Value, m.Groups[3].Value, m.Groups[2].Success ? m.Groups[2].Value : "Unspecified");
         m = M(s, @"^(.+?)ロールによる状態を解除する。?$");
         if (m.Success) return Content(EffectContentType.RemoveStatesByOrigin, "Self", "Roll", m.Groups[1].Value);
         if (s.TrimEnd('。') == "対象へ選択したスキルをACT消費無しで宣言してもよい")
@@ -133,6 +133,7 @@ public static partial class SkillTextConverter
         string s = RegexReplace(text.Trim(), @"^さらに[、]?\s*", "");
         if (type == EffectType.Roleplay)
         {
+            if (ReadSemanticRule(skill, null, type, s)) return true;
             AddSkillEffect(skill, type, Content(EffectContentType.RoleplayDescription, Need(s, "ロールプレイ効果"))); return true;
         }
         Match m = M(s, @"^キャラクター作成時に((?:《[^》]+》)(?:及び《[^》]+》)*)習得不能。?$");
@@ -460,7 +461,7 @@ public static partial class SkillTextConverter
         if (m.Success) return Content(EffectContentType.AddQuestReward, "Self", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^対象スキルを([0-9]+)ターンの間《([^》]+)》状態にする。?$");
         if (m.Success) return Content(EffectContentType.ApplySelectedSkillState, "SelectedSkill", m.Groups[2].Value, m.Groups[1].Value);
-        m = M(s, @"^(対象|敵全体)(?:に|へ)(.+?)の([A-Z]+)ダメージを与える。?$");
+        m = M(s, @"^(対象|敵全体)(?:に|へ)(.+?)の((?:捕獲|釣り)?[A-Z]+)ダメージを与える。?$");
         if (m.Success) return Content(EffectContentType.ResourceDamage, m.Groups[1].Value == "対象" ? "Target" : "AllEnemies", m.Groups[3].Value, m.Groups[2].Value.Replace("×", "*"));
         m = M(s, @"^与えた([A-Z]+)ダメージの([0-9.]+)倍の値の([A-Z]+)を回復する。?$");
         if (m.Success) return Content(EffectContentType.RestoreFromResourceDamage, "Self", m.Groups[1].Value, m.Groups[3].Value, m.Groups[2].Value, "ThisResolution");

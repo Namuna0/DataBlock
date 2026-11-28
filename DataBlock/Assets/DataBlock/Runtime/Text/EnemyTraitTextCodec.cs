@@ -4,13 +4,13 @@ using System.Text.RegularExpressions;
 
 public static partial class EnemyTextConverter
 {
-    private static void AddTraits(EnemyDefinition enemy, IEnumerable<string> lines)
+    internal static void AddTraits(List<SkillTextData> traits, IEnumerable<string> lines)
     {
         string name = null;
         var body = new List<string>();
         void Add()
         {
-            if (name != null) enemy.Traits.Add(SkillTextConverter.Parse("《" + name + "》\n【パッシブ効果】\n" + NormalizeTraitStatements(body)));
+            if (name != null) traits.Add(SkillTextConverter.Parse("《" + name + "》\n【パッシブ効果】\n" + NormalizeTraitStatements(body)));
         }
         foreach (string raw in lines)
         {
@@ -30,7 +30,7 @@ public static partial class EnemyTextConverter
         Add();
     }
 
-    private static string TraitBodyText(SkillTextData trait)
+    internal static string TraitBodyText(SkillTextData trait)
     {
         string body = SkillBodyText(trait);
         int fields = body.IndexOf('\n');

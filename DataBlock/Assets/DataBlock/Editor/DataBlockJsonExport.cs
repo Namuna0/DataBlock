@@ -102,6 +102,11 @@ internal sealed class DataBlockJsonExport
                 States.Extract(equipment, "States", (string)equipment["Name"], row, column);
                 foreach (var skill in equipment["Skills"].AsArray()) SplitSkill(skill.AsObject());
                 break;
+            case ItemTextData _:
+                var item = root["Item"].AsObject();
+                foreach (var trait in item["Traits"].AsArray()) SplitSkill(trait.AsObject());
+                foreach (var skill in item["Skills"].AsArray()) SplitSkill(skill.AsObject());
+                break;
             case EnemyTextData _:
                 var enemy = root["Enemy"].AsObject();
                 foreach (var trait in enemy["Traits"].AsArray()) SplitSkill(trait.AsObject());
@@ -122,6 +127,7 @@ internal sealed class DataBlockJsonExport
             {
                 SkillTextData _ => "skill",
                 EnemyTextData _ => "enemy",
+                ItemTextData _ => "item",
                 EquipmentTextData _ => "equipment",
                 CharacterProfileData _ => "profile",
                 SiegeWeaponData _ => "siegeWeapon",

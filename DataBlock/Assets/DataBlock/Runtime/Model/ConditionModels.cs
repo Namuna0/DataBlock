@@ -11,6 +11,14 @@ public class ConditionSet
 /// <summary>習得・宣言・効果適用などの条件や対象の選び方を表す。人数、対象の状態、しきい値などは条件の引数で指定する。</summary>
 public enum ConditionType
 {
+    /// <summary>指定リソースの最大値が必要量以上である。</summary>
+    MinimumResourceCapacity = 400,
+    /// <summary>対象の生年月日と出身地の知識を必要とする。</summary>
+    KnowTargetBirthAndOrigin = 401,
+    /// <summary>条件に指定した称号を選ぶ。</summary>
+    SelectOwnedTitle = 402,
+    /// <summary>宣言者の現在地が町である。</summary>
+    InTownArea = 403,
     /// <summary>条件の種類が未指定であることを表す。</summary>
     None = 0,
     /// <summary>種族選択時に任意で習得できる。</summary>
@@ -506,7 +514,59 @@ public enum ConditionType
     /// <summary>特定の能力値を参照する行為判定でファンブルが出た時に成立する。</summary>
     StatCheckFumbled = 245,
     /// <summary>指定した季節のいずれかで、指定エリアにおいて収穫を行う時に成立する。</summary>
-    SeasonalHarvest = 246
+    SeasonalHarvest = 246,
+    /// <summary>《指定名》を指定数体選択。</summary>
+    SelectNamedCharacter = 450,
+    /// <summary>〈指定名〉いずれかのキャラクターを指定数体選択。</summary>
+    SelectCharacterOfCategories = 451,
+    /// <summary>《指定名》を所持しているキャラクターを指定数体選択。</summary>
+    SelectNamedItemHolder = 452,
+    /// <summary>《指定名》とのソロ戦闘で指定数ターン経過。</summary>
+    SoloBattleTurnElapsed = 453,
+    /// <summary>《指定名》との戦闘でダメージを与える。</summary>
+    DamageNamedCombatant = 454,
+    /// <summary>《指定名》との戦闘に単独勝利。</summary>
+    WinSoloAgainstNamed = 455,
+    /// <summary>称号〈指定名〉未取得。</summary>
+    LacksTitle = 456,
+    /// <summary>エリア《指定名》。</summary>
+    AtNamedArea = 457,
+    /// <summary>特殊行動《指定名》成功後。</summary>
+    SucceededSpecialAction = 458,
+    /// <summary>キャラクターが指定名内の〈指定名〉に居る事。</summary>
+    WithinRealmArea = 459,
+    /// <summary>パーティーメンバーが戦闘エリアに居る事。</summary>
+    PartyInBattleArea = 460,
+    /// <summary>戦闘中使用不可能。</summary>
+    OutsideBattleUse = 461,
+    /// <summary>レシピ指定名によって《指定名》を得る時。</summary>
+    RecipeProducedNamedItem = 462,
+    /// <summary>指定名の養牧に通常失敗した時。</summary>
+    NormalFailureHusbandry = 463,
+    /// <summary>自身または騎乗対象が〈指定名〉の対象になった時。</summary>
+    RiderOrMountTargeted = 464,
+    /// <summary>耐久指定数以上。</summary>
+    CurrentDurabilityAtLeast = 465,
+    /// <summary>自身の装備している〈指定名〉を1つ選択。</summary>
+    SelectedEquippedCategory = 466,
+    /// <summary>自身が消費リソースに《指定名》を含む《指定名》レシピを発動した時。</summary>
+    RecipeWithNamedMaterial = 467,
+    /// <summary>自身が港のある〈指定名〉に居る事。</summary>
+    AtHarborArea = 468,
+    /// <summary>港の行き先から〈指定名〉エリアを1つ選択。</summary>
+    SelectHarborDestination = 469,
+    /// <summary>設置者が自身と接近グループではないキャラクターから〈指定名〉の対象となった時、自動発動。</summary>
+    InstallerTargetedOutsideMelee = 470,
+    /// <summary>適正レベル指定数のクエストを達成した時。</summary>
+    QuestCompletedAtLevel = 471,
+    /// <summary>適正レベル指定数～指定数のクエストを達成した時。</summary>
+    QuestCompletedLevelRange = 472,
+    /// <summary>〈指定名〉により〈指定名〉アイテムを生産する時。</summary>
+    CraftCategoryWithTool = 473,
+    /// <summary>《指定名》を消費して〈指定名〉によりアイテムを生産する時。</summary>
+    CraftWithIngredientAndTool = 474,
+    /// <summary>《指定名》を消費して《指定名》アイテムを生産する時。</summary>
+    CraftCategoryWithIngredient = 475,
 }
 [Serializable]
 public class ConditionEntry

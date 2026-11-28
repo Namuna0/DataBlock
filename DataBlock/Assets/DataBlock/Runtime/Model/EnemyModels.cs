@@ -140,7 +140,13 @@ public enum EnemyActionConditionType
     /// <summary>直前の規則で対象を選べなかった場合。</summary>
     NoPriorTarget = 35,
     /// <summary>自身への一つの行為が、指定した二つのカテゴリーを両方持つ時に反応する。</summary>
-    IncomingBothCategories = 36
+    IncomingBothCategories = 36,
+    /// <summary>所有者が敵に指定カテゴリーの行為を発動した時に反応する。</summary>
+    OwnerActsOnEnemy = 37,
+    /// <summary>所有者が指定カテゴリーの行為の対象に選ばれた時に反応する。</summary>
+    OwnerTargeted = 38,
+    /// <summary>自身が指定状態になる時に反応する。</summary>
+    EnterOwnState = 39
 }
 
 /// <summary>行動対象を選ぶときに候補を絞り込む条件。</summary>
