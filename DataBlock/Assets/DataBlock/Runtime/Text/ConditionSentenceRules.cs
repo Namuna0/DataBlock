@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,6 +6,13 @@ public static partial class SkillTextConverter
 {
     private static readonly SkillTextRule[] ConditionRules =
     {
+        new SkillTextRule(ConditionType.RandomCharacters, "ランダムなキャラクター{0}体を選択して発動", RulePositivePattern),
+        new SkillTextRule(ConditionType.DistinctRandomCharacters, "ランダムなキャラクター{0}体を選択して発動（重複しない）", RulePositivePattern),
+        new SkillTextRule(ConditionType.DistinctRandomEnemies, "重複しない選択可能なランダムな敵{0}体を選択して発動", RulePositivePattern),
+        new SkillTextRule(ConditionType.SelectParty, "パーティー全体を選択して発動"),
+        new SkillTextRule(ConditionType.SelectRandomCategoryInParty, "パーティーに〈{0}〉が居るならランダムに〈{1}〉を{2}体を選択して発動", RuleNamePattern, RuleNamePattern, RulePositivePattern),
+        new SkillTextRule(ConditionType.FallbackRandomCharacters, "居ない場合はランダムにキャラクターを{0}体選択して発動", RulePositivePattern),
+        new SkillTextRule(ConditionType.OptionalCheckCancelsActivation, "対象は《{0}》目標値{1}の行為判定を行っても良い。成功した場合、発動は失敗になる", RuleNamePattern, RulePositivePattern),
         new SkillTextRule(ConditionType.MinimumResourceCapacity, "{0}最大値{1}以上", RuleResourcePattern, RulePositivePattern),
         new SkillTextRule(ConditionType.KnowTargetBirthAndOrigin, "対象の生年月日とバースプレイスを知っている事"),
         new SkillTextRule(ConditionType.SelectOwnedTitle, "称号《{0}》を選択", RuleNamePattern),
@@ -231,6 +238,9 @@ public static partial class SkillTextConverter
     {
         text = RegexReplace(text.Trim(), @"[,、]?\s*宣言可能。?\s*(?=$|[（(,、]|または)", "");
         text = RegexReplace(text, @"(選択|指定)して(?=$|[。、,（(）)]|または| または )", "$1");
+        text = RegexReplace(text, @"^ランダムにキャラクターを([0-9]+)体選択して発動", "ランダムなキャラクター$1体を選択して発動");
+        text = text.Replace("選択して発動。（重複しない）", "選択して発動（重複しない）")
+            .Replace("味方キャラクター全てを対象に宣言", "味方キャラクターを全体を選択");
         text = RegexReplace(text, @"時に(?=$|[。、,）)]| または )", "時");
         text = RegexReplace(text, @"選択。\s*(?=[（(]重複)", "選択");
         text = RegexReplace(text, @"所持している〈([^〉]+)〉を([0-9]+)つ選択(?:して)?", "所持している任意の〈$1〉アイテムを$2つ指定");

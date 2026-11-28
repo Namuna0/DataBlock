@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 [Serializable]
@@ -567,6 +567,20 @@ public enum ConditionType
     CraftWithIngredientAndTool = 474,
     /// <summary>《指定名》を消費して《指定名》アイテムを生産する時。</summary>
     CraftCategoryWithIngredient = 475,
+    /// <summary>キャラクターを無作為に指定数選ぶ。</summary>
+    RandomCharacters = 476,
+    /// <summary>重複を許さずキャラクターを無作為に指定数選ぶ。</summary>
+    DistinctRandomCharacters = 477,
+    /// <summary>選択できる敵から重複を許さず指定数を無作為に選ぶ。</summary>
+    DistinctRandomEnemies = 478,
+    /// <summary>パーティー全員を対象にする。</summary>
+    SelectParty = 479,
+    /// <summary>指定カテゴリーを含むパーティーではそのカテゴリーから指定数を無作為に選ぶ。</summary>
+    SelectRandomCategoryInParty = 480,
+    /// <summary>直前の条件に合う対象がいない場合にキャラクターを無作為に指定数選ぶ。</summary>
+    FallbackRandomCharacters = 481,
+    /// <summary>対象が任意の判定に成功した場合に発動を失敗にする。</summary>
+    OptionalCheckCancelsActivation = 482,
 }
 [Serializable]
 public class ConditionEntry

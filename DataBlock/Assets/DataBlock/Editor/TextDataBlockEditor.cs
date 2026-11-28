@@ -15,6 +15,7 @@ public abstract class TextDataBlockEditor<TData> : Editor where TData : class
     }
 
     protected abstract TData Data { get; set; }
+    protected virtual System.Collections.Generic.IEnumerable<string> Warnings(TData data) => Array.Empty<string>();
     protected abstract string RebuildLabel { get; }
     protected abstract string SetMessage { get; }
     protected abstract string Normalize(string text);
@@ -34,6 +35,7 @@ public abstract class TextDataBlockEditor<TData> : Editor where TData : class
         serializedObject.Update();
         DrawPropertiesExcluding(serializedObject, "m_Script");
         if (serializedObject.ApplyModifiedProperties()) JsonPreview = null;
+        foreach (string warning in Warnings(Data)) EditorGUILayout.HelpBox(warning, MessageType.Warning);
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("入力 / 出力テキスト", EditorStyles.boldLabel);
         if (_style == null) _style = new GUIStyle(EditorStyles.textArea) { wordWrap = true };

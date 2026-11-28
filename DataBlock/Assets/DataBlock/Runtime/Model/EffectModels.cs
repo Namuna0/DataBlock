@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -2392,6 +2392,28 @@ public enum EffectContentType
     ClassFamilyCheckFactor = 1131,
     /// <summary>指定属性で与える威力に倍率をかける。</summary>
     OutgoingElementPowerFactor = 1132,
+    /// <summary>指定したスタック数に応じて敵の指定特性を無効にする。</summary>
+    SuppressEnemyTraitAtStack = 1133,
+    /// <summary>無作為なキャラクターに指定式の威力で攻撃する。</summary>
+    RandomCharacterAttack = 1134,
+    /// <summary>重複を許し、無作為な対象へ指定回数リソースダメージを与える。</summary>
+    RepeatedRandomResourceDamage = 1135,
+    /// <summary>対象を現在のパーティーから離脱させ、新しいパーティーとする。</summary>
+    RemoveTargetFromParty = 1136,
+    /// <summary>対象をパーティーから外し進行ロールの達成回数を減らす。</summary>
+    LeavePartyAndLoseProgress = 1137,
+    /// <summary>指定分類以外の無作為なキャラクターのリソース最大値を割合で減らす。</summary>
+    ReduceMaxResourcesExceptCategories = 1138,
+    /// <summary>敵キャラクターに指定したどちらかのカテゴリーの宣言を義務付ける。</summary>
+    RequireEnemyDeclaration = 1139,
+    /// <summary>宣言が成功した時に宣言者へ指定した状態のスタックを付与する。</summary>
+    GiveDeclarerStacksOnSuccess = 1140,
+    /// <summary>指定数のキャラクターを選択し指定式の威力で攻撃する。</summary>
+    AttackChosenCharacters = 1141,
+    /// <summary>発動ロールの結果を参照して対象への連続攻撃を解決する。</summary>
+    RepeatAttackByActivationResult = 1142,
+    /// <summary>自身が指定属性のダメージを受け、二つの永続状態を得る。</summary>
+    SelfElementDamageAndPersistentStates = 1143,
 }
 /// <summary>効果一つの種類と引数。適用元の名前・欄・発動条件は親データが保持する。</summary>
 [Serializable]

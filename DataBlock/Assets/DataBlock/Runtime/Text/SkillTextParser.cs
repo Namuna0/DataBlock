@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
@@ -258,6 +258,19 @@ public static partial class SkillTextConverter
 
         bool ReadTable(string header, ref int index, StateDefinition owner)
         {
+            if (owner != null && header == StackTableHeader)
+            {
+                int start = index;
+                while (index < end)
+                {
+                    string tier = ReadStackTier(lines[index + 1]);
+                    if (tier == null) break;
+                    if (!ReadStateText(owner, tier)) throw new InvalidOperationException("未対応の段階効果です：" + tier);
+                    index++;
+                }
+                if (index == start) throw new InvalidOperationException("スタック段階の効果が必要です。");
+                return true;
+            }
             if (owner == null && (sections.Length == 0 || !sections.All(IsOrdinary))) return false;
             if (!CommonEffectRollTable.TryRead(header, lines, ref index, end, ReadInlineState, out var contents)) return false;
             if (owner != null) AddStateEffect(owner, NoTriggers(), contents.ToArray());
@@ -286,7 +299,7 @@ public static partial class SkillTextConverter
         return results.ToArray();
     }
 
-    private static void ReadCosts(SkillBody skill, string body)
+    internal static void ReadCosts(SkillBody skill, string body)
     {
         body = DataBlockText.GetRegex(@"クラス《([^》]+)》を習得している場合は([^、,。0-9]+)([0-9]+)消費[、,]\s*習得していない場合は\2([0-9]+)消費").Replace(body, match =>
         {

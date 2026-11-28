@@ -1,4 +1,4 @@
-public static partial class SkillTextConverter
+﻿public static partial class SkillTextConverter
 {
     private const string ElementSetPattern = @"[炎火水電冷氷風土地光闇雷](?:かつ[炎火水電冷氷風土地光闇雷])*";
     private const string OtherAttackScopePattern = @"全ての敵キャラクター|自身を除く全てのエンティティ";
@@ -7,6 +7,16 @@ public static partial class SkillTextConverter
 
     private static void RegisterCombatActionRules(RuleSection rules)
     {
+        rules.Add(EffectContentType.AttackChosenCharacters, AttackParts.Power, "キャラクターを{0}体選択して{1}の威力で攻撃する。", RulePositivePattern, ArithmeticPattern);
+        rules.Add(EffectContentType.RepeatAttackByActivationResult, "発動ロールの結果に応じて対象を連続攻撃する。");
+        rules.Add(EffectContentType.SelfElementDamageAndPersistentStates, "さらに自身は{0}の{1}属性のダメージを受ける、永続的に《{2}》かつ《{3}》状態になる。", ArithmeticPattern, ElementSetPattern, RuleNamePattern, RuleNamePattern);
+        rules.Add(EffectContentType.RandomCharacterAttack, AttackParts.Power, "ランダムなキャラクターに{0}の威力で攻撃する。", ArithmeticPattern);
+        rules.Add(EffectContentType.RepeatedRandomResourceDamage, "{0}回連続ランダムなキャラクターに{1}の{2}ダメージを与える。（重複する）", RulePositivePattern, ArithmeticPattern, RuleResourcePattern);
+        rules.Add(EffectContentType.RemoveTargetFromParty, "対象をパーティーから離脱させ、新しいパーティとして扱う。");
+        rules.Add(EffectContentType.LeavePartyAndLoseProgress, "対象はパーティーを外れ、進行ロールが-{0}される。", RulePositivePattern);
+        rules.Add(EffectContentType.ReduceMaxResourcesExceptCategories, "〈{0}〉を除くランダムなキャラクターの最大{1}と{2}を最大値の{3}%減少させる。", CategoryListPattern, RuleResourcePattern, RuleResourcePattern, RulePositivePattern);
+        rules.Add(EffectContentType.RequireEnemyDeclaration, "敵キャラクターは〈{0}〉または〈{1}〉を宣言しなければいけない。", RuleNamePattern, RuleNamePattern);
+        rules.Add(EffectContentType.GiveDeclarerStacksOnSuccess, "成功した時、宣言者は《{0}》スタックを{1}獲得する。", RuleNamePattern, RulePositivePattern);
         rules.Add(EffectContentType.NoEffect, "何もなし。");
         rules.Add(EffectContentType.RecoverPerTargetWhenResourceLow, "この効果の対象に{0}が{1}以下のキャラクターが含まれる場合、対象1体につき自身の{2}と{3}を{4}回復する。", RuleResourcePattern, @"-?[0-9]+", RuleResourcePattern, RuleResourcePattern, ArithmeticPattern);
         rules.Add(EffectContentType.ScaleResourceDamageAtTargetThreshold, "対象の{0}が{1}以下の場合、この攻撃による{2}ダメージは×{3}倍される。", RuleResourcePattern, @"-?[0-9]+", RuleResourcePattern, RuleFactorPattern);
@@ -105,6 +115,8 @@ public static partial class SkillTextConverter
         string source = text;
         string clause = RegexReplace(text, @"^(?:さらに|更に)[、]?\s*", "");
         text = clause;
+        text = RegexReplace(text, @"^(?:対象)?(?=[0-9]+(?:d[0-9]+)?[+*])(?=.+の(?:[^。]*属性)?威力で攻撃する。?$)", "対象を");
+        text = RegexReplace(text, @"^対象は永続的に《([^》]+)》状態になる。?$", "対象を永続的に《$1》状態にする。");
         text = RegexReplace(text, @"^対象を([1-9][0-9]*)回連続(?=[0-9(\[])", "対象を$1回連続で");
         text = RegexReplace(text, @"^対象(?:1体)?を威力(" + ArithmeticPattern + @")の威力で攻撃する。?$", "対象を$1の威力で攻撃する。");
         text = RegexReplace(text, @"^対象を(" + ArithmeticPattern + @")の(" + ElementSetPattern + @")属性威力と(" + ArithmeticPattern + @")の威力で攻撃する。?$",

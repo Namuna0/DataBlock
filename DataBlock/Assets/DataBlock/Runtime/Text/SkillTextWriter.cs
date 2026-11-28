@@ -6,7 +6,7 @@ using System.Text;
 
 public static partial class SkillTextConverter
 {
-    private static string CostText(ResourceCost cost)
+    internal static string CostText(ResourceCost cost)
     {
         Require(cost != null && cost.Amount >= 0);
         string n = Need(cost.Resource, "消費名");

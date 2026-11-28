@@ -28,6 +28,7 @@ public sealed class RulebookCell
 
     public string BuildText()
     {
+        if (Data is AreaTextData area) return AreaTextConverter.Build(area);
         if (Data is ItemTextData item) return ItemTextConverter.Build(item);
         if (Data is EnemyTextData enemy) return EnemyTextConverter.Build(enemy);
         if (Data is SkillTextData skill) return SkillTextConverter.Build(skill);
@@ -101,13 +102,14 @@ public static class RulebookCsv
             onExcluded?.Invoke(new RulebookCell(row, column, label, null, null, reason));
             return null;
         }
-        if (!title.Success && !prize)
+        bool area = AreaTextConverter.TryGetHeader(lines, out string areaName);
+        if (!area && !title.Success && !prize)
         {
             if (lines[0].StartsWith("《", StringComparison.Ordinal) && lines.Skip(1).Any(s => s.StartsWith("【")))
                 return Exclude(lines[0], "先頭の《名称》が空欄、または形式が不正です。");
             return null;
         }
-        string name = prize ? lines[0].Trim('-').Trim() : title.Groups[1].Value;
+        string name = area ? areaName : prize ? lines[0].Trim('-').Trim() : title.Groups[1].Value;
         var body = lines.Skip(1).Where(s => s.Length > 0);
         string categories = body.FirstOrDefault() ?? "";
         bool hasCategories = categories.StartsWith("〈", StringComparison.Ordinal);
@@ -125,7 +127,7 @@ public static class RulebookCsv
         bool itemRecord = hasCategories && lines.Any(line => line.StartsWith("【レアリティ】", StringComparison.Ordinal));
         if (!equipment && !itemRecord && title.Groups[2].Success)
             return Exclude(name, "グレード指定に対応する装備またはアイテムの項目がありません。");
-        if (!prize && !enemy && !equipment && !itemRecord)
+        if (!area && !prize && !enemy && !equipment && !itemRecord)
         {
             string reason = SkillDraftReason(lines, profile || siege);
             if (reason != null) return Exclude(name, reason);
@@ -133,7 +135,13 @@ public static class RulebookCsv
         try
         {
             object data;
-            if (prize) data = SkillTextConverter.Parse(source);
+            if (area)
+            {
+                if (!AreaTextConverter.HasEncounterRoll(source))
+                    return Exclude(name, "抽選を行うエンカウントロールがありません。");
+                data = AreaTextConverter.Parse(source);
+            }
+            else if (prize) data = SkillTextConverter.Parse(source);
             else if (enemy) data = EnemyTextConverter.Parse(source);
             else if (profile) data = SkillTextConverter.ParseProfile(source);
             else if (siege) data = SkillTextConverter.ParseSiegeWeapon(source);

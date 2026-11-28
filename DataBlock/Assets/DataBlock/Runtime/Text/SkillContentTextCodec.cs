@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -41,7 +41,7 @@ public static partial class SkillTextConverter
     {
         Match m = M(s, @"^(自身|対象)(?:に|へ|は)《([^》]+)》スタックを(.+?)(?:付与する|獲得する|得る)。?$");
         if (m.Success) return Content(EffectContentType.GainStack, ActorKey(m.Groups[1].Value), m.Groups[2].Value, StackAmount(m.Groups[3].Value));
-        m = M(s, @"^対象を(.+?)の威力\+(.+?)の属性威力で攻撃する。?$");
+        m = M(s, @"^対象を(.+?)の威力(?:\+|と)(.+?)の属性威力で攻撃する。?$");
         if (m.Success) return Content(EffectContentType.SkillAttack, "Target", "PowerAndAttribute", m.Groups[1].Value, m.Groups[2].Value);
         m = M(s, @"^対象の《([^》]+)》スタックをすべて消費して、被ダメージを×(.+?)倍増加する。?$");
         if (m.Success) return Content(EffectContentType.ConsumeStacksForDamage, "Target", m.Groups[1].Value, "All", m.Groups[2].Value, "ThisAttack");

@@ -115,6 +115,12 @@ internal sealed class DataBlockJsonExport
                 foreach (var trait in item["Traits"].AsArray()) SplitSkill(trait.AsObject());
                 foreach (var skill in item["Skills"].AsArray()) SplitSkill(skill.AsObject());
                 break;
+            case AreaTextData area:
+                AreaTextConverter.ValidateEventReferences(area);
+                States.Extract(root, "States", (string)root["Area"]["Name"], row, column);
+                foreach (var encounter in root["Events"].AsArray())
+                    SplitSkill(encounter["Action"].AsObject());
+                break;
             case EnemyTextData _:
                 var enemy = root["Enemy"].AsObject();
                 foreach (var trait in enemy["Traits"].AsArray()) SplitSkill(trait.AsObject());
@@ -133,6 +139,7 @@ internal sealed class DataBlockJsonExport
         {
             string kind = cell.Data switch
             {
+                AreaTextData _ => "area",
                 SkillTextData _ => "skill",
                 EnemyTextData _ => "enemy",
                 ItemTextData _ => "item",

@@ -2,6 +2,7 @@ public static partial class SkillTextConverter
 {
     private static void RegisterStateRules(RuleSection rules)
     {
+        rules.Add(EffectContentType.SuppressEnemyTraitAtStack, "スタック数{0}：敵の特性《{1}》を無効にする。", RulePositivePattern, RuleNamePattern);
         rules.Add(EffectContentType.ApplierAlwaysSucceedsOnCategory, "バフの付与者が自身を対象に〈{0}〉を宣言する時、発動ロールは達成値とダイス目に関わらず成功扱いとなる。", RuleNamePattern);
         rules.Add(EffectContentType.DenyEffectAndStateRemoval, "自身は〈{0}〉効果も《{1}》状態の解除も受ける事は出来ない。", RuleNamePattern, RuleNamePattern);
         rules.Add(EffectContentType.ScaleSummonedCharacterStat, "自身の召喚するキャラクターの{0}は{1}倍される。", RuleNamePattern, RuleFactorPattern);

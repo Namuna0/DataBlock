@@ -1,9 +1,17 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 public static partial class SkillTextConverter
 {
+    internal const string StackTableHeader = "スタックに応じて次の効果を得る。";
+
+    internal static string ReadStackTier(string line)
+    {
+        var tier = M(line.Trim(), @"^[-・]?\s*([0-9]+)[：:]\s*(.+)$");
+        return tier.Success ? "スタック数" + tier.Groups[1].Value + "：" + tier.Groups[2].Value : null;
+    }
+
     internal static bool TryStateHeader(string line, out StateDefinition state, out string body, bool allowShorthand = false)
     {
         string text = Unbullet(line);
